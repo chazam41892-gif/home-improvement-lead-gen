@@ -32,6 +32,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector,
     data object Appointments : Screen("appointments", "Appointments", Icons.Outlined.Event, Icons.Filled.Event)
     data object TradeDiscovery : Screen("trade_discovery", "Discover", Icons.Outlined.Explore, Icons.Filled.Explore)
     data object Revenue : Screen("revenue", "Revenue", Icons.Outlined.TrendingUp, Icons.Filled.TrendingUp)
+    data object Vault : Screen("vault", "Key Vault", Icons.Outlined.Lock, Icons.Filled.Lock)
+    data object Enrichment : Screen("enrichment", "Enrichment", Icons.Outlined.Psychology, Icons.Filled.Psychology)
     data object TradeConvert : Screen("trade_convert/{businessName}/{phone}/{email}", "Convert", Icons.Outlined.SwapHoriz, Icons.Filled.SwapHoriz) {
         fun createRoute(businessName: String, phone: String, email: String) =
             "trade_convert/$businessName/$phone/$email"
@@ -51,6 +53,8 @@ val moreNavItems = listOf(
     Screen.Ads,
     Screen.TradeDiscovery,
     Screen.Revenue,
+    Screen.Vault,
+    Screen.Enrichment,
     Screen.Settings,
 )
 
@@ -135,6 +139,12 @@ fun AppNavigation() {
             }
             composable(Screen.Appointments.route) {
                 NurtureScreen()
+            }
+            composable(Screen.Vault.route) {
+                VaultScreen(navController = navController)
+            }
+            composable(Screen.Enrichment.route) {
+                EnrichmentScreen(navController = navController)
             }
         }
     }

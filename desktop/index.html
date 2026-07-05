@@ -449,6 +449,18 @@
     .discover-section-title {
       font-size: 16px; font-weight: 600; margin: 20px 0 12px; align-self: flex-start;
     }
+    .enrich-result {
+      background: #0a0a0f;
+      border: 1px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #a5b4fc;
+    }
   </style>
 </head>
 <body>
@@ -462,6 +474,8 @@
       <button class="nav-link active" data-page="dashboard">Dashboard</button>
       <button class="nav-link" data-page="trades">Trade Discovery</button>
       <button class="nav-link" data-page="revenue">Revenue</button>
+      <button class="nav-link" data-page="vault">Key Vault</button>
+      <button class="nav-link" data-page="enrich">Enrichment</button>
     </div>
   </nav>
 
@@ -572,6 +586,75 @@
           <span class="stat-label">Total Revenue</span>
           <span class="stat-value" id="revTotalRevenueBig">-</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-vault">
+    <div class="container" style="max-width:720px;width:100%;align-items:stretch;">
+      <h2 style="font-size:22px;font-weight:700;align-self:flex-start;">Key Vault</h2>
+      <p style="color:#64748b;font-size:13px;margin-bottom:12px;align-self:flex-start;">Securely store and manage API keys for external services.</p>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;width:100%;margin-bottom:16px;">
+        <div class="form-group" style="flex:2;min-width:180px;">
+          <label>Service Name</label>
+          <input type="text" id="vaultServiceInput" placeholder="e.g., google_maps, yelp" />
+        </div>
+        <div class="form-group" style="flex:3;min-width:240px;">
+          <label>API Key</label>
+          <input type="password" id="vaultKeyInput" placeholder="Paste your API key" />
+        </div>
+        <button class="launch-btn" id="addVaultKeyBtn" style="padding:10px 24px;font-size:14px;margin-top:18px;">Add Key</button>
+      </div>
+
+      <div style="width:100%;">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Key</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="vaultKeysBody">
+            <tr><td colspan="3" class="load-text">Loading keys...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-enrich">
+    <div class="container" style="max-width:720px;width:100%;align-items:stretch;">
+      <h2 style="font-size:22px;font-weight:700;align-self:flex-start;">Enrichment Engine</h2>
+      <p style="color:#64748b;font-size:13px;margin-bottom:12px;align-self:flex-start;">Enrich a lead with additional data from external providers.</p>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;width:100%;">
+        <div class="form-group" style="flex:2;min-width:180px;">
+          <label>Business Name</label>
+          <input type="text" id="enrichBusinessInput" placeholder="Business name" />
+        </div>
+        <div class="form-group" style="flex:1;min-width:140px;">
+          <label>Trade</label>
+          <select class="form-select" id="enrichTradeSelect">
+            <option value="Electrician">Electrician</option>
+            <option value="Plumber">Plumber</option>
+            <option value="HVAC">HVAC</option>
+            <option value="Roofer">Roofer</option>
+            <option value="Landscaper">Landscaper</option>
+            <option value="Painter">Painter</option>
+            <option value="General Contractor">General Contractor</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1;min-width:140px;">
+          <label>Location</label>
+          <input type="text" id="enrichLocationInput" placeholder="City, State" />
+        </div>
+        <button class="launch-btn" id="enrichBtn" style="padding:10px 24px;font-size:14px;margin-top:18px;">Enrich</button>
+      </div>
+
+      <div id="enrichResults" style="width:100%;margin-top:16px;">
+        <div class="empty-text">Enter details and click Enrich to see results</div>
       </div>
     </div>
   </div>
@@ -827,6 +910,9 @@
         if (link.dataset.page === 'trades' || link.dataset.page === 'revenue') {
           loadRevenueSummary();
         }
+        if (link.dataset.page === 'vault') {
+          loadVaultKeys();
+        }
       });
     });
 
@@ -941,6 +1027,91 @@
     document.getElementById('locationInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') discoverLeads();
     });
+
+    async function loadVaultKeys() {
+      const body = document.getElementById('vaultKeysBody');
+      if (!body) return;
+      body.innerHTML = '<tr><td colspan="3" class="load-text">Loading vault keys...</td></tr>';
+      try {
+        const res = await invoke('get_vault_keys');
+        const data = JSON.parse(res);
+        if (data.keys && data.keys.length > 0) {
+          body.innerHTML = data.keys.map(k => `
+            <tr>
+              <td>${escHtml(k.service || 'Unknown')}</td>
+              <td>${escHtml(maskKey(k.key || ''))}</td>
+              <td>
+                <button class="convert-btn" data-service="${escHtml(k.service)}">Delete</button>
+              </td>
+            </tr>
+          `).join('');
+          body.querySelectorAll('.convert-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Delete key for ' + btn.dataset.service + '?')) return;
+              try {
+                await invoke('delete_vault_key', { service: btn.dataset.service });
+                loadVaultKeys();
+              } catch (e) {
+                alert('Delete failed: ' + e);
+              }
+            });
+          });
+        } else {
+          body.innerHTML = '<tr><td colspan="3" class="empty-text">No keys stored</td></tr>';
+        }
+      } catch (e) {
+        body.innerHTML = '<tr><td colspan="3" class="err-text">Failed to load keys: ' + escHtml(String(e)) + '</td></tr>';
+      }
+    }
+
+    function maskKey(key) {
+      if (!key || key.length <= 8) return '****';
+      return key.slice(0, 4) + '****' + key.slice(-4);
+    }
+
+    document.getElementById('addVaultKeyBtn')?.addEventListener('click', async () => {
+      const service = document.getElementById('vaultServiceInput').value.trim();
+      const key = document.getElementById('vaultKeyInput').value.trim();
+      if (!service || !key) { alert('Please fill in both fields'); return; }
+      try {
+        await invoke('set_vault_key', { service, key });
+        document.getElementById('vaultServiceInput').value = '';
+        document.getElementById('vaultKeyInput').value = '';
+        loadVaultKeys();
+      } catch (e) {
+        alert('Failed to save key: ' + e);
+      }
+    });
+
+    async function enrichCurrentLead() {
+      const businessName = document.getElementById('enrichBusinessInput').value.trim();
+      const trade = document.getElementById('enrichTradeSelect').value;
+      const location = document.getElementById('enrichLocationInput').value.trim();
+      if (!businessName || !location) { alert('Please fill in business name and location'); return; }
+
+      const btn = document.getElementById('enrichBtn');
+      btn.disabled = true;
+      btn.textContent = 'Enriching...';
+      const resultsEl = document.getElementById('enrichResults');
+      resultsEl.innerHTML = '<div class="load-text">Enriching lead...</div>';
+
+      try {
+        const res = await fetch(`http://localhost:${currentPort}/api/enrich/lead`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ business_name: businessName, trade, location })
+        });
+        const data = await res.json();
+        resultsEl.innerHTML = `<pre class="enrich-result">${escHtml(JSON.stringify(data, null, 2))}</pre>`;
+      } catch (e) {
+        resultsEl.innerHTML = '<div class="err-text">Enrichment failed: ' + escHtml(String(e)) + '</div>';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enrich';
+      }
+    }
+
+    document.getElementById('enrichBtn')?.addEventListener('click', enrichCurrentLead);
 
     refreshStatus();
     loadSettings();

@@ -88,4 +88,30 @@ interface ApiService {
 
     @GET("api/trades/revenue")
     suspend fun getRevenue(): Response<RevenueResponse>
+
+    // ─── Key Vault ───
+    @GET("api/vault/keys")
+    suspend fun getVaultKeys(): Response<Map<String, VaultService>>
+
+    @POST("api/vault/keys/{service}")
+    suspend fun setVaultKey(
+        @Path("service") service: String,
+        @Body body: Map<String, String>
+    ): Response<VaultSetResponse>
+
+    @DELETE("api/vault/keys/{service}")
+    suspend fun deleteVaultKey(@Path("service") service: String): Response<VaultSetResponse>
+
+    // ─── Enrichment ───
+    @GET("api/enrich/providers")
+    suspend fun getEnrichProviders(): Response<EnrichProvidersResponse>
+
+    @POST("api/enrich/lead")
+    suspend fun enrichLead(@Body request: EnrichRequest): Response<EnrichResponse>
+
+    @POST("api/enrich/batch")
+    suspend fun enrichBatch(@Body request: BatchEnrichRequest): Response<BatchEnrichResponse>
+
+    @GET("api/enrich/from-lead/{leadId}")
+    suspend fun enrichFromLead(@Path("leadId") leadId: String): Response<EnrichFromLeadResponse>
 }

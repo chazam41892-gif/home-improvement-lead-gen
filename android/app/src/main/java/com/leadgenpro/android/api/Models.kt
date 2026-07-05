@@ -302,3 +302,97 @@ data class RevenueStats(
     @SerializedName("monthly_recurring_revenue") val monthlyRecurringRevenue: Double = 0.0,
     @SerializedName("average_revenue_per_account") val averageRevenuePerAccount: Double = 0.0
 )
+
+// ─── Key Vault Models ───
+data class VaultResponse(
+    val services: Map<String, VaultService> = emptyMap()
+)
+
+data class VaultService(
+    val doc: String = "",
+    val url: String = "",
+    @SerializedName("env_var") val envVar: String = "",
+    val configured: Boolean = false,
+    val keys: List<VaultKey> = emptyList()
+)
+
+data class VaultKey(
+    val label: String = "",
+    val source: String = "",
+    val masked: String = ""
+)
+
+data class VaultSetResponse(
+    val ok: Boolean = false,
+    val service: String = "",
+    val label: String = ""
+)
+
+// ─── Enrichment Models ───
+data class EnrichProvidersResponse(
+    val providers: List<EnrichProvider> = emptyList(),
+    val available: Boolean = false
+)
+
+data class EnrichProvider(
+    val name: String = "",
+    val available: Boolean = false
+)
+
+data class EnrichRequest(
+    @SerializedName("business_name") val businessName: String,
+    val trade: String,
+    val location: String = "",
+    val website: String? = null,
+    val phone: String? = null
+)
+
+data class EnrichResponse(
+    @SerializedName("business_name") val businessName: String = "",
+    val trade: String = "",
+    @SerializedName("contact_name") val contactName: String? = null,
+    val title: String? = null,
+    val phone: String? = null,
+    val email: String? = null,
+    val address: String? = null,
+    val city: String? = null,
+    val state: String? = null,
+    val zip: String? = null,
+    val website: String? = null,
+    @SerializedName("employee_count") val employeeCount: Int? = null,
+    val revenue: String? = null,
+    @SerializedName("year_founded") val yearFounded: Int? = null,
+    val sources: List<String> = emptyList(),
+    val confidence: Double = 0.0,
+    val error: String? = null
+)
+
+data class BatchEnrichRequest(
+    val leads: List<EnrichRequest> = emptyList()
+)
+
+data class BatchEnrichResponse(
+    val total: Int = 0,
+    val results: List<EnrichResponse> = emptyList()
+)
+
+data class EnrichFromLeadResponse(
+    @SerializedName("lead_id") val leadId: String = "",
+    @SerializedName("business_name") val businessName: String = "",
+    val trade: String = "",
+    @SerializedName("contact_name") val contactName: String? = null,
+    val title: String? = null,
+    val phone: String? = null,
+    val email: String? = null,
+    val address: String? = null,
+    val city: String? = null,
+    val state: String? = null,
+    val zip: String? = null,
+    val website: String? = null,
+    @SerializedName("employee_count") val employeeCount: Int? = null,
+    val revenue: String? = null,
+    @SerializedName("year_founded") val yearFounded: Int? = null,
+    val sources: List<String> = emptyList(),
+    val confidence: Double = 0.0,
+    val error: String? = null
+)

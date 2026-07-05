@@ -64,6 +64,45 @@ export async function fetchRevenue() {
   return res.json();
 }
 
+export async function getVaultKeys() {
+  return invoke('get_vault_keys');
+}
+
+export async function setVaultKey(service, key) {
+  return invoke('set_vault_key', { service, key });
+}
+
+export async function deleteVaultKey(service) {
+  return invoke('delete_vault_key', { service });
+}
+
+export async function getEnrichProviders() {
+  return invoke('get_enrich_providers');
+}
+
+export async function enrichLead(businessName, trade, location) {
+  return invoke('enrich_lead', { businessName, trade, location });
+}
+
+export async function fetchVaultKeys() {
+  const res = await fetch(`${API_BASE}/api/vault/keys`);
+  return res.json();
+}
+
+export async function fetchEnrichProviders() {
+  const res = await fetch(`${API_BASE}/api/enrich/providers`);
+  return res.json();
+}
+
+export async function postEnrichLead(businessName, trade, location) {
+  const res = await fetch(`${API_BASE}/api/enrich/lead`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ business_name: businessName, trade, location })
+  });
+  return res.json();
+}
+
 listen('server-status', (event) => {
   window.dispatchEvent(new CustomEvent('server-status', { detail: event.payload }));
 });

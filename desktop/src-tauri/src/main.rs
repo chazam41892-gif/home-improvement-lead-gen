@@ -184,6 +184,70 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+async fn get_vault_keys(settings: State<'_, Mutex<ServerSettings>>) -> Result<String, String> {
+    let port = settings.lock().map_err(|e| e.to_string())?.port;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("http://localhost:{}/api/vault/keys", port))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    resp.text().await.map_err(|e| format!("Read failed: {}", e))
+}
+
+#[tauri::command]
+async fn set_vault_key(service: String, key: String, settings: State<'_, Mutex<ServerSettings>>) -> Result<String, String> {
+    let port = settings.lock().map_err(|e| e.to_string())?.port;
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({"key": key});
+    let resp = client
+        .post(format!("http://localhost:{}/api/vault/keys/{}", port, service))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    resp.text().await.map_err(|e| format!("Read failed: {}", e))
+}
+
+#[tauri::command]
+async fn delete_vault_key(service: String, settings: State<'_, Mutex<ServerSettings>>) -> Result<String, String> {
+    let port = settings.lock().map_err(|e| e.to_string())?.port;
+    let client = reqwest::Client::new();
+    let resp = client
+        .delete(format!("http://localhost:{}/api/vault/keys/{}", port, service))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    resp.text().await.map_err(|e| format!("Read failed: {}", e))
+}
+
+#[tauri::command]
+async fn get_enrich_providers(settings: State<'_, Mutex<ServerSettings>>) -> Result<String, String> {
+    let port = settings.lock().map_err(|e| e.to_string())?.port;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("http://localhost:{}/api/enrich/providers", port))
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    resp.text().await.map_err(|e| format!("Read failed: {}", e))
+}
+
+#[tauri::command]
+async fn enrich_lead(business_name: String, trade: String, location: String, settings: State<'_, Mutex<ServerSettings>>) -> Result<String, String> {
+    let port = settings.lock().map_err(|e| e.to_string())?.port;
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({"business_name": business_name, "trade": trade, "location": location});
+    let resp = client
+        .post(format!("http://localhost:{}/api/enrich/lead", port))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+    resp.text().await.map_err(|e| format!("Read failed: {}", e))
+}
+
 fn main() {
     let settings = Mutex::new(ServerSettings::default());
 
@@ -254,6 +318,11 @@ fn main() {
             get_revenue,
             check_update,
             install_update,
+            get_vault_keys,
+            set_vault_key,
+            delete_vault_key,
+            get_enrich_providers,
+            enrich_lead,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
