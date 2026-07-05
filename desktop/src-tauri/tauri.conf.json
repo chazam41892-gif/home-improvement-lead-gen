@@ -14,8 +14,7 @@
       "all": false,
       "shell": { "all": false, "open": true },
       "dialog": { "all": true, "save": true, "open": true },
-      "fs": { "all": false, "scope": [] },
-      "updater": { "all": true }
+      "fs": { "all": false, "scope": [] }
     },
     "bundle": {
       "active": true,

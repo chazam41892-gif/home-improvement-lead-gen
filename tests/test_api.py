@@ -115,3 +115,101 @@ def test_leads_pagination(client):
     assert "returned" in data
     assert "offset" in data
     assert "limit" in data
+
+
+def test_vault_list_keys(client):
+    resp = client.get("/api/vault/keys")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, dict)
+    assert "exa" in data
+    assert "anthropic" in data
+    assert "stripe_secret" in data
+
+
+def test_vault_set_and_delete_key(client):
+    resp = client.post("/api/vault/keys/exa", json={"key": "test_key_abc123"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["service"] == "exa"
+
+    resp = client.post("/api/vault/keys/unknown_service", json={"key": "test"})
+    assert resp.status_code == 400
+    data = resp.json()
+    assert "error" in data
+
+    resp = client.delete("/api/vault/keys/exa")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+
+    resp = client.delete("/api/vault/keys/unknown_service")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is False
+
+
+def test_vault_delete_nonexistent(client):
+    resp = client.delete("/api/vault/keys/clearbit")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is False
+
+
+def test_enrich_providers(client):
+    resp = client.get("/api/enrich/providers")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, dict)
+    assert "providers" in data
+    assert "available" in data
+    names = [p["name"] for p in data["providers"]]
+    assert "exa_enricher" in names
+
+
+def test_enrich_lead_missing_params(client):
+    resp = client.post("/api/enrich/lead", json={})
+    assert resp.status_code == 400
+
+
+def test_enrich_lead(client):
+    resp = client.post("/api/enrich/lead", json={
+        "business_name": "Test Plumbing Co",
+        "trade": "plumbing",
+        "location": "Austin, TX",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "business_name" in data
+    assert "confidence" in data
+
+
+def test_enrich_batch(client):
+    resp = client.post("/api/enrich/batch", json={
+        "leads": [
+            {"business_name": "Plumber One", "trade": "plumbing", "location": "Austin, TX"},
+            {"business_name": "Electrician One", "trade": "electrical", "location": "Austin, TX"},
+        ]
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, dict)
+    assert "results" in data
+    assert "total" in data
+    assert len(data["results"]) == 2
+    for item in data["results"]:
+        assert "business_name" in item
+
+
+def test_enrich_from_lead_not_found(client):
+    resp = client.get("/api/enrich/from-lead/nonexistent_123")
+    assert resp.status_code == 404
+    data = resp.json()
+    assert "error" in data or "detail" in data
+
+
+def test_vault_page_served(client):
+    resp = client.get("/vault")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]

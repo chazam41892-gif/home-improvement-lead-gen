@@ -1053,11 +1053,7 @@ async def enrich_batch(request: Request):
 @app.get("/api/enrich/from-lead/{lead_id}")
 async def enrich_from_lead(lead_id: str, request: Request):
     verify_api_key(request)
-    lead = None
-    for l in leads_db:
-        if l.get("id") == lead_id:
-            lead = l
-            break
+    lead = engine.get_lead_by_id(lead_id)
     if not lead:
         raise HTTPException(404, "Lead not found")
     orch = _get_enrich_orch()

@@ -25,7 +25,15 @@ Thumbs.db
 # Project data (user-generated)
 data/*.jsonl
 data/*.csv
-data/key_vault.json
+data/*.json
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/dist/
+*.msi
+*.exe
+*.dmg
+*.AppImage
+*.deb
 
 # Test artifacts
 .pytest_cache/

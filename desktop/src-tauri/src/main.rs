@@ -3,7 +3,7 @@
 
 use std::process::{Child, Command};
 use std::sync::Mutex;
-use tauri::{Manager, State};
+use tauri::{Manager, State, SystemTrayEvent};
 use serde::{Serialize, Deserialize};
 
 struct ServerProcess(Mutex<Option<Child>>);
@@ -123,8 +123,7 @@ fn update_settings(state: State<Mutex<ServerSettings>>, settings: ServerSettings
 #[tauri::command]
 fn open_dashboard(port: u16) -> Result<(), String> {
     let url = format!("http://localhost:{}", port);
-    tauri::api::shell::open(&tauri::api::shell::Shell::default(), &url, None)
-        .map_err(|e| e.to_string())
+    open::that(&url).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -159,13 +158,13 @@ struct UpdateInfo {
 
 #[tauri::command]
 async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
-    let updater = app.updater().map_err(|e| e.to_string())?;
+    let updater = app.updater();
     let response = updater.check().await.map_err(|e| e.to_string())?;
-    if let Some(update) = response {
+    if response.is_update_available() {
         Ok(Some(UpdateInfo {
-            version: update.version,
-            date: update.date,
-            body: update.body,
+            version: response.latest_version().to_string(),
+            date: response.date().map(|d| d.to_string()),
+            body: response.body().cloned(),
         }))
     } else {
         Ok(None)
@@ -174,14 +173,10 @@ async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, Strin
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    let updater = app.updater().map_err(|e| e.to_string())?;
+    let updater = app.updater();
     let response = updater.check().await.map_err(|e| e.to_string())?;
-    if let Some(update) = response {
-        update.download_and_install().await.map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("No update available".to_string())
-    }
+    response.download_and_install().await.map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -254,10 +249,9 @@ fn main() {
     tauri::Builder::default()
         .manage(ServerProcess(Mutex::new(None)))
         .manage(settings)
-        .plugin(tauri_plugin_updater::Builder::default().build())
         .setup(|app| {
             use tauri::{
-                CustomMenuItem, SystemTray, SystemTrayEvent, SystemTrayMenu,
+                CustomMenuItem, SystemTray, SystemTrayMenu,
             };
 
             let open_item = CustomMenuItem::new("open".to_string(), "Open Dashboard");
@@ -326,4 +320,68 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_server_settings_default() {
+        let s = ServerSettings::default();
+        assert_eq!(s.port, 8080);
+        assert!(s.auto_start);
+    }
+
+    #[test]
+    fn test_server_status_serialization() {
+        let s = ServerStatus {
+            running: true,
+            port: 8080,
+            process_id: Some(12345),
+            error: None,
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains("running"));
+        assert!(json.contains("8080"));
+        assert!(json.contains("12345"));
+    }
+
+    #[test]
+    fn test_server_status_not_running() {
+        let s = ServerStatus {
+            running: false,
+            port: 8080,
+            process_id: None,
+            error: Some("not started".into()),
+        };
+        assert!(!s.running);
+        assert_eq!(s.error.unwrap(), "not started");
+    }
+
+    #[test]
+    fn test_update_info_serialization() {
+        let info = UpdateInfo {
+            version: "1.0.0".into(),
+            date: Some("2026-07-04".into()),
+            body: Some("Bug fixes".into()),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("1.0.0"));
+        assert!(json.contains("2026-07-04"));
+    }
+
+    #[test]
+    fn test_vault_commands_urls() {
+        let settings = ServerSettings::default();
+        let assert_url = |path: &str, expected: &str| {
+            let url = format!("http://localhost:{}{}", settings.port, path);
+            assert_eq!(url, expected);
+        };
+        assert_url("/api/vault/keys", "http://localhost:8080/api/vault/keys");
+        assert_url("/api/vault/keys/exa", "http://localhost:8080/api/vault/keys/exa");
+        assert_url("/api/enrich/lead", "http://localhost:8080/api/enrich/lead");
+        assert_url("/api/enrich/providers", "http://localhost:8080/api/enrich/providers");
+        assert_url("/api/enrich/batch", "http://localhost:8080/api/enrich/batch");
+    }
 }
