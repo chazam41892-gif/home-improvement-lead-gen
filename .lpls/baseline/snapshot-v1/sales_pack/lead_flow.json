@@ -1,0 +1,17 @@
+{
+  "lead_flow": [
+    "Lead submits Meta lead form OR Google lead form OR website form OR calls in",
+    "Webhook fires into n8n immediately",
+    "Lead normalized into canonical schema",
+    "Duplicate check runs against CRM",
+    "Qualification engine scores urgency, service fit, geography, and value",
+    "Instant response is sent within minutes or seconds",
+    "Lead is offered booking link or live callback",
+    "Calendly or Google Calendar event is created",
+    "Deposit/payment link is offered when relevant",
+    "Contact/company/deal records are created or updated in CRM",
+    "Internal alert sent to Slack/Discord",
+    "Follow-up sequence adapts based on no-response / booked / canceled / qualified / disqualified",
+    "Outcome is fed back into source and script scoring"
+  ]
+}

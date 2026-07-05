@@ -1,0 +1,26 @@
+{
+  "templates": [
+    { "workflow_name": "instant_lead_to_booking", "trigger": "meta_lead_ads_webhook_or_typeform_or_google_ads_form", "steps": ["normalize payload", "check CRM for existing contact/company/deal", "score lead", "send immediate SMS/email acknowledgement", "offer booking link", "if high urgency then trigger callback queue", "create or update CRM objects", "notify ops channel"] },
+    { "workflow_name": "high_intent_callback",    "trigger": "lead_value_score >= threshold AND consent.call = true", "steps": ["create callback task", "trigger Twilio outbound call or queue live rep", "capture call notes", "update CRM deal stage", "send post-call booking or payment link"] },
+    { "workflow_name": "quote_request_with_deposit","trigger": "lead qualified and quote requires commitment", "steps": ["send booking link", "create Stripe payment link", "attach payment link to appointment confirmation", "listen for checkout completion", "advance CRM stage"] },
+    { "workflow_name": "schedule_and_sync",        "trigger": "lead selects time or assistant books directly", "steps": ["schedule via Calendly API or create Google Calendar event directly", "store event IDs", "send confirmation", "subscribe to cancellations or reschedules", "update CRM stage and follow-up timers"] }
+  ],
+  "qualification_engine": {
+    "hard_filters": { "service_area_match": true, "service_category_match": true, "contact_method_present": true },
+    "scores": { "urgency": 0, "project_value": 0, "geography": 0, "responsiveness": 0, "source_quality": 0 },
+    "routing_rules": [
+      "if urgency >= 8 then callback queue",
+      "if project_value >= 8 then senior rep queue",
+      "if source_quality < 3 then nurture only",
+      "if outside geography then polite decline or partner referral"
+    ]
+  },
+  "ops_alerts": {
+    "send_to_slack":  ["new high-intent lead", "booking created", "booking canceled", "payment completed", "callback failed", "CRM sync failed"],
+    "send_to_discord": ["daily lead summary", "top source report", "show-rate report", "close-rate report"]
+  },
+  "optimization_loop": {
+    "measure":        ["lead_to_response_time", "response_to_booking_rate", "booking_to_show_rate", "show_to_close_rate", "source_to_revenue_rate", "message_variant_performance"],
+    "weekly_actions": ["promote best sources", "downgrade weak sources", "rewrite weak follow-ups", "tighten qualification rules", "adjust booking and deposit strategy"]
+  }
+}

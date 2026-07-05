@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Gen Pro Desktop</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #0a0a0f;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      overflow: hidden;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      padding: 48px;
+    }
+    .logo {
+      width: 96px;
+      height: 96px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 0 40px rgba(99, 102, 241, 0.3);
+      margin-bottom: 8px;
+    }
+    .app-name {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #e2e8f0, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .app-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-top: -20px;
+    }
+    .status-card {
+      background: #12121a;
+      border: 1px solid #1e1e2e;
+      border-radius: 16px;
+      padding: 20px 32px;
+      min-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #475569;
+      transition: all 0.3s ease;
+    }
+    .status-indicator.stopped { background: #475569; box-shadow: none; }
+    .status-indicator.starting { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); animation: pulse 1s infinite; }
+    .status-indicator.running { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+    .status-indicator.error { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .status-text { font-size: 13px; color: #64748b; }
+    .launch-btn {
+      margin-top: 8px;
+      padding: 14px 48px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.3px;
+    }
+    .launch-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4); }
+    .launch-btn:active { transform: translateY(0); }
+    .launch-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .hint {
+      font-size: 12px;
+      color: #475569;
+      margin-top: -8px;
+    }
+    .settings-gear {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #12121a;
+      border: 1px solid #1e1e2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: #64748b;
+    }
+    .settings-gear:hover { border-color: #6366f1; color: #a5b4fc; }
+    .settings-gear svg { width: 18px; height: 18px; }
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: -380px;
+      width: 360px;
+      height: 100vh;
+      background: #12121a;
+      border-left: 1px solid #1e1e2e;
+      padding: 28px;
+      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .settings-panel.open { right: 0; }
+    .settings-panel h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .settings-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 20px;
+    }
+    .settings-close:hover { color: #e2e8f0; }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-group input {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #1e1e2e;
+      background: #0a0a0f;
+      color: #e2e8f0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus { border-color: #6366f1; }
+    .form-group input[type="number"] { width: 120px; }
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: #1e1e2e;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle.active { background: #6366f1; }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      transition: transform 0.2s;
+    }
+    .toggle.active::after { transform: translateX(20px); }
+    .save-btn {
+      margin-top: 12px;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .save-btn:hover { box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4); }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 99;
+    }
+    .overlay.show { opacity: 1; pointer-events: all; }
+    .stop-btn {
+      padding: 10px 24px;
+      border: 1px solid #ef4444;
+      border-radius: 10px;
+      background: transparent;
+      color: #ef4444;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .stop-btn:hover { background: rgba(239,68,68,0.1); }
+    .btn-group { display: flex; gap: 12px; align-items: center; }
+
+    .update-section {
+      border-top: 1px solid #1a1a24;
+      padding-top: 16px;
+      margin-top: 12px;
+    }
+    .update-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .update-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #9898b0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .check-update-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid #6366f1;
+      background: transparent;
+      color: #6366f1;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .check-update-btn:hover { background: rgba(99,102,241,0.1); }
+    .check-update-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .update-status {
+      font-size: 13px;
+      color: #68687a;
+      line-height: 1.4;
+    }
+    .install-update-btn {
+      display: none;
+      margin-top: 8px;
+      padding: 8px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #6366f1;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .install-update-btn:hover { box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+    .install-update-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">LG</div>
+    <div class="app-name">Lead Gen Pro</div>
+    <div class="app-subtitle">Desktop Dashboard</div>
+
+    <div class="status-card">
+      <div class="status-row">
+        <div class="status-indicator stopped" id="statusDot"></div>
+        <span id="statusLabel">Stopped</span>
+      </div>
+      <div class="status-text" id="statusDetail">Server not running</div>
+      <div class="btn-group">
+        <button class="launch-btn" id="launchBtn">Launch Dashboard</button>
+        <button class="stop-btn" id="stopBtn" style="display:none">Stop</button>
+      </div>
+      <div class="hint">Dashboard will open in your default browser</div>
+    </div>
+  </div>
+
+  <div class="settings-gear" id="settingsGear" title="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="settings-panel" id="settingsPanel">
+    <h2>Settings</h2>
+    <button class="settings-close" id="settingsClose">&times;</button>
+
+    <div class="form-group">
+      <label>Python Path</label>
+      <input type="text" id="pythonPath" value="python" placeholder="python or full path" />
+    </div>
+
+    <div class="form-group">
+      <label>Port</label>
+      <input type="number" id="port" value="8080" min="1024" max="65535" />
+    </div>
+
+    <div class="form-group">
+      <div class="toggle-row">
+        <label>Auto-Start Server</label>
+        <div class="toggle active" id="autoStartToggle"></div>
+      </div>
+    </div>
+
+    <button class="save-btn" id="saveSettings">Save Settings</button>
+
+    <div class="update-section">
+      <div class="update-header">
+        <span class="update-label">Updates</span>
+        <button class="check-update-btn" id="checkUpdateBtn">Check for Updates</button>
+      </div>
+      <div id="updateStatus" class="update-status"></div>
+      <button class="install-update-btn" id="installUpdateBtn">Install Update</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { invoke } from '@tauri-apps/api/tauri';
+    import { listen } from '@tauri-apps/api/event';
+    import { open, save } from '@tauri-apps/api/dialog';
+    import { shell } from '@tauri-apps/api';
+
+    // DOM refs
+    const statusDot = document.getElementById('statusDot');
+    const statusLabel = document.getElementById('statusLabel');
+    const statusDetail = document.getElementById('statusDetail');
+    const launchBtn = document.getElementById('launchBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const settingsGear = document.getElementById('settingsGear');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const settingsClose = document.getElementById('settingsClose');
+    const overlay = document.getElementById('overlay');
+    const pythonPathInput = document.getElementById('pythonPath');
+    const portInput = document.getElementById('port');
+    const autoStartToggle = document.getElementById('autoStartToggle');
+    const saveSettingsBtn = document.getElementById('saveSettings');
+
+    let currentPort = 8080;
+    let autoStart = true;
+    let serverRunning = false;
+
+    function setStatus(state, msg, detail) {
+      statusDot.className = 'status-indicator ' + state;
+      statusLabel.textContent = msg;
+      statusDetail.textContent = detail || '';
+      if (state === 'running') {
+        launchBtn.textContent = 'Open Dashboard';
+        launchBtn.disabled = false;
+        stopBtn.style.display = '';
+        serverRunning = true;
+      } else if (state === 'starting') {
+        launchBtn.textContent = 'Starting...';
+        launchBtn.disabled = true;
+        stopBtn.style.display = 'none';
+        serverRunning = false;
+      } else if (state === 'error') {
+        launchBtn.textContent = 'Retry Launch';
+        launchBtn.disabled = false;
+        stopBtn.style.display = 'none';
+        serverRunning = false;
+      } else {
+        launchBtn.textContent = 'Launch Dashboard';
+        launchBtn.disabled = false;
+        stopBtn.style.display = 'none';
+        serverRunning = false;
+      }
+    }
+
+    async function refreshStatus() {
+      try {
+        const status = await invoke('get_server_status');
+        if (status.running) {
+          currentPort = status.port;
+          setStatus('running', 'Running', 'Server running at http://localhost:' + status.port);
+        } else {
+          setStatus('stopped', 'Stopped', 'Server not running');
+        }
+      } catch (e) {
+        setStatus('error', 'Error', e);
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const s = await invoke('get_settings');
+        pythonPathInput.value = s.python_path;
+        portInput.value = s.port;
+        currentPort = s.port;
+        autoStart = s.auto_start;
+        autoStartToggle.classList.toggle('active', autoStart);
+      } catch (e) {
+        console.error('Failed to load settings', e);
+      }
+    }
+
+    launchBtn.addEventListener('click', async () => {
+      if (serverRunning) {
+        await invoke('open_dashboard', { port: currentPort });
+        return;
+      }
+      setStatus('starting', 'Starting...', 'Launching Python backend');
+      try {
+        const status = await invoke('start_server');
+        currentPort = status.port;
+        setStatus('running', 'Running', 'Server running at http://localhost:' + currentPort);
+        setTimeout(async () => {
+          try { await invoke('open_dashboard', { port: currentPort }); } catch (_) {}
+        }, 1500);
+      } catch (e) {
+        setStatus('error', 'Error', 'Failed to start: ' + e);
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+      try {
+        await invoke('stop_server');
+        setStatus('stopped', 'Stopped', 'Server stopped');
+      } catch (e) {
+        setStatus('error', 'Error', 'Failed to stop: ' + e);
+      }
+    });
+
+    // Settings panel
+    settingsGear.addEventListener('click', () => {
+      settingsPanel.classList.add('open');
+      overlay.classList.add('show');
+    });
+    function closeSettings() {
+      settingsPanel.classList.remove('open');
+      overlay.classList.remove('show');
+    }
+    settingsClose.addEventListener('click', closeSettings);
+    overlay.addEventListener('click', closeSettings);
+
+    autoStartToggle.addEventListener('click', () => {
+      autoStart = !autoStart;
+      autoStartToggle.classList.toggle('active', autoStart);
+    });
+
+    saveSettingsBtn.addEventListener('click', async () => {
+      const settings = {
+        python_path: pythonPathInput.value.trim() || 'python',
+        port: parseInt(portInput.value) || 8080,
+        auto_start: autoStart,
+      };
+      try {
+        await invoke('update_settings', { settings });
+        currentPort = settings.port;
+        closeSettings();
+        setStatus('stopped', 'Stopped', 'Settings saved. Restart server to apply.');
+      } catch (e) {
+        alert('Failed to save settings: ' + e);
+      }
+    });
+
+    // Event listeners from Rust
+    listen('server-status', (event) => {
+      const s = event.payload;
+      if (s.running) {
+        setStatus('running', 'Running', 'Server running at http://localhost:' + s.port);
+      } else {
+        setStatus('stopped', 'Stopped', s.error || 'Server stopped');
+      }
+    }).catch(() => {});
+
+    // Update checking
+    async function checkForUpdates() {
+      const statusEl = document.getElementById('updateStatus');
+      const installBtn = document.getElementById('installUpdateBtn');
+      if (!statusEl) return;
+      statusEl.textContent = 'Checking for updates...';
+      statusEl.style.color = '#9898b0';
+      if (installBtn) { installBtn.style.display = 'none'; installBtn.disabled = false; }
+      try {
+        const result = await invoke('check_update');
+        if (result) {
+          statusEl.innerHTML = 'Update <strong>' + result.version + '</strong> available';
+          statusEl.style.color = '#22c55e';
+          if (installBtn) {
+            installBtn.style.display = 'inline-block';
+            installBtn.onclick = installUpdate;
+          }
+          if (result.body) {
+            const notes = document.createElement('div');
+            notes.style.cssText = 'font-size:12px;color:#68687a;margin-top:4px;white-space:pre-wrap;';
+            notes.textContent = result.body;
+            statusEl.appendChild(notes);
+          }
+        } else {
+          statusEl.textContent = 'Up to date';
+          statusEl.style.color = '#22c55e';
+          if (installBtn) installBtn.style.display = 'none';
+        }
+      } catch(e) {
+        statusEl.textContent = 'Update check failed';
+        statusEl.style.color = '#ef4444';
+        console.error('Update check error:', e);
+      }
+    }
+
+    async function installUpdate() {
+      const statusEl = document.getElementById('updateStatus');
+      const installBtn = document.getElementById('installUpdateBtn');
+      if (!statusEl || !installBtn) return;
+      statusEl.textContent = 'Downloading update...';
+      statusEl.style.color = '#9898b0';
+      installBtn.disabled = true;
+      try {
+        await invoke('install_update');
+        statusEl.textContent = 'Update installed! Please restart the app.';
+        statusEl.style.color = '#22c55e';
+        installBtn.textContent = 'Restarting...';
+      } catch(e) {
+        statusEl.textContent = 'Install failed: ' + e;
+        statusEl.style.color = '#ef4444';
+        installBtn.disabled = false;
+      }
+    }
+
+    document.getElementById('checkUpdateBtn')?.addEventListener('click', checkForUpdates);
+
+    // Init
+    refreshStatus();
+    loadSettings();
+    // Auto-check for updates 3 seconds after load
+    setTimeout(checkForUpdates, 3000);
+  </script>
+</body>
+</html>

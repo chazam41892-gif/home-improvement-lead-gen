@@ -1,0 +1,18 @@
+{
+  "lead_schema": {
+    "lead_id": "", "source": "meta|google_ads|website|typeform|call|referral|community_signal",
+    "campaign_id": "", "capture_timestamp": "",
+    "full_name": "", "first_name": "", "last_name": "",
+    "email": "", "phone": "",
+    "company_name": "", "service_requested": "", "description": "",
+    "city": "", "state": "", "zip": "",
+    "geo_score": 0, "urgency_score": 0, "budget_fit_score": 0, "service_fit_score": 0, "lead_value_score": 0,
+    "status": "new|qualified|booked|won|lost|nurture",
+    "next_action": "",
+    "booking_link": "", "calendar_event_id": "",
+    "crm_contact_id": "", "crm_company_id": "", "crm_deal_id": "",
+    "deposit_link": "",
+    "notes": [],
+    "consent_flags": { "email": false, "sms": false, "call": false }
+  }
+}

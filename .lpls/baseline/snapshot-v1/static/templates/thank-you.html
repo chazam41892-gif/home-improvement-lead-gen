@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank You | Lead Gen Pro</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a24;
+  --bg4: #24243a;
+  --border: #2a2a3e;
+  --text: #e8e8f0;
+  --text2: #9898b0;
+  --text3: #68687a;
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  --green: #22c55e;
+  --green-bg: rgba(34, 197, 94, 0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --max-w: 560px;
+}
+html { font-size: 16px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+.container {
+  max-width: var(--max-w);
+  width: 100%;
+  text-align: center;
+}
+.checkmark {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 28px;
+  background: var(--green-bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+.checkmark svg {
+  width: 40px;
+  height: 40px;
+  stroke: var(--green);
+  stroke-width: 3;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+.highlight {
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.subtitle {
+  font-size: 1.05rem;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+.hint {
+  font-size: 0.9rem;
+  color: var(--text3);
+  margin-bottom: 36px;
+}
+.steps {
+  text-align: left;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  margin-bottom: 36px;
+}
+.steps h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text);
+  text-align: center;
+}
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.step:last-child { border-bottom: none; }
+.step-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg3);
+  border-radius: 50%;
+  font-size: 1.1rem;
+}
+.step-text { padding-top: 6px; }
+.step-text strong { display: block; font-size: 0.95rem; }
+.step-text span { font-size: 0.85rem; color: var(--text2); }
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.back-link:hover {
+  background: var(--accent2);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+.footer {
+  margin-top: 40px;
+  font-size: 0.75rem;
+  color: var(--text3);
+}
+@media (max-width: 480px) {
+  h1 { font-size: 1.4rem; }
+  .checkmark { width: 64px; height: 64px; }
+  .checkmark svg { width: 32px; height: 32px; }
+  .steps { padding: 20px 16px; }
+  .back-link { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="checkmark">
+    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+
+  <h1>Thank you, <span class="highlight" id="nameDisplay">there</span>!</h1>
+  <p class="subtitle">We've received your request</p>
+  <p class="hint">A team member will reach out within 24 hours</p>
+
+  <div class="steps">
+    <h2>What happens next</h2>
+    <div class="step">
+      <div class="step-icon">&#128222;</div>
+      <div class="step-text">
+        <strong>Step 1: Review</strong>
+        <span>Our team reviews your project details and requirements</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-icon">&#128187;</div>
+      <div class="step-text">
+        <strong>Step 2: Preparation</strong>
+        <span>We prepare a tailored proposal and gather relevant resources</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-icon">&#9993;&#65039;</div>
+      <div class="step-text">
+        <strong>Step 3: Contact</strong>
+        <span>You'll receive a call or email to discuss your project in detail</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-icon">&#128640;</div>
+      <div class="step-text">
+        <strong>Step 4: Launch</strong>
+        <span>We get to work — with your approval, your project moves forward</span>
+      </div>
+    </div>
+  </div>
+
+  <a href="/" class="back-link">&#8592; Back to Home</a>
+
+  <p class="footer">&copy; Lead Gen Pro. All rights reserved.</p>
+</div>
+
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var name = params.get('name');
+  if (name) {
+    document.getElementById('nameDisplay').textContent = name;
+  }
+})();
+</script>
+</body>
+</html>

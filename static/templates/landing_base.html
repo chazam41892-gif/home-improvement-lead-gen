@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<!--
+====================================================================
+LANDING BASE TEMPLATE — Reference template for LandingPageGenerator
+====================================================================
+This file documents the HTML structure that the generator produces.
+The actual rendering is done by engine/landing.py via Python string
+formatting. This file is NOT used at runtime — it exists as a
+reference for the expected output structure.
+
+All CSS and JS are inlined. No external dependencies or CDN links.
+The generator fills in business-specific values at creation time.
+====================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Name | Free Estimate</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a24;
+  --bg4: #24243a;
+  --border: #2a2a3e;
+  --text: #e8e8f0;
+  --text2: #9898b0;
+  --text3: #68687a;
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --accent-glow: rgba(99,102,241,0.15);
+  --green: #22c55e;
+  --red: #ef4444;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --max-w: 640px;
+}
+html { font-size: 16px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: var(--max-w); margin: 0 auto; padding: 0 20px; }
+.hero {
+  padding: 60px 0 40px;
+  text-align: center;
+  background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.hero h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  font-size: 1.1rem;
+  color: var(--text2);
+  max-width: 520px;
+  margin: 0 auto;
+}
+.section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+.section:last-of-type { border-bottom: none; }
+.section h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 28px;
+  color: var(--text);
+}
+.benefits-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.benefit-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.benefit-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+}
+.trust-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+.trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  font-size: 0.9rem;
+  color: var(--text2);
+}
+.form-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+}
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+textarea.form-input { min-height: 100px; resize: vertical; }
+.cta-btn {
+  display: block;
+  width: 100%;
+  padding: 16px 24px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.cta-btn:hover {
+  background: var(--accent2);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+.footer {
+  text-align: center;
+  padding: 32px 20px;
+  font-size: 0.8rem;
+  color: var(--text3);
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 600px) {
+  .benefits-grid { grid-template-columns: 1fr 1fr; }
+  .hero h1 { font-size: 2.5rem; }
+  .hero { padding: 80px 0 50px; }
+}
+</style>
+</head>
+<body>
+  <!-- Hero -->
+  <div class="hero">
+    <div class="container">
+      <h1>Professional Home Improvement Services</h1>
+      <p>Quality craftsmanship you can trust. Get your free estimate today.</p>
+    </div>
+  </div>
+
+  <!-- Benefits -->
+  <div class="section">
+    <div class="container">
+      <h2>Why Choose Us</h2>
+      <div class="benefits-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">✅</div>
+          <div class="benefit-text">Free no-obligation estimate</div>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🏍</div>
+          <div class="benefit-text">Licensed &amp; insured professionals</div>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🤝</div>
+          <div class="benefit-text">Satisfaction guaranteed</div>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🏠</div>
+          <div class="benefit-text">Family-owned &amp; operated</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trust Signals -->
+  <div class="section">
+    <div class="container">
+      <h2>Trusted &amp; Verified</h2>
+      <div class="trust-grid">
+        <div class="trust-badge"><span class="icon">⭐</span> 4.9/5 Average Rating</div>
+        <div class="trust-badge"><span class="icon">📋</span> Licensed &amp; Insured</div>
+        <div class="trust-badge"><span class="icon">🛡️</span> 100% Satisfaction Guarantee</div>
+        <div class="trust-badge"><span class="icon">✅</span> BBB Accredited Business</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="section">
+    <div class="container">
+      <h2>Get Started Today</h2>
+      <div class="form-card">
+        <form action="/api/capture/lead" method="POST" novalidate>
+          <div class="form-group">
+            <label for="name" class="required">Full Name</label>
+            <input class="form-input" type="text" id="name" name="name" required>
+          </div>
+          <div class="form-group">
+            <label for="phone" class="required">Phone Number</label>
+            <input class="form-input" type="tel" id="phone" name="phone" required>
+          </div>
+          <div class="form-group">
+            <label for="email" class="required">Email Address</label>
+            <input class="form-input" type="email" id="email" name="email" required>
+          </div>
+          <div class="form-group">
+            <label for="address">Street Address</label>
+            <input class="form-input" type="text" id="address" name="address">
+          </div>
+          <div class="form-group">
+            <label for="project_description" class="required">Project Description</label>
+            <textarea class="form-input" id="project_description" name="project_description" required></textarea>
+          </div>
+          <button type="submit" class="cta-btn">Get Your Free Estimate</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">&copy; Business Name. All rights reserved.</div>
+</body>
+</html>

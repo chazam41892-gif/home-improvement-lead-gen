@@ -1,0 +1,25 @@
+package com.leadgenpro.android.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Bg = Color(0xFF0A0A0F)
+val Bg2 = Color(0xFF111118)
+val Bg3 = Color(0xFF1A1A24)
+val Accent = Color(0xFF6366F1)
+val Accent2 = Color(0xFF818CF8)
+val Text = Color(0xFFE8E8F0)
+val Text2 = Color(0xFF9898B0)
+val Text3 = Color(0xFF68687A)
+val Green = Color(0xFF22C55E)
+val Yellow = Color(0xFFEAB308)
+val Red = Color(0xFFEF4444)
+val GreenBg = Color(0x1A22C55E)
+val YellowBg = Color(0x1AEAB308)
+val RedBg = Color(0x1AEF4444)
+val IndigoBg = Color(0x1A6366F1)
+val Surface = Color(0xFF0A0A0F)
+val OnPrimary = Color(0xFFFFFFFF)
+val Primary = Color(0xFF6366F1)
+val PrimaryContainer = Color(0xFF1A1A24)
+val OnPrimaryContainer = Color(0xFFE8E8F0)
+val SurfaceVariant = Color(0xFF111118)

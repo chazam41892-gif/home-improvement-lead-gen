@@ -1,0 +1,33 @@
+services:
+  leadgen:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: leadgen:latest
+    ports:
+      - "8080:8080"
+    restart: always
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    mem_limit: 512m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    labels:
+      healthcheck: "enabled"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - leadgen-net
+
+networks:
+  leadgen-net:
+    driver: bridge

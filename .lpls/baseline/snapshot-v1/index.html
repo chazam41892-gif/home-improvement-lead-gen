@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Gen Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a24;
+  --bg4: #24243a;
+  --border: #2a2a3e;
+  --text: #e8e8f0;
+  --text2: #9898b0;
+  --text3: #68687a;
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  --green: #22c55e;
+  --green-bg: rgba(34, 197, 94, 0.1);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234, 179, 8, 0.1);
+  --red: #ef4444;
+  --red-bg: rgba(239, 68, 68, 0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+html { font-size: 14px; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+#app { display: flex; height: 100vh; }
+
+/* ─── Sidebar ─── */
+.sidebar {
+  width: 320px;
+  min-width: 320px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-header h1 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.sidebar-header p { font-size: 0.75rem; color: var(--text3); margin-top: 2px; }
+.sidebar-section { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.sidebar-section h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text3);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.form-group { margin-bottom: 12px; }
+.form-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--text3); }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent2); box-shadow: 0 0 20px var(--accent-glow); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+.btn-sm { padding: 6px 12px; font-size: 0.75rem; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); }
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid transparent; }
+.btn-danger:hover { border-color: var(--red); }
+.btn-success { background: var(--green-bg); color: var(--green); border: 1px solid transparent; }
+.btn-success:hover { border-color: var(--green); }
+.key-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
+.key-status .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.dot-red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.save-hint { font-size: 0.7rem; color: var(--green); margin-top: 4px; display: none; }
+.save-hint.show { display: block; }
+.row2 { display: flex; gap: 8px; }
+.row2 .form-group { flex: 1; }
+
+/* ─── Routing Pipeline ─── */
+.routing-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+.routing-step:last-child { border-bottom: none; }
+.routing-step .step-info { flex: 1; min-width: 0; }
+.routing-step .step-name { font-weight: 500; color: var(--text); }
+.routing-step .step-desc { font-size: 0.65rem; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.routing-step .step-missing { font-size: 0.6rem; color: var(--yellow); }
+.toggle {
+  position: relative;
+  width: 36px; height: 20px;
+  flex-shrink: 0;
+  background: var(--bg4);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  padding: 0;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: var(--text);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(16px); }
+.sidebar-stats { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.8rem; }
+.stat-label { color: var(--text2); }
+.stat-value { font-weight: 600; }
+.sidebar-actions { padding: 16px 24px; display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+
+/* ─── Main Content ─── */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.main-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg2);
+}
+.main-header h2 { font-size: 1rem; font-weight: 600; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.search-count {
+  font-size: 0.8rem;
+  color: var(--text2);
+  padding: 4px 10px;
+  background: var(--bg3);
+  border-radius: 20px;
+}
+
+/* ─── Chat Area ─── */
+.chat-area { flex: 1; overflow-y: auto; padding: 16px 24px; }
+.chat-area::-webkit-scrollbar { width: 6px; }
+.chat-area::-webkit-scrollbar-track { background: transparent; }
+.chat-area::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+.chat-message {
+  margin-bottom: 16px;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.chat-query {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.chat-query .avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+.chat-query .bubble {
+  background: var(--bg3);
+  padding: 10px 16px;
+  border-radius: 12px 12px 12px 4px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  max-width: 70%;
+}
+.chat-response { margin-top: 8px; }
+.chat-response .meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text3);
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+.chat-response .meta .time { font-weight: 500; }
+.chat-response .meta .ok { color: var(--green); }
+.chat-response .meta .err { color: var(--red); }
+
+/* ─── Results Table ─── */
+.results-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8rem; }
+.results-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: var(--text3);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg2);
+}
+.results-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.results-table tr:hover td { background: var(--bg3); }
+.results-table .title-cell { max-width: 280px; }
+.results-table .title-cell a {
+  color: var(--accent2);
+  text-decoration: none;
+  font-weight: 500;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.results-table .title-cell a:hover { text-decoration: underline; }
+.results-table .snippet-cell {
+  color: var(--text2);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+.score-high { background: var(--green-bg); color: var(--green); }
+.score-mid { background: var(--yellow-bg); color: var(--yellow); }
+.score-low { background: var(--red-bg); color: var(--red); }
+.action-cell { white-space: nowrap; }
+.btn-icon {
+  width: 28px; height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 0.8rem;
+}
+.btn-icon:hover { background: var(--bg4); color: var(--text); }
+.btn-icon.danger:hover { color: var(--red); background: var(--red-bg); }
+.no-results {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text3);
+}
+.no-results .icon { font-size: 2rem; margin-bottom: 8px; }
+.no-results p { font-size: 0.9rem; }
+
+/* ─── Lead Detail Modal ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+.modal h2 { font-size: 1.1rem; margin-bottom: 16px; }
+.modal .field { margin-bottom: 12px; }
+.modal .field-label { font-size: 0.7rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.modal .field-value { font-size: 0.9rem; word-break: break-all; }
+.modal .field-value a { color: var(--accent2); }
+.modal-close {
+  float: right;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.modal-close:hover { color: var(--text); }
+.score-bar {
+  height: 6px;
+  background: var(--bg4);
+  border-radius: 3px;
+  margin-top: 2px;
+  overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* ─── Input Bar ─── */
+.input-bar {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+.input-row input {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-row input:focus { border-color: var(--accent); }
+.input-row input::placeholder { color: var(--text3); }
+.input-row .btn {
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+.input-hint {
+  font-size: 0.7rem;
+  color: var(--text3);
+  margin-top: 8px;
+  text-align: center;
+}
+.examples {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.example-chip {
+  padding: 3px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.example-chip:hover { background: var(--bg4); color: var(--text); border-color: var(--accent); }
+
+/* ─── Loading ─── */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  color: var(--text3);
+  font-size: 0.85rem;
+}
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--bg4);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Error ─── */
+.error-box { padding: 10px 14px; background: var(--red-bg); border: 1px solid var(--red); border-radius: var(--radius-sm); color: var(--red); font-size: 0.85rem; margin-bottom: 8px; }
+
+/* ─── Responsive ─── */
+/* ─── Tabs ─── */
+.tab-btn {
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text2);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn:hover { background: var(--bg3); color: var(--text); }
+.tab-btn.tab-active { background: var(--accent); color: white; border-color: var(--accent); }
+.tab-content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.sched-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sched-card .info { flex: 1; min-width: 0; }
+.sched-card .info .name { font-weight: 600; font-size: 0.85rem; }
+.sched-card .info .detail { font-size: 0.7rem; color: var(--text3); margin-top: 2px; }
+.sched-card .info .detail span { margin-right: 12px; }
+.sched-card .actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+@media (max-width: 900px) {
+  .sidebar { width: 260px; min-width: 260px; }
+  .results-table .snippet-cell { display: none; }
+  .results-table .title-cell { max-width: 180px; }
+}
+@media (max-width: 700px) {
+  #app { flex-direction: column; }
+  .sidebar { width: 100%; min-width: 0; max-height: 50vh; overflow-y: auto; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ─── SIDEBAR ─── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>&#9889; Lead Gen Pro</h1>
+      <p>Bring Your Own Keys &middot; v3.0</p>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>API Keys</h3>
+      <div class="form-group">
+        <label>Exa AI (Search)</label>
+        <input type="password" id="exaKeyInput" class="form-input" placeholder="Exa API key..." spellcheck="false">
+        <div id="exaKeyStatus" class="key-status">
+          <span class="dot dot-red"></span>
+          <span>Not configured</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Perplexity AI (Search)</label>
+        <input type="password" id="perplexityKeyInput" class="form-input" placeholder="Perplexity API key..." spellcheck="false">
+        <div id="perplexityKeyStatus" class="key-status">
+          <span class="dot dot-red"></span>
+          <span>Not configured</span>
+        </div>
+      </div>
+      <div id="saveHint" class="save-hint">&#10003; Key saved</div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Quick Config</h3>
+      <div class="form-group">
+        <label>Search Provider</label>
+        <select id="searchProvider" class="form-input">
+          <option value="exa">Exa AI</option>
+          <option value="perplexity">Perplexity</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div class="form-group">
+          <label>Results</label>
+          <select id="numResults" class="form-input">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Min Score</label>
+          <select id="minScore" class="form-input">
+            <option value="0">0 (all)</option>
+            <option value="20">20+</option>
+            <option value="30" selected>30+</option>
+            <option value="50">50+</option>
+            <option value="70">70+</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="multiSourceToggle" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;">
+          <span>Multi-source merge (Exa + Perplexity)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Landing Pages</h3>
+      <div style="font-size:0.75rem;color:var(--text2);margin-bottom:8px;">
+        <div class="stat-row"><span class="stat-label">Pages</span><span class="stat-value" id="lpTotal">0</span></div>
+        <div class="stat-row"><span class="stat-label">Capture Submissions</span><span class="stat-value" id="captureTotal">0</span></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="switchTab('landing')">Manage Landing Pages</button>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Scheduled Scans</h3>
+      <div id="schedulerStats" style="font-size:0.75rem;color:var(--text2);margin-bottom:8px;">
+        <div class="stat-row"><span class="stat-label">Schedules</span><span class="stat-value" id="schedTotal">0</span></div>
+        <div class="stat-row"><span class="stat-label">Enabled</span><span class="stat-value" id="schedEnabled">0</span></div>
+        <div class="stat-row"><span class="stat-label">Total Runs</span><span class="stat-value" id="schedRuns">0</span></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="switchTab('schedules')">Manage Schedules</button>
+    </div>
+
+    <div class="sidebar-section" id="routingSection">
+      <h3>Smart Routing Pipeline
+        <span id="routingStatus" style="float:right;font-weight:400;color:var(--text3);">0 steps</span>
+      </h3>
+      <div id="routingSteps"></div>
+    </div>
+
+    <div id="sidebarStats" class="sidebar-stats">
+      <h3 style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:600;">Stats</h3>
+      <div class="stat-row"><span class="stat-label">Total Leads</span><span class="stat-value" id="statTotal">0</span></div>
+      <div class="stat-row"><span class="stat-label">Avg Score</span><span class="stat-value" id="statAvg">0</span></div>
+      <div class="stat-row"><span class="stat-label">Searches</span><span class="stat-value" id="statSearches">0</span></div>
+      <div class="stat-row"><span class="stat-label">Pipeline Runs</span><span class="stat-value" id="statRuns">0</span></div>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">&#8595; Export CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportJSON()">&#8595; Export JSON</button>
+      <button class="btn btn-danger btn-sm" onclick="clearLeads()">&#128465; Clear All Leads</button>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN ─── -->
+  <div class="main">
+    <div class="main-header">
+      <div style="display:flex;gap:4px;">
+        <button id="tabDiscovery" class="tab-btn tab-active" onclick="switchTab('discovery')">Discovery</button>
+        <button id="tabLanding" class="tab-btn" onclick="switchTab('landing')">Landing Pages</button>
+        <button id="tabSchedules" class="tab-btn" onclick="switchTab('schedules')">Schedules</button>
+      </div>
+      <div class="header-actions">
+        <span id="searchCount" class="search-count">0 leads</span>
+        <button class="btn btn-sm btn-ghost" onclick="refreshStats()">&#8635;</button>
+      </div>
+    </div>
+
+    <div id="tabDiscoveryContent" class="tab-content">
+      <div id="chatArea" class="chat-area">
+        <div class="no-results" id="welcomeMessage">
+          <div class="icon">&#128269;</div>
+          <p><strong>Welcome to Lead Gen Pro</strong></p>
+          <p style="margin-top:4px;">Paste your Exa API key in Settings, then type what you need below.</p>
+          <div class="examples" style="justify-content:center;margin-top:12px;">
+            <span class="example-chip" onclick="exampleSearch(this)">"Roofing contractors in Eugene, OR"</span>
+            <span class="example-chip" onclick="exampleSearch(this)">"Plumbers in Dallas, TX"</span>
+            <span class="example-chip" onclick="exampleSearch(this)">"HVAC companies near Denver"</span>
+            <span class="example-chip" onclick="exampleSearch(this)">"Solar installers in California"</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-bar">
+        <div class="input-row">
+          <input type="text" id="chatInput" placeholder='Type what you need... e.g. "Roofing contractors in Eugene, OR"' autofocus
+                 onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="btn btn-primary" id="sendBtn" onclick="sendChat()">Search</button>
+        </div>
+        <div class="input-hint">
+          Natural language &mdash; just say what you need. Or use the <a href="/docs" target="_blank" style="color:var(--accent2)">API</a> directly.
+        </div>
+      </div>
+    </div>
+
+    <div id="tabLandingContent" class="tab-content" style="display:none;">
+      <div class="chat-area">
+        <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+          <h3 style="font-size:1rem;margin-bottom:12px;">Create Landing Page</h3>
+          <div class="row2">
+            <div class="form-group" style="flex:2;">
+              <label>Business Name</label>
+              <input type="text" id="lpBusinessName" class="form-input" placeholder="Your Roofing Co">
+            </div>
+            <div class="form-group" style="flex:3;">
+              <label>Headline</label>
+              <input type="text" id="lpHeadline" class="form-input" placeholder="Professional Roofing Services">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Subheadline</label>
+            <input type="text" id="lpSubheadline" class="form-input" placeholder="Quality craftsmanship you can trust. Get your free estimate today.">
+          </div>
+          <div class="row2">
+            <div class="form-group">
+              <label>Primary Color</label>
+              <input type="color" id="lpColor" class="form-input" value="#6366f1" style="height:40px;padding:4px;">
+            </div>
+            <div class="form-group">
+              <label>CTA Button Text</label>
+              <input type="text" id="lpCta" class="form-input" value="Get Your Free Estimate">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="createLandingPage()">+ Generate Landing Page</button>
+        </div>
+
+        <div id="landingPagesList">
+          <div style="text-align:center;padding:40px 0;color:var(--text3);font-size:0.9rem;">No landing pages yet. Generate one above.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabSchedulesContent" class="tab-content" style="display:none;">
+      <div class="chat-area">
+        <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+          <h3 style="font-size:1rem;margin-bottom:12px;">Create Scheduled Scan</h3>
+          <div class="row2">
+            <div class="form-group" style="flex:2;">
+              <label>Name</label>
+              <input type="text" id="schedName" class="form-input" placeholder="e.g. Weekly Roofing Leads">
+            </div>
+            <div class="form-group" style="flex:3;">
+              <label>Query</label>
+              <input type="text" id="schedQuery" class="form-input" placeholder="roofing contractors in Eugene, OR">
+            </div>
+          </div>
+          <div class="row2">
+            <div class="form-group">
+              <label>Provider</label>
+              <select id="schedProvider" class="form-input">
+                <option value="exa">Exa AI</option>
+                <option value="perplexity">Perplexity</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Interval (minutes)</label>
+              <select id="schedInterval" class="form-input">
+                <option value="15">15 min</option>
+                <option value="30">30 min</option>
+                <option value="60" selected>1 hour</option>
+                <option value="180">3 hours</option>
+                <option value="360">6 hours</option>
+                <option value="1440">Daily</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Results</label>
+              <select id="schedNumResults" class="form-input">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="createSchedule()">+ Create Schedule</button>
+        </div>
+
+        <div id="schedulesList">
+          <div style="text-align:center;padding:40px 0;color:var(--text3);font-size:0.9rem;">No schedules yet. Create one above.</div>
+        </div>
+
+        <div id="scheduleResults" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+          <h3 id="scheduleResultsTitle" style="font-size:1rem;margin-bottom:12px;">Scan Results</h3>
+          <div id="scheduleResultsBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Lead Detail Modal ─── -->
+<div id="leadModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 id="modalTitle">Lead Details</h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const BASE = '';
+let state = { keyConfigured: false };
+let chatId = 0;
+
+function $(id) { return document.getElementById(id); }
+
+// ─── Init ───
+async function init() {
+  try {
+    const r = await fetch(BASE + '/api/settings');
+    state = await r.json();
+    updateKeyUI();
+  } catch(e) {}
+  await loadRoutingConfig();
+  await refreshStats();
+}
+init();
+
+setupKeyInput('exaKeyInput', 'exa');
+setupKeyInput('perplexityKeyInput', 'perplexity');
+
+function setupKeyInput(id, service) {
+  $('' + id).addEventListener('change', async function() {
+    const key = this.value.trim();
+    if (!key) return;
+    try {
+      const r = await fetch(BASE + '/api/settings/key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, service }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || 'Failed');
+      state[service === 'exa' ? 'keyConfigured' : 'perplexityConfigured'] = true;
+      updateKeyUI();
+      $('saveHint').classList.add('show');
+      setTimeout(() => $('saveHint').classList.remove('show'), 2500);
+    } catch(e) {
+      alert('Error saving key: ' + e.message);
+    }
+  });
+}
+
+// ─── Key Management ───
+function updateKeyUI() {
+  const exa = $('exaKeyStatus');
+  if (state.exa_key_configured) {
+    exa.innerHTML = '<span class="dot dot-green"></span><span>Exa AI configured</span>';
+  } else {
+    exa.innerHTML = '<span class="dot dot-red"></span><span>Not configured</span>';
+  }
+  const ppl = $('perplexityKeyStatus');
+  if (state.perplexity_key_configured) {
+    ppl.innerHTML = '<span class="dot dot-green"></span><span>Perplexity configured</span>';
+  } else {
+    ppl.innerHTML = '<span class="dot dot-red"></span><span>Not configured</span>';
+  }
+}
+
+// ─── Chat ───
+async function sendChat() {
+  const input = $('chatInput');
+  const query = input.value.trim();
+  if (!query) return;
+  input.value = '';
+  $('sendBtn').disabled = true;
+
+  hideWelcome();
+  addQueryMessage(query);
+  addLoading();
+
+  try {
+    const r = await fetch(BASE + '/api/search/natural', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        num_results: parseInt($('numResults').value),
+        min_score: parseFloat($('minScore').value),
+        provider: $('searchProvider').value,
+      }),
+    });
+
+    removeLoading();
+    const data = await r.json();
+
+    if (!data.ok) {
+      addErrorMessage(data.error || 'Search failed');
+      return;
+    }
+
+    addResultMessage(data);
+    await refreshStats();
+  } catch(e) {
+    removeLoading();
+    addErrorMessage('Network error: ' + e.message);
+  } finally {
+    $('sendBtn').disabled = false;
+    $('chatInput').focus();
+  }
+}
+
+function hideWelcome() {
+  const w = $('welcomeMessage');
+  if (w) w.style.display = 'none';
+}
+
+function addQueryMessage(query) {
+  const area = $('chatArea');
+  const id = `q-${chatId++}`;
+  const div = document.createElement('div');
+  div.className = 'chat-message';
+  div.id = id;
+  div.innerHTML = `<div class="chat-query">
+    <div class="avatar">&#128200;</div>
+    <div class="bubble">${escapeHtml(query)}</div>
+  </div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function addLoading() {
+  const area = $('chatArea');
+  const div = document.createElement('div');
+  div.className = 'chat-message';
+  div.id = 'loadingMsg';
+  div.innerHTML = `<div class="loading"><div class="spinner"></div>Searching for leads...</div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function removeLoading() {
+  const el = $('loadingMsg');
+  if (el) el.remove();
+}
+
+function addResultMessage(data) {
+  const area = $('chatArea');
+  const id = `r-${chatId++}`;
+  const div = document.createElement('div');
+  div.className = 'chat-message';
+  div.id = id;
+
+  const elapsed = data.elapsed_sec ? `${data.elapsed_sec}s` : '';
+  const count = data.count || 0;
+  const mergeStats = data._mergeStats;
+
+  let mergeInfo = '';
+  if (mergeStats) {
+    mergeInfo = `<div style="font-size:0.7rem;color:var(--text3);margin-bottom:8px;padding:6px 10px;background:var(--bg3);border-radius:6px;display:inline-block;">
+      <span>Merged: ${mergeStats.sources_used ? mergeStats.sources_used.join(' + ') : ''} &middot; </span>
+      <span>${mergeStats.total_before_dedup} raw &rarr; ${mergeStats.after_dedup} after dedup (${mergeStats.dedup_removed} removed)</span>
+    </div>`;
+  }
+
+  let tableHtml = '';
+  if (data.leads && data.leads.length > 0) {
+    tableHtml = `<table class="results-table">
+      <thead><tr>
+        <th>#</th>
+        <th>Business</th>
+        <th>Description</th>
+        <th>Score</th>
+        <th>Actions</th>
+      </tr></thead><tbody>`;
+    data.leads.slice(0, 25).forEach((lead, i) => {
+      const scoreClass = lead.score >= 70 ? 'score-high' : lead.score >= 40 ? 'score-mid' : 'score-low';
+      const domain = lead.url ? new URL(lead.url).hostname.replace('www.', '') : '';
+      tableHtml += `<tr>
+        <td>${i+1}</td>
+        <td class="title-cell">
+          <a href="${escapeHtml(lead.url)}" target="_blank" rel="noopener">${escapeHtml(lead.title)}</a>
+          <div style="font-size:0.65rem;color:var(--text3);margin-top:1px;">${escapeHtml(domain)}</div>
+        </td>
+        <td class="snippet-cell">${escapeHtml(lead.snippet).substring(0, 200)}</td>
+        <td><span class="score-badge ${scoreClass}">${lead.score}</span></td>
+        <td class="action-cell">
+          <button class="btn-icon" onclick="viewLead('${lead.id}')" title="View details">&#128269;</button>
+          <button class="btn-icon danger" onclick="deleteLead('${lead.id}')" title="Remove">&#128465;</button>
+        </td>
+      </tr>`;
+    });
+    tableHtml += '</tbody></table>';
+    if (data.leads.length > 25) {
+      tableHtml += `<div style="text-align:center;padding:8px;color:var(--text3);font-size:0.8rem;">
+        Showing 25 of ${data.leads.length} leads. <a href="/api/leads" target="_blank" style="color:var(--accent2);">View all</a>
+      </div>`;
+    }
+  } else {
+    tableHtml = `<div class="no-results">
+      <p>No leads found matching your criteria. Try broadening your search or lowering the min score.</p>
+    </div>`;
+  }
+
+  div.innerHTML = `<div class="chat-response">
+    <div class="meta">
+      <span class="ok">&#10003; Found ${count} leads</span>
+      ${elapsed ? `<span class="time">${elapsed}</span>` : ''}
+      <span style="cursor:pointer;color:var(--text3);" onclick="this.parentElement.nextElementSibling.style.display=this.parentElement.nextElementSibling.style.display==='none'?'':'none'">hide</span>
+    </div>
+    ${mergeInfo}
+    ${tableHtml}
+  </div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+
+  $('searchCount').textContent = `${state.statTotal || count} leads`;
+}
+
+function addErrorMessage(msg) {
+  const area = $('chatArea');
+  const div = document.createElement('div');
+  div.className = 'chat-message';
+  div.innerHTML = `<div class="error-box">&#9888; ${escapeHtml(msg)}</div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+// ─── Lead Detail Modal ───
+async function viewLead(id) {
+  try {
+    const r = await fetch(BASE + `/api/leads/${id}`);
+    if (!r.ok) throw new Error('Not found');
+    const lead = await r.json();
+    showLeadModal(lead);
+  } catch(e) {
+    alert('Error loading lead: ' + e.message);
+  }
+}
+
+function showLeadModal(lead) {
+  $('modalTitle').textContent = 'Lead Details';
+  const breakdown = lead.score_breakdown || {};
+  const bd = breakdown.breakdown || {};
+  const weights = bd.weights || {};
+
+  const scoreColor = lead.score >= 70 ? 'var(--green)' : lead.score >= 40 ? 'var(--yellow)' : 'var(--red)';
+
+  $('modalBody').innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:2rem;font-weight:800;color:${scoreColor};">${lead.score}</div>
+      <div class="score-bar"><div class="score-bar-fill" style="width:${lead.score}%;background:${scoreColor};"></div></div>
+    </div>
+    <div class="field"><div class="field-label">Business</div><div class="field-value">${escapeHtml(lead.title)}</div></div>
+    <div class="field"><div class="field-label">URL</div><div class="field-value"><a href="${escapeHtml(lead.url)}" target="_blank">${escapeHtml(lead.url)}</a></div></div>
+    <div class="field"><div class="field-label">Industry</div><div class="field-value">${escapeHtml(lead.industry)}</div></div>
+    <div class="field"><div class="field-label">Location</div><div class="field-value">${escapeHtml(lead.location)}</div></div>
+    <div class="field"><div class="field-label">Source</div><div class="field-value">${escapeHtml(lead.source)}</div></div>
+    <div class="field"><div class="field-label">Description</div><div class="field-value" style="font-size:0.8rem;color:var(--text2);">${escapeHtml(lead.snippet)}</div></div>
+    <hr style="border-color:var(--border);margin:16px 0;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div><div class="field-label">Contact Score</div><div style="font-size:0.9rem;">${lead.contact_score}</div></div>
+      <div><div class="field-label">Business Score</div><div style="font-size:0.9rem;">${lead.business_score}</div></div>
+      <div><div class="field-label">Industry Score</div><div style="font-size:0.9rem;">${lead.industry_score}</div></div>
+      <div><div class="field-label">Location Score</div><div style="font-size:0.9rem;">${lead.location_score}</div></div>
+      <div><div class="field-label">Enrichment Score</div><div style="font-size:0.9rem;">${lead.enrichment_score}</div></div>
+    </div>
+  `;
+  $('leadModal').classList.add('show');
+}
+
+function closeModal() {
+  $('leadModal').classList.remove('show');
+}
+
+// ─── Actions ───
+async function deleteLead(id) {
+  if (!confirm('Remove this lead?')) return;
+  try {
+    await fetch(BASE + `/api/leads/${id}`, { method: 'DELETE' });
+    await refreshStats();
+  } catch(e) {}
+}
+
+async function clearLeads() {
+  if (!confirm('Clear ALL leads?')) return;
+  try {
+    await fetch(BASE + '/api/leads', { method: 'DELETE' });
+    $('chatArea').innerHTML = '';
+    $('welcomeMessage').style.display = '';
+    await refreshStats();
+  } catch(e) {}
+}
+
+function exportCSV() {
+  const min = $('minScore').value;
+  window.open(BASE + `/api/export/csv?min_score=${min}`, '_blank');
+}
+
+function exportJSON() {
+  const min = $('minScore').value;
+  window.open(BASE + `/api/export/json?min_score=${min}`, '_blank');
+}
+
+// ─── Stats ───
+async function refreshStats() {
+  try {
+    const [sr, rr] = await Promise.all([
+      fetch(BASE + '/api/stats'),
+      fetch(BASE + '/api/routing/stats'),
+    ]);
+    const s = await sr.json();
+    const rs = await rr.json();
+    $('statTotal').textContent = s.total || 0;
+    $('statAvg').textContent = s.avg_score || 0;
+    $('statSearches').textContent = s.searches_run || 0;
+    $('statRuns').textContent = rs.runs || 0;
+    $('searchCount').textContent = `${s.total || 0} leads`;
+    state.statTotal = s.total;
+
+    // Capture stats
+    $('lpTotal').textContent = s.landing_pages || 0;
+    if (s.capture) {
+      $('captureTotal').textContent = s.capture.total || 0;
+    }
+  } catch(e) {}
+}
+
+// ─── Examples ───
+function exampleSearch(el) {
+  $('chatInput').value = el.textContent.trim().replace(/^"/,'').replace(/"$/,'');
+  sendChat();
+}
+
+// ─── Escape ───
+function escapeHtml(s) {
+  if (!s) return '';
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+// ─── Routing Pipeline ───
+async function loadRoutingConfig() {
+  try {
+    const r = await fetch(BASE + '/api/routing/config');
+    const cfg = await r.json();
+    renderRoutingSteps(cfg.steps || []);
+  } catch(e) {
+    $('routingSteps').innerHTML = '<div style="font-size:0.75rem;color:var(--text3);padding:4px 0;">Could not load routing config</div>';
+  }
+}
+
+function renderRoutingSteps(steps) {
+  const container = $('routingSteps');
+  if (!steps || steps.length === 0) {
+    container.innerHTML = '<div style="font-size:0.75rem;color:var(--text3);padding:4px 0;">No pipeline steps configured</div>';
+    $('routingStatus').textContent = '0 steps';
+    return;
+  }
+  const enabled = steps.filter(s => s.enabled).length;
+  $('routingStatus').textContent = `${enabled}/${steps.length} active`;
+  container.innerHTML = steps.map(s => {
+    const missing = s.keys_required && s.keys_required.length > 0
+      ? `<div class="step-missing">needs: ${s.keys_required.join(', ')}</div>` : '';
+    return `<div class="routing-step">
+      <button class="toggle ${s.enabled ? 'on' : ''}"
+              onclick="toggleStep('${s.name}', ${!s.enabled})"
+              title="Toggle ${s.label}"></button>
+      <div class="step-info">
+        <div class="step-name">${s.label}</div>
+        <div class="step-desc">${s.description}</div>
+        ${missing}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleStep(name, newState) {
+  try {
+    const r = await fetch(BASE + '/api/routing/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: name, updates: { enabled: newState } }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    const data = await r.json();
+    if (data.ok) await loadRoutingConfig();
+  } catch(e) {
+    alert('Error toggling step: ' + e.message);
+  }
+}
+
+// ─── Tab Switching ───
+function switchTab(tab) {
+  document.getElementById('tabDiscoveryContent').style.display = tab === 'discovery' ? '' : 'none';
+  document.getElementById('tabLandingContent').style.display = tab === 'landing' ? '' : 'none';
+  document.getElementById('tabSchedulesContent').style.display = tab === 'schedules' ? '' : 'none';
+  document.getElementById('tabDiscovery').className = tab === 'discovery' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabLanding').className = tab === 'landing' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabSchedules').className = tab === 'schedules' ? 'tab-btn tab-active' : 'tab-btn';
+  if (tab === 'schedules') {
+    loadSchedules();
+    refreshSchedulerStats();
+  }
+  if (tab === 'landing') {
+    loadLandingPages();
+  }
+}
+
+// ─── Landing Pages ───
+async function createLandingPage() {
+  const name = $('lpBusinessName').value.trim();
+  if (!name) { alert('Business name is required'); return; }
+  const btn = document.querySelector('#tabLandingContent .btn-primary');
+  btn.disabled = true; btn.textContent = 'Generating...';
+  try {
+    const r = await fetch(BASE + '/api/landing/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        business_name: name,
+        headline: $('lpHeadline').value.trim() || 'Professional Home Improvement Services',
+        subheadline: $('lpSubheadline').value.trim() || 'Quality craftsmanship you can trust. Get your free estimate today.',
+        primary_color: $('lpColor').value,
+        cta_text: $('lpCta').value.trim() || 'Get Your Free Estimate',
+      }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    $('lpBusinessName').value = '';
+    $('lpHeadline').value = '';
+    $('lpSubheadline').value = '';
+    await loadLandingPages();
+    await refreshStats();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '+ Generate Landing Page';
+  }
+}
+
+async function loadLandingPages() {
+  try {
+    const r = await fetch(BASE + '/api/landing/list');
+    const data = await r.json();
+    const pages = data.pages || [];
+    const container = $('landingPagesList');
+    if (pages.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3);font-size:0.9rem;">No landing pages yet. Generate one above.</div>';
+      return;
+    }
+    container.innerHTML = pages.map(p => {
+      const previewUrl = BASE + p.url;
+      return `<div class="sched-card">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;"></span>
+        <div class="info">
+          <div class="name">Page ${p.id}</div>
+          <div class="detail">
+            <span>Size: ${(p.size / 1024).toFixed(1)} KB</span>
+            <span>URL: <a href="${previewUrl}" target="_blank" style="color:var(--accent2);">${p.url}</a></span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-icon" onclick="window.open('${previewUrl}', '_blank')" title="Preview">&#128269;</button>
+          <button class="btn btn-icon danger" onclick="deleteLandingPage('${p.id}')" title="Delete">&#128465;</button>
+        </div>
+      </div>`;
+    }).join('');
+    $('lpTotal').textContent = pages.length;
+  } catch(e) {
+    $('landingPagesList').innerHTML = '<div class="error-box">Error: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function deleteLandingPage(id) {
+  if (!confirm('Delete this landing page?')) return;
+  try {
+    await fetch(BASE + '/api/landing/' + id, { method: 'DELETE' });
+    await loadLandingPages();
+    await refreshStats();
+  } catch(e) {}
+}
+
+// ─── Scheduler ───
+async function createSchedule() {
+  const name = $('schedName').value.trim();
+  const query = $('schedQuery').value.trim();
+  if (!name || !query) { alert('Name and query are required'); return; }
+
+  try {
+    const r = await fetch(BASE + '/api/schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name, query,
+        provider: $('schedProvider').value,
+        interval_minutes: parseInt($('schedInterval').value),
+        num_results: parseInt($('schedNumResults').value),
+        min_score: parseFloat($('minScore').value),
+        enabled: true,
+      }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    $('schedName').value = '';
+    $('schedQuery').value = '';
+    await loadSchedules();
+    await refreshSchedulerStats();
+  } catch(e) {
+    alert('Error creating schedule: ' + e.message);
+  }
+}
+
+async function loadSchedules() {
+  try {
+    const r = await fetch(BASE + '/api/schedules');
+    const data = await r.json();
+    const schedules = data.schedules || [];
+    const container = $('schedulesList');
+
+    if (schedules.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3);font-size:0.9rem;">No schedules yet. Create one above.</div>';
+      return;
+    }
+
+    container.innerHTML = schedules.map(s => {
+      const runs = s.total_runs || 0;
+      const lastRun = s.last_run ? new Date(s.last_run).toLocaleString() : 'never';
+      const stateColor = s.enabled ? 'var(--green)' : 'var(--text3)';
+      return `<div class="sched-card">
+        <span style="width:8px;height:8px;border-radius:50%;background:${stateColor};flex-shrink:0;"></span>
+        <div class="info">
+          <div class="name">${escapeHtml(s.name)}</div>
+          <div class="detail">
+            <span>Query: ${escapeHtml(s.query)}</span>
+            <span>Provider: ${s.provider}</span>
+            <span>Every ${s.interval_minutes}min</span>
+            <span>Runs: ${runs}</span>
+            <span>Last: ${lastRun}</span>
+            <span>Results: ${s.last_result_count}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-icon" onclick="viewScheduleResults('${s.id}')" title="View results">&#128269;</button>
+          <button class="btn btn-icon ${s.enabled ? 'btn-success' : ''}" onclick="toggleSchedule('${s.id}', ${!s.enabled})" title="${s.enabled ? 'Disable' : 'Enable'}">
+            ${s.enabled ? '&#10003;' : '&#9646;'}
+          </button>
+          <button class="btn btn-icon danger" onclick="deleteSchedule('${s.id}')" title="Delete">&#128465;</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    $('schedulesList').innerHTML = '<div class="error-box">Error loading schedules: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function toggleSchedule(id, newState) {
+  try {
+    const r = await fetch(BASE + '/api/schedules/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: newState }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    await loadSchedules();
+    await refreshSchedulerStats();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function deleteSchedule(id) {
+  if (!confirm('Delete this schedule?')) return;
+  try {
+    await fetch(BASE + '/api/schedules/' + id, { method: 'DELETE' });
+    await loadSchedules();
+    await refreshSchedulerStats();
+    $('scheduleResults').style.display = 'none';
+  } catch(e) {}
+}
+
+async function viewScheduleResults(id) {
+  try {
+    const r = await fetch(BASE + '/api/schedules/' + id + '/results');
+    const data = await r.json();
+    const leads = data.leads || [];
+    $('scheduleResultsTitle').textContent = 'Scan Results (' + leads.length + ' leads)';
+
+    let html = '';
+    if (leads.length === 0) {
+      html = '<div style="padding:20px;text-align:center;color:var(--text3);">No results yet. Schedule will run on its next interval.</div>';
+    } else {
+      html = '<table class="results-table"><thead><tr><th>Business</th><th>Score</th><th>Source</th><th>Found</th></tr></thead><tbody>';
+      leads.slice(0, 50).forEach(l => {
+        const sc = l.score >= 70 ? 'score-high' : l.score >= 40 ? 'score-mid' : 'score-low';
+        html += `<tr>
+          <td class="title-cell"><a href="${escapeHtml(l.url)}" target="_blank">${escapeHtml(l.title)}</a></td>
+          <td><span class="score-badge ${sc}">${l.score || 0}</span></td>
+          <td>${escapeHtml(l.source)}</td>
+          <td style="font-size:0.75rem;color:var(--text3);">${l.found_at ? new Date(l.found_at).toLocaleDateString() : ''}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    $('scheduleResultsBody').innerHTML = html;
+    $('scheduleResults').style.display = '';
+  } catch(e) {
+    alert('Error loading results: ' + e.message);
+  }
+}
+
+async function refreshSchedulerStats() {
+  try {
+    const r = await fetch(BASE + '/api/stats');
+    const data = await r.json();
+    const s = data.scheduler || {};
+    $('schedTotal').textContent = s.total_schedules || 0;
+    $('schedEnabled').textContent = s.enabled || 0;
+    $('schedRuns').textContent = s.total_runs || 0;
+  } catch(e) {}
+}
+
+// ─── Multi-source search (override sendChat when multi-source toggle is on) ───
+const _origSendChat = sendChat;
+sendChat = async function() {
+  const input = $('chatInput');
+  const query = input.value.trim();
+  if (!query) return;
+  input.value = '';
+  $('sendBtn').disabled = true;
+
+  hideWelcome();
+  addQueryMessage(query);
+  addLoading();
+
+  const useMulti = $('multiSourceToggle').checked;
+
+  try {
+    let data;
+    if (useMulti) {
+      const r = await fetch(BASE + '/api/search/multi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          num_results: parseInt($('numResults').value),
+          min_score: parseFloat($('minScore').value),
+          providers: ['exa', 'perplexity'],
+        }),
+      });
+      data = await r.json();
+      if (!r.ok) { throw new Error(data.error || 'Search failed'); }
+    } else {
+      const r = await fetch(BASE + '/api/search/natural', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          num_results: parseInt($('numResults').value),
+          min_score: parseFloat($('minScore').value),
+          provider: $('searchProvider').value,
+        }),
+      });
+      data = await r.json();
+      if (!data.ok) { throw new Error(data.error || 'Search failed'); }
+    }
+
+    removeLoading();
+
+    if (useMulti && data.stats) {
+      data.count = data.leads ? data.leads.length : 0;
+      data.elapsed_sec = data.stats.elapsed_sec;
+      data._mergeStats = data.stats;
+    }
+
+    addResultMessage(data);
+    await refreshStats();
+  } catch(e) {
+    removeLoading();
+    addErrorMessage('Network error: ' + e.message);
+  } finally {
+    $('sendBtn').disabled = false;
+    $('chatInput').focus();
+  }
+};
+
+// ─── Keyboard shortcut ───
+</script>
+</body>
+</html>

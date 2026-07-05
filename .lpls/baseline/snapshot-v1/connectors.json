@@ -1,0 +1,11 @@
+{
+  "connectors": {
+    "capture":    ["meta_lead_ads_webhooks", "google_ads_lead_form_assets", "typeform_webhooks", "custom_website_form_webhooks", "twilio_inbound_calls"],
+    "crm":        ["hubspot_contacts_api", "hubspot_companies_api", "hubspot_deals_api"],
+    "booking":    ["calendly_scheduling_api", "calendly_webhooks", "google_calendar_events_insert"],
+    "payments":   ["stripe_payment_links", "stripe_checkout_events"],
+    "ops":        ["slack_incoming_webhooks", "slack_events_api", "discord_webhooks_or_bot"],
+    "automation": ["n8n_webhooks", "n8n_templates", "apify_actors_api"],
+    "voice":      ["twilio_programmable_voice"]
+  }
+}

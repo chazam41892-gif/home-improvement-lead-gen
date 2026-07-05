@@ -1,0 +1,21 @@
+{
+  "manifest_version": "2.0.0",
+  "name": "hachazal_sales_empire",
+  "goal": "Bring qualified leads directly to the user with minimal effort through compliant capture, automation, qualification, booking, and follow-up.",
+  "layers": {
+    "orchestration": ["n8n"],
+    "capture":       ["meta_lead_ads", "google_ads_lead_forms", "website_forms", "typeform", "call_inbound", "chat_widget"],
+    "enrichment":    ["hubspot_contacts", "hubspot_companies", "apify_optional_monitoring", "custom_llm_enrichment"],
+    "qualification": ["rules_engine", "llm_scoring_engine", "geo_fit_engine", "urgency_classifier", "budget_fit_classifier"],
+    "engagement":    ["instant_sms_or_email", "voice_callback_offer", "ai_chat_qualifier", "video_followup_packet"],
+    "booking":       ["calendly_api", "google_calendar_api", "stripe_payment_links"],
+    "crm":           ["hubspot_contacts", "hubspot_companies", "hubspot_deals", "pipeline_stage_router"],
+    "alerts":        ["slack_webhooks", "discord_ops_channel"],
+    "optimization":  ["response_time_tracking", "show_rate_tracking", "close_rate_tracking", "source_quality_tracking", "self_improving_prompt_packs"]
+  },
+  "profiles": {
+    "free_core":        ["n8n", "hubspot_free", "google_calendar_api", "typeform", "slack_webhooks", "stripe_payment_links"],
+    "hybrid_growth":    ["n8n", "hubspot_free_or_paid", "meta_lead_ads", "google_ads_lead_forms", "calendly_api", "google_calendar_api", "twilio_voice", "typeform", "slack_webhooks", "stripe_payment_links", "apify_optional"],
+    "supreme_operator": ["n8n", "hubspot_enterprise_or_salesforce", "meta_lead_ads", "google_ads_lead_forms", "calendly_api", "google_calendar_api", "twilio_voice", "conversation_intelligence", "premium_enrichment", "apify_optional", "slack_webhooks", "discord_ops", "stripe_payment_links"]
+  }
+}

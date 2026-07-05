@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#FF0A0A0F</color>
+    <color name="bg2">#FF111118</color>
+    <color name="bg3">#FF1A1A24</color>
+    <color name="accent">#FF6366F1</color>
+    <color name="accent2">#FF818CF8</color>
+    <color name="text">#FFE8E8F0</color>
+    <color name="text2">#FF9898B0</color>
+    <color name="text3">#FF68687A</color>
+    <color name="green">#FF22C55E</color>
+    <color name="yellow">#FFEAB308</color>
+    <color name="red">#FFEF4444</color>
+</resources>

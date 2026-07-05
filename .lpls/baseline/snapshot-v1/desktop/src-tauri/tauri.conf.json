@@ -1,0 +1,52 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Lead Gen Pro",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": { "all": false, "open": true },
+      "dialog": { "all": true, "save": true, "open": true },
+      "fs": { "all": false, "scope": [] },
+      "updater": { "all": true }
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.leadgenpro.desktop",
+      "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+      "targets": ["msi", "nsis", "dmg", "deb", "appimage"]
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Lead Gen Pro Desktop",
+        "width": 1100,
+        "height": 750,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": ["https://your-domain.com/updates/desktop/{{target}}/{{current_version}}"],
+      "pubkey": ""
+    },
+    "systemTray": {
+      "iconPath": "icons/32x32.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
+    }
+  }
+}
