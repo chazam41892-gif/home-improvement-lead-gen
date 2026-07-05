@@ -25,6 +25,7 @@ Thumbs.db
 # Project data (user-generated)
 data/*.jsonl
 data/*.csv
+data/key_vault.json
 
 # Test artifacts
 .pytest_cache/

@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Key Vault — API Key Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a1628;
+  --bg2: #0f1d35;
+  --bg3: #142244;
+  --bg4: #1a2d55;
+  --border: rgba(255,255,255,0.05);
+  --text: #e0e8f0;
+  --text2: #8899b4;
+  --text3: #5a6a85;
+  --accent: #00d4ff;
+  --accent2: #33ddff;
+  --accent-glow: rgba(0,212,255,0.15);
+  --green: #00ff88;
+  --green-bg: rgba(0,255,136,0.1);
+  --yellow: #ffd700;
+  --yellow-bg: rgba(255,215,0,0.1);
+  --red: #ff4444;
+  --red-bg: rgba(255,68,68,0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+html { font-size: 14px; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: linear-gradient(135deg, #0a1628, #1a1a2e);
+  color: var(--text);
+  min-height: 100vh;
+}
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* ─── Header ─── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.header-left h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header-left p {
+  font-size: 0.85rem;
+  color: var(--text3);
+  margin-top: 4px;
+}
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text2);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.nav-link:hover {
+  background: var(--bg4);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ─── Section ─── */
+.section { margin-bottom: 36px; }
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-subtitle {
+  font-size: 0.8rem;
+  color: var(--text3);
+  font-weight: 400;
+}
+
+/* ─── Service Cards Grid ─── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.service-card {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  transition: all 0.2s;
+}
+.service-card:hover { border-color: rgba(255,255,255,0.1); }
+.service-card .top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.service-card .name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.service-card .desc {
+  font-size: 0.75rem;
+  color: var(--text3);
+  margin-top: 2px;
+}
+.service-card .status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.dot-red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.status-configured { color: var(--green); }
+.status-missing { color: var(--text3); }
+.service-card .key-preview {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text3);
+  background: rgba(0,0,0,0.3);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.service-card .key-source {
+  font-size: 0.7rem;
+  color: var(--yellow);
+  margin-bottom: 12px;
+}
+.service-card .actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary { background: var(--accent); color: #0a1628; }
+.btn-primary:hover { background: var(--accent2); box-shadow: 0 0 20px var(--accent-glow); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+.btn-sm { padding: 6px 12px; font-size: 0.75rem; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); }
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid transparent; }
+.btn-danger:hover { border-color: var(--red); }
+.btn-success { background: var(--green-bg); color: var(--green); border: 1px solid transparent; }
+.btn-success:hover { border-color: var(--green); }
+
+/* ─── Key Set Modal ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: var(--shadow);
+}
+.modal h2 { font-size: 1.1rem; margin-bottom: 4px; }
+.modal p { font-size: 0.8rem; color: var(--text3); margin-bottom: 16px; }
+.modal-close {
+  float: right;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text2);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--text3); }
+select.form-input { cursor: pointer; }
+
+/* ─── Enrichment Providers ─── */
+.providers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+.provider-card {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.provider-card .top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.provider-card .name { font-weight: 600; font-size: 0.9rem; }
+.provider-card .status-text { font-size: 0.8rem; }
+.provider-card .detail { font-size: 0.75rem; color: var(--text3); }
+.toggle {
+  position: relative;
+  width: 36px; height: 20px;
+  flex-shrink: 0;
+  background: var(--bg4);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  padding: 0;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: var(--text);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(16px); }
+
+/* ─── Test Enrichment ─── */
+.enrich-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  padding: 20px;
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.enrich-form .form-group { margin-bottom: 0; min-width: 180px; flex: 1; }
+.enrich-results {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.enrich-results h3 { font-size: 0.95rem; margin-bottom: 14px; }
+.result-field {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.result-field:last-child { border-bottom: none; }
+.result-field .label {
+  width: 160px;
+  flex-shrink: 0;
+  color: var(--text3);
+  font-weight: 500;
+}
+.result-field .value {
+  flex: 1;
+  color: var(--text);
+  word-break: break-all;
+}
+.result-field .value.missing { color: var(--text3); font-style: italic; }
+
+/* ─── Notifications ─── */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  z-index: 200;
+  animation: slideIn 0.3s ease;
+  max-width: 400px;
+}
+.notification.success { background: var(--green-bg); border: 1px solid var(--green); color: var(--green); }
+.notification.error { background: var(--red-bg); border: 1px solid var(--red); color: var(--red); }
+.notification.info { background: var(--accent-glow); border: 1px solid var(--accent); color: var(--accent); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ─── Loading ─── */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  color: var(--text3);
+  font-size: 0.85rem;
+  justify-content: center;
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--bg4);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-box { padding: 12px 16px; background: var(--red-bg); border: 1px solid var(--red); border-radius: var(--radius-sm); color: var(--red); font-size: 0.85rem; margin-bottom: 12px; }
+.no-data { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 0.9rem; }
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <h1>Key Vault — API Key Management</h1>
+      <p>Configure provider keys to unlock enrichment</p>
+    </div>
+    <div class="header-actions">
+      <a href="/" class="nav-link">&#8592; Dashboard</a>
+    </div>
+  </div>
+
+  <!-- ─── Service Keys ─── -->
+  <div class="section">
+    <div class="section-title">
+      Service Keys
+      <span class="section-subtitle" id="keyCount"></span>
+    </div>
+    <div class="card-grid" id="vaultGrid">
+      <div class="loading"><div class="spinner"></div>Loading vault keys...</div>
+    </div>
+  </div>
+
+  <!-- ─── Enrichment Providers ─── -->
+  <div class="section">
+    <div class="section-title">
+      Enrichment Providers
+      <span class="section-subtitle">Powered by configured service keys</span>
+    </div>
+    <div class="providers-grid" id="providersGrid">
+      <div class="loading"><div class="spinner"></div>Loading providers...</div>
+    </div>
+  </div>
+
+  <!-- ─── Test Enrichment ─── -->
+  <div class="section">
+    <div class="section-title">
+      Test Enrichment
+      <span class="section-subtitle">Try enriching a business with your configured providers</span>
+    </div>
+    <div class="enrich-form">
+      <div class="form-group">
+        <label>Business Name</label>
+        <input type="text" id="testBizName" class="form-input" placeholder="e.g. Acme Roofing Co">
+      </div>
+      <div class="form-group">
+        <label>Trade</label>
+        <select id="testTrade" class="form-input">
+          <option value="">Loading trades...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <input type="text" id="testLocation" class="form-input" placeholder="e.g. Eugene, OR">
+      </div>
+      <button class="btn btn-primary" id="testEnrichBtn" onclick="testEnrichment()">Enrich</button>
+    </div>
+    <div id="testEnrichResults" class="enrich-results" style="display:none;"></div>
+    <div id="testEnrichLoading" class="loading" style="display:none;"><div class="spinner"></div>Enriching...</div>
+  </div>
+</div>
+
+<!-- ─── Key Set Modal ─── -->
+<div id="keyModal" class="modal-overlay" onclick="if(event.target===this)closeKeyModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeKeyModal()">&times;</button>
+    <h2 id="keyModalTitle">Set Key</h2>
+    <p id="keyModalDesc">Paste your API key for <span id="keyModalService"></span></p>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" id="keyModalInput" class="form-input" placeholder="Paste your key here..." spellcheck="false" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" id="keyModalBtn" onclick="saveKeyModal()" style="width:100%;">Save Key</button>
+    <div id="keyModalError" class="error-box" style="display:none;margin-top:12px;"></div>
+  </div>
+</div>
+
+<script>
+const BASE = '';
+let vaultState = { keys: {} };
+let activeService = null;
+
+function $(id) { return document.getElementById(id); }
+
+function notify(msg, type) {
+  const existing = document.querySelector('.notification');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'notification ' + type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('api_key');
+  const h = { 'Content-Type': 'application/json' };
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
+
+const SERVICE_META = {
+  exa: { name: 'Exa AI', desc: 'Web search provider for lead discovery' },
+  perplexity: { name: 'Perplexity AI', desc: 'AI-powered search provider' },
+  anthropic: { name: 'Anthropic', desc: 'LLM provider for AI enrichment' },
+  openai: { name: 'OpenAI', desc: 'LLM provider for AI enrichment' },
+  stripe_secret: { name: 'Stripe Secret', desc: 'Payment processing & billing' },
+  stripe_webhook: { name: 'Stripe Webhook', desc: 'Webhook signature verification' },
+  clearbit: { name: 'Clearbit', desc: 'Company & contact data enrichment' },
+  hunter: { name: 'Hunter.io', desc: 'Email address discovery' },
+  apollo: { name: 'Apollo.io', desc: 'B2B contact & company data' },
+  people_data_labs: { name: 'People Data Labs', desc: 'Person enrichment data' },
+  loox: { name: 'Loox', desc: 'Review & social proof data' },
+};
+
+// ─── Vault Keys ───
+async function loadVaultKeys() {
+  try {
+    const r = await fetch(BASE + '/api/vault/keys', { headers: getAuthHeaders() });
+    if (!r.ok) throw new Error('Failed to load vault keys');
+    const data = await r.json();
+    vaultState.keys = data.keys || {};
+    renderVaultKeys();
+  } catch(e) {
+    $('vaultGrid').innerHTML = '<div class="error-box">Error loading vault: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderVaultKeys() {
+  const container = $('vaultGrid');
+  const services = Object.keys(SERVICE_META);
+  let configured = 0;
+  const cards = services.map(svc => {
+    const k = vaultState.keys[svc] || {};
+    const configured = k.configured || false;
+    const source = k.source || null;
+    const maskedKey = k.masked_key || '';
+    const meta = SERVICE_META[svc];
+    if (configured) configured++;
+    const dotClass = configured ? 'dot-green' : 'dot-red';
+    const statusText = configured ? 'Configured' : 'Not configured';
+    const statusClass = configured ? 'status-configured' : 'status-missing';
+    const sourceLabel = source === 'env' ? '<div class="key-source">&#128274; Set via environment variable</div>' : '';
+    const showDelete = source !== 'env' && configured;
+    return `<div class="service-card">
+      <div class="top">
+        <div>
+          <div class="name">${meta.name}</div>
+          <div class="desc">${meta.desc}</div>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="dot ${dotClass}"></span>
+        <span class="${statusClass}">${statusText}</span>
+      </div>
+      <div class="key-preview" title="${escapeHtml(maskedKey)}">${maskedKey ? escapeHtml(maskedKey) : '\u2014 no key set \u2014'}</div>
+      ${sourceLabel}
+      <div class="actions">
+        <button class="btn btn-primary btn-sm" onclick="openKeyModal('${svc}')">Set Key</button>
+        ${showDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteKey('${svc}')">Delete</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML = cards;
+  $('keyCount').textContent = configured + '/' + services.length + ' configured';
+}
+
+// ─── Key Modal ───
+function openKeyModal(service) {
+  activeService = service;
+  const meta = SERVICE_META[service];
+  $('keyModalTitle').textContent = 'Set ' + meta.name + ' Key';
+  $('keyModalService').textContent = meta.name;
+  $('keyModalDesc').textContent = 'Paste your API key for ' + meta.name;
+  $('keyModalInput').value = '';
+  $('keyModalError').style.display = 'none';
+  $('keyModalBtn').disabled = false;
+  $('keyModalBtn').textContent = 'Save Key';
+  $('keyModal').classList.add('show');
+  setTimeout(() => $('keyModalInput').focus(), 100);
+}
+
+function closeKeyModal() {
+  $('keyModal').classList.remove('show');
+  activeService = null;
+}
+
+async function saveKeyModal() {
+  const key = $('keyModalInput').value.trim();
+  if (!key) { $('keyModalError').textContent = 'Please paste an API key'; $('keyModalError').style.display = ''; return; }
+  $('keyModalError').style.display = 'none';
+  $('keyModalBtn').disabled = true;
+  $('keyModalBtn').textContent = 'Saving...';
+  try {
+    const r = await fetch(BASE + '/api/vault/keys/' + activeService, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ key }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error || (await r.json()).detail || 'Failed to save key');
+    notify(metaName(activeService) + ' key saved successfully', 'success');
+    closeKeyModal();
+    await loadVaultKeys();
+    await loadProviders();
+  } catch(e) {
+    $('keyModalError').textContent = e.message;
+    $('keyModalError').style.display = '';
+  } finally {
+    $('keyModalBtn').disabled = false;
+    $('keyModalBtn').textContent = 'Save Key';
+  }
+}
+
+async function deleteKey(service) {
+  if (!confirm('Remove the ' + metaName(service) + ' key?')) return;
+  try {
+    const r = await fetch(BASE + '/api/vault/keys/' + service, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!r.ok) throw new Error((await r.json()).error || (await r.json()).detail || 'Failed to delete key');
+    notify(metaName(service) + ' key removed', 'info');
+    await loadVaultKeys();
+    await loadProviders();
+  } catch(e) {
+    notify('Error: ' + e.message, 'error');
+  }
+}
+
+function metaName(svc) {
+  return (SERVICE_META[svc] || {}).name || svc;
+}
+
+// ─── Enrichment Providers ───
+async function loadProviders() {
+  const container = $('providersGrid');
+  try {
+    const r = await fetch(BASE + '/api/enrich/providers', { headers: getAuthHeaders() });
+    if (!r.ok) throw new Error('Failed to load providers');
+    const data = await r.json();
+    const providers = data.providers || {};
+    const entries = Object.entries(providers);
+    if (entries.length === 0) {
+      container.innerHTML = '<div class="no-data">No enrichment providers available.</div>';
+      return;
+    }
+    container.innerHTML = entries.map(([id, p]) => {
+      const dotClass = p.configured ? 'dot-green' : 'dot-red';
+      const statusText = p.configured ? 'Ready' : 'Missing keys';
+      const statusClass = p.configured ? 'status-configured' : 'status-missing';
+      const enabledLabel = p.enabled ? 'Enabled' : 'Disabled';
+      return `<div class="provider-card">
+        <div class="top">
+          <div class="name">${escapeHtml(p.name || id)}</div>
+          <button class="toggle ${p.enabled ? 'on' : ''}" onclick="toggleProvider('${id}', ${!p.enabled})"></button>
+        </div>
+        <div class="status-row" style="margin-bottom:4px;">
+          <span class="dot ${dotClass}"></span>
+          <span class="${statusClass}">${statusText}</span>
+        </div>
+        <div class="detail">${enabledLabel} &middot; ${p.configured ? 'all keys present' : 'requires configuration'}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div class="error-box">Error loading providers: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function toggleProvider(id, newState) {
+  try {
+    const r = await fetch(BASE + '/api/enrich/providers/' + id, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ enabled: newState }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    notify((newState ? 'Enabled' : 'Disabled') + ' ' + id, 'success');
+    await loadProviders();
+  } catch(e) {
+    notify('Error: ' + e.message, 'error');
+  }
+}
+
+// ─── Test Enrichment ───
+async function loadTrades() {
+  try {
+    const r = await fetch(BASE + '/api/trades');
+    if (!r.ok) throw new Error('Failed to load trades');
+    const data = await r.json();
+    const sel = $('testTrade');
+    sel.innerHTML = '<option value="">Select a trade...</option>' + (data.trades || []).map(t =>
+      '<option value="' + escapeHtml(t.trade_id) + '">' + escapeHtml(t.name) + '</option>'
+    ).join('');
+  } catch(e) {
+    $('testTrade').innerHTML = '<option value="">Error loading trades</option>';
+  }
+}
+
+async function testEnrichment() {
+  const bizName = $('testBizName').value.trim();
+  const trade = $('testTrade').value;
+  const location = $('testLocation').value.trim();
+  if (!bizName || !trade || !location) {
+    notify('Please fill in all fields (business name, trade, location)', 'error');
+    return;
+  }
+  $('testEnrichBtn').disabled = true;
+  $('testEnrichBtn').textContent = 'Enriching...';
+  $('testEnrichLoading').style.display = '';
+  $('testEnrichResults').style.display = 'none';
+  try {
+    const r = await fetch(BASE + '/api/enrich/lead', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ business_name: bizName, trade, location }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error || (await r.json()).detail || 'Enrichment failed');
+    const data = await r.json();
+    renderEnrichResults(data);
+  } catch(e) {
+    notify('Enrichment error: ' + e.message, 'error');
+  } finally {
+    $('testEnrichBtn').disabled = false;
+    $('testEnrichBtn').textContent = 'Enrich';
+    $('testEnrichLoading').style.display = 'none';
+  }
+}
+
+function renderEnrichResults(data) {
+  const container = $('testEnrichResults');
+  const fields = [
+    { label: 'Business Name', key: 'business_name' },
+    { label: 'Contact Name', key: 'contact_name' },
+    { label: 'Title', key: 'title' },
+    { label: 'Phone', key: 'phone' },
+    { label: 'Email', key: 'email' },
+    { label: 'Address', key: 'address' },
+    { label: 'Website', key: 'website' },
+    { label: 'Employee Count', key: 'employee_count' },
+    { label: 'Revenue', key: 'revenue' },
+    { label: 'Industry', key: 'industry' },
+    { label: 'Confidence Score', key: 'confidence_score' },
+  ];
+  container.innerHTML = '<h3>Enrichment Results</h3>' +
+    fields.map(f => {
+      const val = data[f.key];
+      const valStr = val != null && val !== '' ? escapeHtml(String(val)) : '<span class="missing">\u2014</span>';
+      return '<div class="result-field"><div class="label">' + f.label + '</div><div class="value' + (val == null || val === '' ? ' missing' : '') + '">' + valStr + '</div></div>';
+    }).join('');
+  container.style.display = '';
+}
+
+// ─── Escape ───
+function escapeHtml(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ─── Init ───
+async function init() {
+  await Promise.all([loadVaultKeys(), loadProviders(), loadTrades()]);
+}
+init();
+</script>
+</body>
+</html>

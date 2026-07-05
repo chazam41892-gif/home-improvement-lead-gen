@@ -32,6 +32,9 @@ from engine.trades.trades import list_trades, get_trade_config
 from engine.trades.base import TradeLead
 from engine.stripe_integration import StripeIntegration
 from engine import persistence
+from engine.key_vault import KeyVault, SERVICE_KEYS
+from engine.enrichment import enrich_lead, EnrichOrchestrator
+from engine.enrichment.base import EnrichmentResult
 from crm_plus.crm_plus_routes import router as crm_plus_router, set_engine as set_crm_engine, set_conversion as set_crm_conversion
 
 load_dotenv()
@@ -957,6 +960,128 @@ async def cancel_subscription(data: Dict[str, Any], request: Request):
         return await stripe_integration.cancel_subscription(account_id)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+# ─── Key Vault ─────────────────────────────────────────────────────
+
+KeyVault.load()
+
+@app.get("/api/vault/keys")
+async def vault_list_keys(request: Request):
+    verify_api_key(request)
+    return KeyVault.list()
+
+
+@app.post("/api/vault/keys/{service}")
+async def vault_set_key(service: str, request: Request):
+    verify_api_key(request)
+    body = await request.json()
+    key = body.get("key", "")
+    label = body.get("label", "user")
+    if not key:
+        raise HTTPException(400, "key is required")
+    if service not in SERVICE_KEYS:
+        raise HTTPException(400, f"Unknown service: {service}")
+    ok = KeyVault.set_key(service, key, label)
+    return {"ok": ok, "service": service, "label": label}
+
+
+@app.delete("/api/vault/keys/{service}")
+async def vault_delete_key(service: str, request: Request):
+    verify_api_key(request)
+    body = await request.json() if request.headers.get("content-type") else {}
+    label = body.get("label", "user")
+    ok = KeyVault.delete_key(service, label)
+    return {"ok": ok, "service": service, "label": label}
+
+
+# ─── Enrichment ────────────────────────────────────────────────────
+
+_orchestrator: Optional[EnrichOrchestrator] = None
+
+
+def _get_enrich_orch() -> EnrichOrchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = EnrichOrchestrator()
+    return _orchestrator
+
+
+@app.get("/api/enrich/providers")
+async def enrich_providers(request: Request):
+    verify_api_key(request)
+    orch = _get_enrich_orch()
+    return {
+        "providers": orch.list_providers(),
+        "available": any(p["available"] for p in orch.list_providers()),
+    }
+
+
+@app.post("/api/enrich/lead")
+async def enrich_single_lead(request: Request):
+    verify_api_key(request)
+    body = await request.json()
+    business_name = body.get("business_name", "")
+    trade = body.get("trade", "")
+    if not business_name or not trade:
+        raise HTTPException(400, "business_name and trade are required")
+    orch = _get_enrich_orch()
+    result = await orch.enrich(
+        business_name=business_name,
+        trade=trade,
+        location=body.get("location"),
+        website=body.get("website"),
+        phone=body.get("phone"),
+    )
+    return result.to_dict()
+
+
+@app.post("/api/enrich/batch")
+async def enrich_batch(request: Request):
+    verify_api_key(request)
+    body = await request.json()
+    leads = body.get("leads", [])
+    if not leads:
+        raise HTTPException(400, "leads array is required")
+    orch = _get_enrich_orch()
+    results = await orch.enrich_batch(leads)
+    return {
+        "total": len(results),
+        "results": [r.to_dict() if isinstance(r, EnrichmentResult) else {"error": str(r)} for r in results],
+    }
+
+
+@app.get("/api/enrich/from-lead/{lead_id}")
+async def enrich_from_lead(lead_id: str, request: Request):
+    verify_api_key(request)
+    lead = None
+    for l in leads_db:
+        if l.get("id") == lead_id:
+            lead = l
+            break
+    if not lead:
+        raise HTTPException(404, "Lead not found")
+    orch = _get_enrich_orch()
+    result = await orch.enrich(
+        business_name=lead.get("business_name", ""),
+        trade=lead.get("trade", ""),
+        location=lead.get("location"),
+        website=lead.get("website"),
+        phone=lead.get("phone"),
+    )
+    enriched = result.to_dict()
+    enriched["lead_id"] = lead_id
+    return enriched
+
+
+# ─── Vault UI ──────────────────────────────────────────────────────
+
+@app.get("/vault", response_class=HTMLResponse)
+async def vault_page():
+    vault_path = STATIC_DIR / "vault.html"
+    if vault_path.exists():
+        return vault_path.read_text(encoding="utf-8")
+    return HTMLResponse("<h1>Key Vault</h1><p>Vault UI not found.</p>")
+
 
 # ─── Dashboard UI ──────────────────────────────────────────────────
 
