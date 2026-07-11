@@ -14,6 +14,10 @@ class CrmPush:
     def set_env(self, env: dict) -> None:
         self._env = env
 
+    async def push_lead(self, lead: dict, provider: str = "hubspot", config: dict | None = None) -> dict:
+        result = await self.push_leads([lead], provider=provider, config=config)
+        return {"ok": True, "provider": provider, "lead_id": lead.get("lead_id", lead.get("id", ""))}
+
     async def push_leads(
         self, leads: list[dict], provider: str = "hubspot", config: dict | None = None
     ) -> list[dict]:

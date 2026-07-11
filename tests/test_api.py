@@ -2,7 +2,7 @@ def test_get_trades(client):
     resp = client.get("/api/trades")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data["trades"]) == 44
+    assert len(data["trades"]) == 45
 
 
 def test_get_trade_detail(client):

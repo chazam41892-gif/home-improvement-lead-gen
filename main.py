@@ -37,6 +37,7 @@ from engine.enrichment import enrich_lead, EnrichOrchestrator
 from engine.enrichment.base import EnrichmentResult
 from engine.auth import auth_manager
 from crm_plus.crm_plus_routes import router as crm_plus_router, set_engine as set_crm_engine, set_conversion as set_crm_conversion
+from engine.growth_portal import growth_router
 
 load_dotenv()
 
@@ -270,6 +271,7 @@ app.add_middleware(
 )
 
 app.include_router(crm_plus_router)
+app.include_router(growth_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

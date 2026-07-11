@@ -26,7 +26,7 @@ def test_score_trade_lead():
 
 def test_list_trades():
     trades = list_trades()
-    assert len(trades) == 44
+    assert len(trades) == 45
 
 
 def test_get_trade_config():

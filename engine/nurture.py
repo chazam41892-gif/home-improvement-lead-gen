@@ -97,6 +97,10 @@ class NurtureEngine:
 
     # ─── Sequence CRUD ───────────────────────────────────────────────
 
+    async def start_sequence(self, lead_data: dict) -> dict:
+        """Async wrapper for create_sequence."""
+        return self.create_sequence(lead_data)
+
     def create_sequence(self, lead_data: dict) -> dict:
         lead_id = lead_data.get("id", uuid.uuid4().hex[:12])
         name = lead_data.get("title", "Valued Customer")
