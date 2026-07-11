@@ -48,3 +48,8 @@ htmlcov/
 
 # Orphan scripts
 legacy/
+
+# Cloudflare / Node artifacts
+node_modules/
+leadgen-workflows/
+*.wrangler/
