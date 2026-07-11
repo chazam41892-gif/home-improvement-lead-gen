@@ -90,17 +90,22 @@ if _MISSING_CONFIG:
 
 # ─── API Authentication ─────────────────────────────────────────────
 
-_API_KEY = os.getenv("API_KEY", "")
-_AUTH_ENABLED = bool(_API_KEY)
+_API_KEY = os.getenv("API_KEY", "").strip()
+_AUTH_EXPLICITLY_DISABLED = os.getenv("AUTH_DISABLED", "").strip().lower() in ("1", "true", "yes")
+_AUTH_ENABLED = bool(_API_KEY) and not _AUTH_EXPLICITLY_DISABLED
 
-if _AUTH_ENABLED:
+if _API_KEY:
     logger.info("API authentication enabled (bearer token)")
+elif _AUTH_EXPLICITLY_DISABLED:
+    logger.warning("API authentication explicitly disabled via AUTH_DISABLED. This is unsafe for production.")
 else:
-    logger.info("API authentication disabled (set API_KEY env var to enable)")
+    logger.warning("API_KEY not set. API routes will reject requests until a key is configured.")
 
 def verify_api_key(request: Request):
-    if not _AUTH_ENABLED:
+    if _AUTH_EXPLICITLY_DISABLED:
         return True
+    if not _API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized: API_KEY not configured on server")
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer ") and auth[7:] == _API_KEY:
         return True

@@ -1,6 +1,7 @@
 import os
 os.environ["EXA_API_KEY"] = ""
 os.environ["PERPLEXITY_API_KEY"] = ""
+os.environ["API_KEY"] = "test-api-key-for-ci-only"
 
 import sys
 from pathlib import Path
@@ -18,4 +19,5 @@ from main import app
 @pytest.fixture
 def client():
     with TestClient(app) as c:
+        c.headers.update({"Authorization": "Bearer test-api-key-for-ci-only"})
         yield c

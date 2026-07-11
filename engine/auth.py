@@ -104,6 +104,15 @@ class AuthManager:
             org_id = uuid.uuid4().hex[:16]
             slug = org_name.lower().replace(" ", "-").replace("_", "-")[:50]
             slug = slug or f"org-{org_id[:8]}"
+            # Ensure globally unique slug
+            suffix = 0
+            base_slug = slug
+            while True:
+                existing_slug = conn.execute("SELECT id FROM orgs WHERE slug = ?", (slug,)).fetchone()
+                if not existing_slug:
+                    break
+                suffix += 1
+                slug = f"{base_slug}-{suffix}"[:50]
             now = datetime.now(timezone.utc).isoformat()
             conn.execute(
                 "INSERT INTO orgs (id, name, slug, created_at) VALUES (?, ?, ?, ?)",

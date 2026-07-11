@@ -1,6 +1,5 @@
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { shell } from '@tauri-apps/api';
 
 export async function getServerStatus() {
   return invoke('get_server_status');

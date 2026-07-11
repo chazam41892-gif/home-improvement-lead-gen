@@ -76,7 +76,7 @@ def test_crm_talon_audit_fail(client):
 
 
 def test_ads_platform_status(client):
-    resp = client.get("/api/ads/platforms/status")
+    resp = client.get("/api/ads/platforms/status", headers={"Authorization": "Bearer test-api-key-for-ci-only"})
     assert resp.status_code == 200
     data = resp.json()
     assert "google_ads" in data

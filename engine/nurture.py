@@ -58,6 +58,7 @@ class NurtureEngine:
             with Database.get_connection() as conn:
                 # Load sequences
                 cursor = conn.execute("SELECT * FROM nurture_sequences")
+                loaded_ids = set()
                 for r in cursor.fetchall():
                     seq = Sequence(
                         id=r["id"],
@@ -72,13 +73,46 @@ class NurtureEngine:
                         completed=bool(r["completed"]),
                     )
                     self._sequences[seq.id] = seq
+                    loaded_ids.add(seq.id)
+
+                # Remove sequences deleted in DB from in-memory cache
+                for seq_id in list(self._sequences.keys()):
+                    if seq_id not in loaded_ids:
+                        del self._sequences[seq_id]
 
                 # Load appointments
+                self._appointments = []
                 cursor = conn.execute("SELECT * FROM appointments")
                 for r in cursor.fetchall():
                     self._appointments.append(dict(r))
         except Exception as e:
             logger.error("Failed to load nurture engine data from database: %s", e)
+
+    def _load_sequence_by_id(self, sequence_id: str) -> Optional[Sequence]:
+        """Load or refresh a single sequence from the database."""
+        try:
+            with Database.get_connection() as conn:
+                r = conn.execute("SELECT * FROM nurture_sequences WHERE id = ?", (sequence_id,)).fetchone()
+                if not r:
+                    self._sequences.pop(sequence_id, None)
+                    return None
+                seq = Sequence(
+                    id=r["id"],
+                    lead_name=r["lead_name"],
+                    lead_id=r["lead_id"],
+                    lead_email=r["lead_email"],
+                    lead_phone=r["lead_phone"],
+                    industry=r["industry"],
+                    created_at=r["created_at"],
+                    actions=json.loads(r["actions"]) if r["actions"] else [],
+                    current_step=r["current_step"],
+                    completed=bool(r["completed"]),
+                )
+                self._sequences[seq.id] = seq
+                return seq
+        except Exception as e:
+            logger.error("Failed to load sequence %s from database: %s", sequence_id, e)
+            return None
 
     def _save_sequence_to_db(self, seq: Sequence):
         try:
@@ -198,7 +232,9 @@ class NurtureEngine:
 
     # ─── Action Processing ──────────────────────────────────────────
 
-    def get_due_actions(self) -> List[dict]:
+    def get_due_actions(self, refresh: bool = True) -> List[dict]:
+        if refresh:
+            self._load_from_db()
         due: List[dict] = []
         now = datetime.now()
 
@@ -229,7 +265,7 @@ class NurtureEngine:
         return due
 
     def mark_action_sent(self, sequence_id: str, action_index: int, result: Dict[str, Any] | None = None) -> bool:
-        seq = self._sequences.get(sequence_id)
+        seq = self._load_sequence_by_id(sequence_id)
         if not seq:
             return False
         if action_index < 0 or action_index >= len(seq.actions):
@@ -256,7 +292,8 @@ class NurtureEngine:
         for action in due:
             seq_id = action["sequence_id"]
             idx = action["action_index"]
-            seq = self._sequences.get(seq_id)
+            # Always refresh the sequence from DB before dispatch to avoid stale state
+            seq = self._load_sequence_by_id(seq_id)
             if not seq:
                 continue
             atype = action["type"]
@@ -292,7 +329,7 @@ class NurtureEngine:
         return [self._sequence_to_dict(s) for s in sorted_seqs[:limit]]
 
     def get_sequence(self, sequence_id: str) -> Optional[dict]:
-        seq = self._sequences.get(sequence_id)
+        seq = self._load_sequence_by_id(sequence_id)
         return self._sequence_to_dict(seq) if seq else None
 
     def delete_sequence(self, sequence_id: str) -> bool:

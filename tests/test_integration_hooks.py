@@ -19,7 +19,8 @@ def test_embedded_widget_script_served():
     client = TestClient(main.app)
     resp = client.get("/static/widgets/lead-capture.js")
     assert resp.status_code == 200
-    assert "lgpw-root" in resp.text
+    assert "lgpw-" in resp.text
+    assert "instanceId" in resp.text
 
 
 def test_env_validator_demo_mode():
