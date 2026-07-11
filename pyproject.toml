@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leadgen-pro"
+version = "3.1.3"
+description = "Lead Gen Pro — Production-grade home improvement lead generation platform. 44 trades, 8 discovery platforms, Stripe billing, CRM+ pipeline, AI enrichment. Self-hosted. Bring your own keys."
+readme = "README.md"
+license = {text = "Proprietary"}
+authors = [
+    {name = "HaChazal (Chaz Leland Hamm)", email = "hachazal418@metanoiaunlimited.com"},
+]
+maintainers = [
+    {name = "Metanoia Unlimited LLC"},
+]
+keywords = [
+    "lead-generation", "home-improvement", "crm", "sales-pipeline",
+    "stripe-billing", "lead-scoring", "enrichment", "fastapi",
+    "self-hosted", "byok", "trades", "contractor-leads",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.12",
+    "httpx>=0.28.0",
+    "python-dotenv>=1.0.0",
+    "PyYAML>=6.0",
+    "aiohttp>=3.10.0",
+    "stripe>=11.0.0",
+]
+
+[project.optional-dependencies]
+enrichment = ["cryptography>=41.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "httpx>=0.28"]
+
+[project.urls]
+Homepage = "https://growth.leviathansi.xyz"
+Documentation = "https://growth.leviathansi.xyz/docs"
+Repository = "https://github.com/chazam41892-gif/home-improvement-lead-gen"
+Issues = "https://github.com/chazam41892-gif/home-improvement-lead-gen/issues"
+
+[project.scripts]
+leadgen = "run:main"
+
+[tool.setuptools.packages.find]
+include = ["engine*", "crm_plus*", "sales_pack*", "static*", "scripts*", "deploy*"]
+exclude = ["legacy*", "tests*", "data*", "desktop*", "android*", "electron-shell*", "__pycache__*"]
+
+[tool.setuptools.package-data]
+sales_pack = ["*.json"]
+static = ["*.html", "templates/*.html"]
+deploy = ["*.sh", "*.conf", "*.yml", "nginx/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+python_files = "test_*.py"
+

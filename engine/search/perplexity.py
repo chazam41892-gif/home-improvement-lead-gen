@@ -65,17 +65,40 @@ class PerplexitySearchProvider(SearchProvider):
                                 error=resp["error"])
 
         choices = resp.get("choices", [])
+        citations = resp.get("citations", [])
         hits: List[SearchHit] = []
-        for c in choices[:num_results]:
-            content = c.get("message", {}).get("content", "")
+
+        from urllib.parse import urlparse
+        for url in citations[:num_results]:
+            if not url:
+                continue
+            try:
+                parsed = urlparse(url)
+                domain = parsed.netloc.replace("www.", "")
+                title = f"Source: {domain}"
+            except Exception:
+                title = "Cited Business Source"
             hits.append(SearchHit(
-                title=query,
-                url="",
-                snippet=content[:500],
+                title=title,
+                url=url,
+                snippet=f"Cited source found via Perplexity AI deep search. Context: {query}",
                 published_date=None,
-                score=1.0,
-                extras={"source": "perplexity", "model": "sonar-pro"},
+                score=0.9,
+                extras={"source": "perplexity", "citation": True, "model": "sonar-pro"},
             ))
+
+        if not hits:
+            for c in choices[:num_results]:
+                content = c.get("message", {}).get("content", "")
+                hits.append(SearchHit(
+                    title=query,
+                    url="",
+                    snippet=content[:500],
+                    published_date=None,
+                    score=1.0,
+                    extras={"source": "perplexity", "model": "sonar-pro"},
+                ))
+
         return SearchResult(query=query, hits=hits, provider=self.name,
                             elapsed_sec=time.time() - t0,
                             raw=resp)

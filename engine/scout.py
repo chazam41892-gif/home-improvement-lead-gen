@@ -310,6 +310,9 @@ class LeadScoutEngine:
             "pest control": ["pest", "exterminat", "termite"],
             "moving": ["moving", "mover"],
             "real estate": ["real estate", "realtor", "real estate agent", "property"],
+            "land_developer": ["land developer", "land acquisition", "land buyer", "property developer",
+                               "subdivision", "lot builder", "home builder", "tract home",
+                               "developer buying land", "land investment", "master planned"],
             "church": ["church", "ministry", "worship"],
         }
 

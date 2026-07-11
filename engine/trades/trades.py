@@ -569,6 +569,40 @@ TRADE_REGISTRY = {
         "best_platform": "nextdoor",
         "conversion_rate": 0.17,
     },
+    # === REAL ESTATE & LAND DEVELOPMENT ===
+    "land_developer": {
+        "name": "Land Developer",
+        "platforms": ["linkedin", "apollo", "google_maps", "zillow", "loopnet", "landwatch", "homeadvisor", "yelp", "facebook"],
+        "keywords": [
+            "land developer", "land acquisition", "land buyer", "property developer",
+            "real estate developer", "lot builder", "subdivision developer",
+            "land purchaser", "developer buying land", "land investment",
+            "residential land development", "commercial land development",
+            "master planned community", "tract home builder", "home builder",
+            "VP land acquisition", "director of land acquisition",
+            "land acquisition manager", "VP of development", "director of development",
+            "chief development officer", "land entitlement", "VP acquisitions",
+            "director of acquisitions", "land entitlement manager",
+            "raw land buyer", "parcel acquisition", "site selection director",
+            "entitlement consultant", "land banker", "land flipper",
+            "infill developer", "spec home builder", "custom home builder",
+            "residential subdivision", "mixed use developer",
+            "commercial developer", "industrial park developer",
+        ],
+        "avg_job_value": 50000,
+        "lead_cpl_ceiling": 250,
+        "seasons": ["all"],
+        "urgency_triggers": ["land for sale", "zoning change", "expiring option", "entitlement approved", "parcel available"],
+        "best_platform": "apollo",
+        "conversion_rate": 0.03,
+        "person_titles": [
+            "VP Land Acquisition", "Director of Land Acquisition", "Land Acquisition Manager",
+            "VP of Development", "Director of Development", "Chief Development Officer",
+            "VP Acquisitions", "Director of Acquisitions", "Land Buyer",
+            "VP Real Estate", "Director of Real Estate", "Land Entitlement Manager",
+            "President", "CEO", "Owner", "Managing Partner",
+        ],
+    },
 }
 
 

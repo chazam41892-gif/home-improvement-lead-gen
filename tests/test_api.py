@@ -213,3 +213,38 @@ def test_vault_page_served(client):
     resp = client.get("/vault")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
+
+
+def test_enrich_routing_info(client):
+    resp = client.get("/api/enrich/routing")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "routing_mode" in data
+    assert "router" in data
+    assert "providers" in data
+    assert data["routing_mode"] == "parallel"
+
+
+def test_enrich_lead_smart_routing(client):
+    resp = client.post("/api/enrich/lead?routing_mode=smart", json={
+        "business_name": "Test Plumbing Co",
+        "trade": "plumbing",
+        "location": "Austin, TX",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "business_name" in data
+    assert "confidence" in data
+
+
+def test_enrich_batch_smart_routing(client):
+    resp = client.post("/api/enrich/batch?routing_mode=smart", json={
+        "leads": [
+            {"business_name": "Plumber One", "trade": "plumbing", "location": "Austin, TX"},
+            {"business_name": "Electrician One", "trade": "electrical", "location": "Austin, TX"},
+        ]
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "results" in data
+    assert len(data["results"]) == 2

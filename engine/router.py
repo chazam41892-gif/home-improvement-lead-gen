@@ -26,10 +26,10 @@ DEFAULT_ROUTING_CONFIG: Dict[str, Any] = {
         },
         {
             "name": "enrich",
-            "label": "Clearbit / Hunter Enrichment",
-            "description": "Enrich leads with email, name, social profiles via Clearbit + Hunter",
+            "label": "Apollo / Exa Enrichment",
+            "description": "Enrich leads with email, phone, company data via Apollo, Exa, and LLM",
             "enabled": False,
-            "keys_required": ["CLEARBIT_API_KEY", "HUNTER_API_KEY"],
+            "keys_required": [],
             "config": {"batch_size": 25},
         },
         {

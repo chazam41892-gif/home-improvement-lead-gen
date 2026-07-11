@@ -10,38 +10,24 @@ no secrets are hard‑coded.
 from __future__ import annotations
 
 import json
-import os
 from typing import Dict, Any, Optional
 
 import httpx
 
-# ----------------------------------------------------------------------
-# Helper – load config (simple yaml parser, no extra deps)
-# ----------------------------------------------------------------------
-def _load_yaml(path: str = "config.yaml") -> Dict[str, Any]:
-    try:
-        import yaml  # type: ignore
-    except Exception:  # pragma: no cover
-        raise RuntimeError("PyYAML is required for config.yaml parsing")
-    if not os.path.exists(path):
-        return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-_CFG = _load_yaml()
+from engine.key_vault import KeyVault
 
 # ----------------------------------------------------------------------
 # Clearbit enrichment
 # ----------------------------------------------------------------------
 CLEARBIT_URL = "https://person.clearbit.com/v2/people/find"
-CLEARBIT_KEY = os.getenv("CLEARBIT_API_KEY", _CFG.get("clearbit", {}).get("api_key"))
 
 async def enrich_clearbit(email: str) -> Dict[str, Any]:
-    if not CLEARBIT_KEY:
+    key = KeyVault.get("clearbit")
+    if not key:
         return {}
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(CLEARBIT_URL, params={"email": email},
-                               headers={"Authorization": f"Bearer {CLEARBIT_KEY}"})
+                               headers={"Authorization": f"Bearer {key}"})
         if resp.status_code != 200:
             return {}
         return resp.json()
@@ -51,10 +37,10 @@ async def enrich_clearbit(email: str) -> Dict[str, Any]:
 # Hunter enrichment (email verification & discovery)
 # ----------------------------------------------------------------------
 HUNTER_URL = "https://api.hunter.io/v2/email-finder"
-HUNTER_KEY = os.getenv("HUNTER_API_KEY", _CFG.get("hunter", {}).get("api_key"))
 
 async def enrich_hunter(domain: str, first_name: str, last_name: str) -> Dict[str, Any]:
-    if not HUNTER_KEY:
+    key = KeyVault.get("hunter")
+    if not key:
         return {}
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(
@@ -63,7 +49,7 @@ async def enrich_hunter(domain: str, first_name: str, last_name: str) -> Dict[st
                 "domain": domain,
                 "first_name": first_name,
                 "last_name": last_name,
-                "api_key": HUNTER_KEY,
+                "api_key": key,
             },
         )
         if resp.status_code != 200:

@@ -4,6 +4,8 @@ import json
 import logging
 from typing import Optional, Dict, Any, List
 
+import httpx
+
 from .base import EnrichmentProvider, EnrichmentResult
 from ..key_vault import KeyVault
 
@@ -15,6 +17,9 @@ OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 
 class LLMEnricher(EnrichmentProvider):
     name = "llm_enricher"
+    input_preferences = ["raw_text", "website", "business_name"]
+    input_required = ["business_name"]
+    priority = 2
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
@@ -37,54 +42,63 @@ class LLMEnricher(EnrichmentProvider):
             self._provider = "openai"
             self._api_key = key
 
-    async def _call_llm(self, system: str, prompt: str) -> Optional[str]:
-        import urllib.request, urllib.error
-        import json as j
+    def _model_name(self) -> str:
+        if self._provider == "anthropic":
+            return self.config.get("anthropic_model", "claude-sonnet-4-20250514")
+        return self.config.get("openai_model", "gpt-4o-mini")
 
+    async def _call_llm(self, system: str, prompt: str) -> Optional[str]:
         self._setup()
         if not self._provider:
             return None
 
-        if self._provider == "anthropic":
-            body = j.dumps({
-                "model": "claude-3-5-sonnet-20241022",
-                "max_tokens": 2000,
-                "system": system,
-                "messages": [{"role": "user", "content": prompt}],
-            }).encode()
-            req = urllib.request.Request(ANTHROPIC_URL, data=body, headers={
-                "x-api-key": self._api_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-            })
-            try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    data = j.loads(resp.read())
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            if self._provider == "anthropic":
+                body = {
+                    "model": self._model_name(),
+                    "max_tokens": 2000,
+                    "system": system,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+                try:
+                    resp = await client.post(
+                        ANTHROPIC_URL,
+                        json=body,
+                        headers={
+                            "x-api-key": self._api_key,
+                            "anthropic-version": "2023-06-01",
+                        },
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
                     return data.get("content", [{}])[0].get("text", "")
-            except urllib.error.HTTPError as e:
-                logger.warning("Anthropic API error: %s", e.read().decode()[:200])
-                return None
+                except httpx.HTTPStatusError as e:
+                    logger.warning("Anthropic API error: %s", e.response.text[:200])
+                    return None
 
-        if self._provider == "openai":
-            body = j.dumps({
-                "model": "gpt-4o-mini",
-                "max_tokens": 2000,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-            }).encode()
-            req = urllib.request.Request(OPENAI_URL, data=body, headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            })
-            try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    data = j.loads(resp.read())
+            if self._provider == "openai":
+                body = {
+                    "model": self._model_name(),
+                    "max_tokens": 2000,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": prompt},
+                    ],
+                }
+                try:
+                    resp = await client.post(
+                        OPENAI_URL,
+                        json=body,
+                        headers={
+                            "Authorization": f"Bearer {self._api_key}",
+                        },
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
                     return data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            except urllib.error.HTTPError as e:
-                logger.warning("OpenAI API error: %s", e.read().decode()[:200])
-                return None
+                except httpx.HTTPStatusError as e:
+                    logger.warning("OpenAI API error: %s", e.response.text[:200])
+                    return None
 
         return None
 

@@ -1,15 +1,60 @@
+"""Key Vault — delegates to HiveMind Vault (primary) then Unified Vault (fallback).
+
+HiveMind Vault at ~/.leviathan/HiveMind/.obsidian/vault.py is the single
+source of truth with ACL gating. Lead Gen Pro uses role="leadgen" which
+can only read search, enrichment, billing, and infra categories.
+
+Legacy fallback to ~/.lvtn/unified_vault.py for backward compatibility.
+"""
 from __future__ import annotations
 
 import os
-import json
+import sys
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
+# ── HiveMind Vault bridge (primary, ACL-gated) ──────────────────────
+_HIVEMIND_VAULT = None
+_HIVEMIND_LOADED = False
+
+def _get_hivemind():
+    global _HIVEMIND_VAULT, _HIVEMIND_LOADED
+    if _HIVEMIND_LOADED:
+        return _HIVEMIND_VAULT
+    _HIVEMIND_LOADED = True
+    try:
+        obsidian_dir = Path.home() / ".leviathan" / "HiveMind" / ".obsidian"
+        sys.path.insert(0, str(obsidian_dir))
+        from vault import HiveMindVault
+        _HIVEMIND_VAULT = HiveMindVault.instance()
+        logger.info("HiveMind vault connected — role=leadgen")
+    except ImportError:
+        pass
+    return _HIVEMIND_VAULT
+
+# ── Legacy Unified Vault bridge (fallback) ──────────────────────────
+_UNIFIED_VAULT = None
+
+def _get_unified():
+    global _UNIFIED_VAULT
+    if _UNIFIED_VAULT is None:
+        try:
+            sys.path.insert(0, str(Path.home() / ".lvtn"))
+            from unified_vault import UnifiedVault
+            _UNIFIED_VAULT = UnifiedVault.instance()
+        except ImportError:
+            logger.warning("Unified vault not available — falling back to legacy key_vault.json")
+            _UNIFIED_VAULT = False
+    return _UNIFIED_VAULT if _UNIFIED_VAULT is not False else None
+
+# Legacy file path (kept for backward compat)
 VAULT_FILE = os.environ.get("VAULT_FILE", "data/key_vault.json")
 
+# Service metadata (kept for backward compat — unified vault has its own)
 SERVICE_KEYS = {
     "exa": {"env_var": "EXA_API_KEY", "doc": "Exa Search API — business search & content extraction", "url": "https://dashboard.exa.ai"},
     "perplexity": {"env_var": "PERPLEXITY_API_KEY", "doc": "Perplexity AI — deep research", "url": "https://www.perplexity.ai/settings/api"},
@@ -22,6 +67,7 @@ SERVICE_KEYS = {
     "apollo": {"env_var": "APOLLO_API_KEY", "doc": "Apollo.io — contact & company data", "url": "https://app.apollo.io/#/settings/api"},
     "people_data_labs": {"env_var": "PEOPLE_DATA_LABS_KEY", "doc": "People Data Labs — person & company enrichment", "url": "https://www.peopledatalabs.com"},
     "loox": {"env_var": "LOOX_API_KEY", "doc": "Loox — reverse phone & address lookup", "url": "https://www.loox.com"},
+    "cometapi": {"env_var": "COMETAPI_API_KEY", "doc": "CometAPI — alternate LLM provider (OpenAI-compatible, 500+ models)", "url": "https://www.cometapi.com"},
     "enrichment_key": {"env_var": "ENRICHMENT_API_KEY", "doc": "Generic enrichment fallback key", "url": ""},
 }
 
@@ -40,6 +86,12 @@ class VaultEntry:
 
 
 class KeyVault:
+    """Compatibility shim — delegates to UnifiedVault at ~/.lvtn/unified_vault.py.
+    
+    All existing code that calls KeyVault.get(), KeyVault.set_key(), etc.
+    continues to work. Keys are stored in the unified vault, shared across
+    all projects (lvtn CLI, Lead Gen Pro, Gambot IDE).
+    """
     _entries: Dict[str, List[VaultEntry]] = {}
     _loaded = False
 
@@ -47,6 +99,43 @@ class KeyVault:
     def load(cls):
         if cls._loaded:
             return
+        hv = _get_hivemind()
+        if hv:
+            try:
+                all_svcs = hv.list_all(role="leadgen")
+                for svc_id, info in all_svcs.items():
+                    if info["configured"]:
+                        key = hv.get(svc_id, role="leadgen")
+                        if key:
+                            cls._entries.setdefault(svc_id, []).append(
+                                VaultEntry(service=svc_id, key=key, label="hivemind", source="hivemind")
+                            )
+                cls._loaded = True
+                logger.info("KeyVault loaded via HiveMind Vault — %d services configured", len(cls._entries))
+                return
+            except Exception as e:
+                logger.warning("HiveMind vault error: %s — falling back", e)
+        uv = _get_unified()
+        if uv:
+            # Load from unified vault
+            all_svcs = uv.list_all()
+            for svc_id, info in all_svcs.items():
+                if info["configured"]:
+                    for k in info["keys"]:
+                        # We don't have the raw key from list_all (masked only),
+                        # so we load env keys here and vault keys on-demand via get()
+                        pass
+            # Load env keys
+            for svc, cfg in SERVICE_KEYS.items():
+                val = os.environ.get(cfg["env_var"])
+                if val:
+                    cls._entries.setdefault(svc, []).append(
+                        VaultEntry(service=svc, key=val, label="env", source="env")
+                    )
+            cls._loaded = True
+            logger.info("KeyVault loaded via UnifiedVault — %d services configured", len(cls._entries))
+            return
+        # Fallback: legacy load from key_vault.json
         for svc, cfg in SERVICE_KEYS.items():
             val = os.environ.get(cfg["env_var"])
             if val:
@@ -57,30 +146,30 @@ class KeyVault:
         try:
             with open(vault_path) as f:
                 data = json.load(f)
+                if isinstance(data, dict) and data.get("encrypted") and "ciphertext" in data:
+                    from cryptography.fernet import Fernet
+                    key = cls._get_encryption_key()
+                    fernet = Fernet(key)
+                    decrypted = fernet.decrypt(data["ciphertext"].encode("utf-8")).decode("utf-8")
+                    data = json.loads(decrypted)
                 for svc, keys_list in data.items():
                     for entry in keys_list:
                         cls._entries.setdefault(svc, []).append(
                             VaultEntry(service=svc, key=entry["key"], label=entry.get("label", "user"), source="vault")
                         )
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass
+        except (FileNotFoundError, json.JSONDecodeError, Exception) as e:
+            logger.debug("Failed to load legacy vault: %s", e)
         cls._loaded = True
-        logger.info("KeyVault loaded — %d services configured", len(cls._entries))
-
-    @classmethod
-    def _save(cls):
-        vault_path = os.path.join(os.path.dirname(__file__) or ".", "..", VAULT_FILE)
-        os.makedirs(os.path.dirname(vault_path), exist_ok=True)
-        data = {}
-        for svc, entries in cls._entries.items():
-            user_entries = [e for e in entries if e.source == "vault"]
-            if user_entries:
-                data[svc] = [{"key": e.key, "label": e.label} for e in user_entries]
-        with open(vault_path, "w") as f:
-            json.dump(data, f, indent=2)
+        logger.info("KeyVault loaded (legacy) — %d services configured", len(cls._entries))
 
     @classmethod
     def get(cls, service: str) -> Optional[str]:
+        uv = _get_unified()
+        if uv:
+            key = uv.get(service)
+            if key:
+                return key
+        # Fallback
         cls.load()
         entries = cls._entries.get(service, [])
         if entries:
@@ -89,6 +178,21 @@ class KeyVault:
 
     @classmethod
     def list(cls) -> Dict[str, list]:
+        uv = _get_unified()
+        if uv:
+            all_svcs = uv.list_all()
+            result = {}
+            for svc_id, info in all_svcs.items():
+                if svc_id in SERVICE_KEYS:
+                    result[svc_id] = {
+                        "doc": SERVICE_KEYS[svc_id]["doc"],
+                        "url": SERVICE_KEYS[svc_id]["url"],
+                        "env_var": SERVICE_KEYS[svc_id]["env_var"],
+                        "configured": info["configured"],
+                        "keys": info["keys"],
+                    }
+            return result
+        # Fallback
         cls.load()
         result = {}
         for svc, cfg in SERVICE_KEYS.items():
@@ -107,6 +211,10 @@ class KeyVault:
 
     @classmethod
     def set_key(cls, service: str, key: str, label: str = "user") -> bool:
+        uv = _get_unified()
+        if uv:
+            return uv.set(service, key, label)
+        # Fallback
         cls.load()
         if service not in SERVICE_KEYS:
             logger.warning("Unknown service: %s", service)
@@ -121,6 +229,10 @@ class KeyVault:
 
     @classmethod
     def delete_key(cls, service: str, label: str = "user") -> bool:
+        uv = _get_unified()
+        if uv:
+            return uv.delete(service, label)
+        # Fallback
         cls.load()
         entries = cls._entries.get(service, [])
         before = len(entries)

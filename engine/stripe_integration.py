@@ -35,26 +35,64 @@ class StripeIntegration:
         return bool(self.secret_key)
 
     def _read_mappings(self) -> list[dict]:
-        if not os.path.exists(_MAPPINGS_FILE):
-            return []
-        records = []
-        with open(_MAPPINGS_FILE, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    records.append(json.loads(line))
-        return records
+        from engine.database import Database
+        mappings = []
+        try:
+            with Database.get_connection() as conn:
+                cursor = conn.execute("SELECT * FROM stripe_mappings")
+                for r in cursor.fetchall():
+                    m = dict(r)
+                    m["cancel_at_period_end"] = bool(m["cancel_at_period_end"])
+                    mappings.append(m)
+        except Exception as e:
+            logger.error("Failed to read Stripe mappings from database: %s", e)
+        return mappings
 
     def _write_mappings(self, mappings: list[dict]):
-        os.makedirs(_DATA_DIR, exist_ok=True)
-        with open(_MAPPINGS_FILE, "w") as f:
-            for record in mappings:
-                f.write(json.dumps(record, default=str) + "\n")
+        from engine.database import Database
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("DELETE FROM stripe_mappings")
+                for m in mappings:
+                    conn.execute("""
+                        INSERT INTO stripe_mappings (
+                            account_id, stripe_customer_id, stripe_subscription_id, plan, status, created_at, cancelled_at, cancel_at_period_end
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        m.get("account_id"),
+                        m.get("stripe_customer_id"),
+                        m.get("stripe_subscription_id"),
+                        m.get("plan"),
+                        m.get("status"),
+                        m.get("created_at"),
+                        m.get("cancelled_at"),
+                        1 if m.get("cancel_at_period_end") else 0
+                    ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to write Stripe mappings to database: %s", e)
 
     def _append_mapping(self, mapping: dict):
-        os.makedirs(_DATA_DIR, exist_ok=True)
-        with open(_MAPPINGS_FILE, "a") as f:
-            f.write(json.dumps(mapping, default=str) + "\n")
+        from engine.database import Database
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO stripe_mappings (
+                        account_id, stripe_customer_id, stripe_subscription_id, plan, status, created_at, cancelled_at, cancel_at_period_end
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    mapping.get("account_id"),
+                    mapping.get("stripe_customer_id"),
+                    mapping.get("stripe_subscription_id"),
+                    mapping.get("plan"),
+                    mapping.get("status"),
+                    mapping.get("created_at"),
+                    mapping.get("cancelled_at"),
+                    1 if mapping.get("cancel_at_period_end") else 0
+                ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to append Stripe mapping to database: %s", e)
 
     async def create_checkout_session(
         self, plan: str, account_id: str, success_url: str, cancel_url: str
