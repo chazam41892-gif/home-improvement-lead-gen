@@ -325,12 +325,56 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::test::{mock_builder, MockRuntime};
+
+    fn make_app() -> tauri::App<MockRuntime> {
+        mock_builder()
+            .manage(ServerProcess(Mutex::new(None)))
+            .manage(Mutex::new(ServerSettings::default()))
+            .build(tauri::generate_context!())
+            .unwrap()
+    }
 
     #[test]
     fn test_server_settings_default() {
         let s = ServerSettings::default();
         assert_eq!(s.port, 8080);
         assert!(s.auto_start);
+    }
+
+    #[test]
+    fn test_get_server_status_not_running() {
+        let app = make_app();
+        let status = get_server_status(app.state::<ServerProcess>());
+        assert!(!status.running);
+        assert!(status.process_id.is_none());
+        assert_eq!(status.port, 8080);
+    }
+
+    #[test]
+    fn test_get_settings_defaults() {
+        let app = make_app();
+        let settings = get_settings(app.state::<Mutex<ServerSettings>>());
+        assert_eq!(settings.port, 8080);
+        assert_eq!(settings.python_path, "python");
+        assert!(settings.auto_start);
+    }
+
+    #[test]
+    fn test_update_settings() {
+        let app = make_app();
+        let new_settings = ServerSettings {
+            python_path: "python3".into(),
+            port: 9090,
+            auto_start: false,
+        };
+        let result = update_settings(app.state::<Mutex<ServerSettings>>(), new_settings);
+        assert!(result.is_ok());
+
+        let updated = get_settings(app.state::<Mutex<ServerSettings>>());
+        assert_eq!(updated.port, 9090);
+        assert_eq!(updated.python_path, "python3");
+        assert!(!updated.auto_start);
     }
 
     #[test]
@@ -345,18 +389,6 @@ mod tests {
         assert!(json.contains("running"));
         assert!(json.contains("8080"));
         assert!(json.contains("12345"));
-    }
-
-    #[test]
-    fn test_server_status_not_running() {
-        let s = ServerStatus {
-            running: false,
-            port: 8080,
-            process_id: None,
-            error: Some("not started".into()),
-        };
-        assert!(!s.running);
-        assert_eq!(s.error.unwrap(), "not started");
     }
 
     #[test]
@@ -383,5 +415,80 @@ mod tests {
         assert_url("/api/enrich/lead", "http://localhost:8080/api/enrich/lead");
         assert_url("/api/enrich/providers", "http://localhost:8080/api/enrich/providers");
         assert_url("/api/enrich/batch", "http://localhost:8080/api/enrich/batch");
+    }
+}
+
+#[cfg(feature = "integration-tests")]
+mod integration {
+    const TEST_PORT: u16 = 8081;
+
+    async fn start_backend() -> tokio::process::Child {
+        let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|p| p.join("main.py"))
+            .unwrap();
+
+        let child = tokio::process::Command::new("python")
+            .arg(project_root)
+            .env("PORT", TEST_PORT.to_string())
+            .env("EXA_API_KEY", "")
+            .env("PERPLEXITY_API_KEY", "")
+            .spawn()
+            .expect("Failed to start Python backend");
+
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        child
+    }
+
+    #[tokio::test]
+    async fn test_vault_list_keys_integration() {
+        let mut child = start_backend().await;
+        let client = reqwest::Client::new();
+
+        let resp = client
+            .get(format!("http://localhost:{}/api/vault/keys", TEST_PORT))
+            .send()
+            .await
+            .expect("GET /api/vault/keys failed");
+        assert!(resp.status().is_success());
+        let data: serde_json::Value = resp.json().await.unwrap();
+        assert!(data.is_object());
+        assert!(data.get("exa").is_some());
+
+        child.kill().await.expect("Failed to stop backend");
+    }
+
+    #[tokio::test]
+    async fn test_vault_set_key_integration() {
+        let mut child = start_backend().await;
+        let client = reqwest::Client::new();
+
+        let resp = client
+            .post(format!("http://localhost:{}/api/vault/keys/exa", TEST_PORT))
+            .json(&serde_json::json!({"key": "test_key_123"}))
+            .send()
+            .await
+            .expect("POST /api/vault/keys/exa failed");
+        assert!(resp.status().is_success());
+        let data: serde_json::Value = resp.json().await.unwrap();
+        assert_eq!(data["ok"], true);
+
+        child.kill().await.expect("Failed to stop backend");
+    }
+
+    #[tokio::test]
+    async fn test_enrich_providers_integration() {
+        let mut child = start_backend().await;
+        let client = reqwest::Client::new();
+
+        let resp = client
+            .get(format!("http://localhost:{}/api/enrich/providers", TEST_PORT))
+            .send()
+            .await
+            .expect("GET /api/enrich/providers failed");
+        assert!(resp.status().is_success());
+
+        child.kill().await.expect("Failed to stop backend");
     }
 }

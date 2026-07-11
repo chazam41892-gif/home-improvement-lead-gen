@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6366f1">
+<link rel="manifest" href="/static/manifest.json">
 <title>Lead Gen Pro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1669,7 +1671,7 @@ async function enrichSelectedLead() {
   btn.disabled = true; btn.textContent = 'Enriching...';
   try {
     const r = await fetch(BASE + '/api/enrich/from-lead/' + id, {
-      method: 'POST',
+      method: 'GET',
       headers: getAuthHeaders(),
     });
     const data = await r.json();
@@ -1715,9 +1717,18 @@ async function batchEnrichLeads() {
   status.textContent = 'Enriching all leads...';
   results.style.display = 'none';
   try {
+    const leadsResp = await fetch(BASE + '/api/leads', {
+      headers: getAuthHeaders(),
+    });
+    if (!leadsResp.ok) throw new Error('Failed to fetch leads');
+    const leadsData = await leadsResp.json();
+    if (!leadsData.leads || leadsData.leads.length === 0) {
+      alert('No leads to enrich'); btn.disabled = false; progress.style.display = 'none'; return;
+    }
     const r = await fetch(BASE + '/api/enrich/batch', {
       method: 'POST',
       headers: getAuthHeaders(),
+      body: JSON.stringify({ leads: leadsData.leads }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Batch enrichment failed');

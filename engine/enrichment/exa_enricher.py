@@ -18,6 +18,9 @@ STREET_RE = re.compile(r"\d+\s+[A-Za-z0-9\s,]+(?:Street|St|Avenue|Ave|Road|Rd|Bo
 
 class ExaEnricher(EnrichmentProvider):
     name = "exa_enricher"
+    input_preferences = ["website", "business_name", "location"]
+    input_required = []
+    priority = 1
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)

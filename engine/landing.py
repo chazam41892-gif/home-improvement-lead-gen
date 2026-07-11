@@ -374,6 +374,26 @@ textarea.form-input {{
 class LandingPageGenerator:
     def __init__(self) -> None:
         self._pages: dict[str, str] = {}
+        self._load_from_db()
+
+    def _load_from_db(self) -> None:
+        from engine.database import Database
+        try:
+            with Database.get_connection() as conn:
+                cursor = conn.execute("SELECT * FROM landing_pages")
+                for r in cursor.fetchall():
+                    self._pages[r["page_id"]] = r["html"]
+        except Exception:
+            pass
+
+    def _save_page_to_db(self, page_id: str, html: str) -> None:
+        from engine.database import Database
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("INSERT OR REPLACE INTO landing_pages (page_id, html) VALUES (?, ?)", (page_id, html))
+                conn.commit()
+        except Exception:
+            pass
 
     @staticmethod
     def _default_form_fields() -> list[dict[str, Any]]:
@@ -510,6 +530,7 @@ class LandingPageGenerator:
         html = _HTML_TEMPLATE.format(**safe)
         page_id = uuid.uuid4().hex[:8]
         self._pages[page_id] = html
+        self._save_page_to_db(page_id, html)
 
         return {
             "id": page_id,
@@ -527,4 +548,13 @@ class LandingPageGenerator:
         ]
 
     def delete_page(self, page_id: str) -> bool:
-        return bool(self._pages.pop(page_id, None))
+        from engine.database import Database
+        ok = self._pages.pop(page_id, None) is not None
+        if ok:
+            try:
+                with Database.get_connection() as conn:
+                    conn.execute("DELETE FROM landing_pages WHERE page_id = ?", (page_id,))
+                    conn.commit()
+            except Exception:
+                pass
+        return ok

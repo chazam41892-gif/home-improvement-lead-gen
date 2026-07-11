@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import json
 import uuid
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+
+from engine.database import Database
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -45,8 +50,56 @@ class NurtureEngine:
         self._sequences: Dict[str, Sequence] = {}
         self._scheduling_config: Dict[str, Any] = dict(_DEFAULT_SCHEDULING_CONFIG)
         self._appointments: List[Dict[str, Any]] = []
+        Database.initialize()
+        self._load_from_db()
+
+    def _load_from_db(self):
+        try:
+            with Database.get_connection() as conn:
+                # Load sequences
+                cursor = conn.execute("SELECT * FROM nurture_sequences")
+                for r in cursor.fetchall():
+                    seq = Sequence(
+                        id=r["id"],
+                        lead_name=r["lead_name"],
+                        lead_id=r["lead_id"],
+                        lead_email=r["lead_email"],
+                        lead_phone=r["lead_phone"],
+                        industry=r["industry"],
+                        created_at=r["created_at"],
+                        actions=json.loads(r["actions"]) if r["actions"] else [],
+                        current_step=r["current_step"],
+                        completed=bool(r["completed"]),
+                    )
+                    self._sequences[seq.id] = seq
+
+                # Load appointments
+                cursor = conn.execute("SELECT * FROM appointments")
+                for r in cursor.fetchall():
+                    self._appointments.append(dict(r))
+        except Exception as e:
+            logger.error("Failed to load nurture engine data from database: %s", e)
+
+    def _save_sequence_to_db(self, seq: Sequence):
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO nurture_sequences (
+                        id, lead_name, lead_id, lead_email, lead_phone, industry, created_at, actions, current_step, completed
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    seq.id, seq.lead_name, seq.lead_id, seq.lead_email, seq.lead_phone, seq.industry, seq.created_at,
+                    json.dumps(seq.actions), seq.current_step, 1 if seq.completed else 0
+                ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to save nurture sequence to database: %s", e)
 
     # ─── Sequence CRUD ───────────────────────────────────────────────
+
+    async def start_sequence(self, lead_data: dict) -> dict:
+        """Async wrapper for create_sequence."""
+        return self.create_sequence(lead_data)
 
     def create_sequence(self, lead_data: dict) -> dict:
         lead_id = lead_data.get("id", uuid.uuid4().hex[:12])
@@ -126,6 +179,7 @@ class NurtureEngine:
             completed=False,
         )
         self._sequences[sequence_id] = seq
+        self._save_sequence_to_db(seq)
         return self._sequence_to_dict(seq)
 
     def _sequence_to_dict(self, seq: Sequence) -> dict:
@@ -174,7 +228,7 @@ class NurtureEngine:
 
         return due
 
-    def mark_action_sent(self, sequence_id: str, action_index: int) -> bool:
+    def mark_action_sent(self, sequence_id: str, action_index: int, result: Dict[str, Any] | None = None) -> bool:
         seq = self._sequences.get(sequence_id)
         if not seq:
             return False
@@ -183,12 +237,49 @@ class NurtureEngine:
 
         seq.actions[action_index]["sent"] = True
         seq.actions[action_index]["scheduled_at"] = datetime.now().isoformat()
+        if result:
+            seq.actions[action_index]["result"] = result
         seq.current_step += 1
 
         if seq.current_step >= len(seq.actions):
             seq.completed = True
 
+        self._save_sequence_to_db(seq)
         return True
+
+    async def execute_due_actions(self) -> List[Dict[str, Any]]:
+        """Find due actions and dispatch them via real providers."""
+        from engine.messaging import MessagingOrchestrator
+        messenger = MessagingOrchestrator()
+        due = self.get_due_actions()
+        results = []
+        for action in due:
+            seq_id = action["sequence_id"]
+            idx = action["action_index"]
+            seq = self._sequences.get(seq_id)
+            if not seq:
+                continue
+            atype = action["type"]
+            template = action["template"]
+            result: Dict[str, Any] = {"ok": False, "error": "unknown action type"}
+            try:
+                if atype == "sms":
+                    result = await messenger.send_sms(seq.lead_phone, template)
+                elif atype == "email" and isinstance(template, dict):
+                    result = await messenger.send_email(
+                        seq.lead_email,
+                        template.get("subject", "Follow-up"),
+                        template.get("body", ""),
+                    )
+                elif atype == "call":
+                    result = await messenger.queue_call(seq.lead_phone, template)
+            except Exception as e:
+                logger.error("Failed to execute nurture action %s for %s: %s", atype, seq_id, e)
+                result = {"ok": False, "error": str(e)}
+
+            self.mark_action_sent(seq_id, idx, result)
+            results.append({"sequence_id": seq_id, "action": atype, "result": result})
+        return results
 
     # ─── Queries ─────────────────────────────────────────────────────
 
@@ -205,8 +296,15 @@ class NurtureEngine:
         return self._sequence_to_dict(seq) if seq else None
 
     def delete_sequence(self, sequence_id: str) -> bool:
-        if sequence_id in self._sequences:
+        ok = sequence_id in self._sequences
+        if ok:
             del self._sequences[sequence_id]
+            try:
+                with Database.get_connection() as conn:
+                    conn.execute("DELETE FROM nurture_sequences WHERE id = ?", (sequence_id,))
+                    conn.commit()
+            except Exception as e:
+                logger.error("Failed to delete nurture sequence from database: %s", e)
             return True
         return False
 
@@ -363,10 +461,10 @@ class NurtureEngine:
   }}
 }}
 </style>
-
+ 
 <div class="nsw-header">{business_name}</div>
 <div class="nsw-title">Schedule Your Consultation</div>
-
+ 
 <form id="nsw-form" onsubmit="return false;">
   <div class="nsw-field">
     <label for="nsw-date">Date</label>
@@ -394,13 +492,13 @@ class NurtureEngine:
   <button type="submit" class="nsw-submit" id="nsw-submit-btn">Confirm Appointment</button>
   <div class="nsw-error" id="nsw-error"></div>
 </form>
-
+ 
 <div class="nsw-confirmation" id="nsw-confirmation">
   <div class="nsw-confirmation-icon">&#10003;</div>
   <h3>Appointment Confirmed!</h3>
   <p id="nsw-confirmation-details"></p>
 </div>
-
+ 
 <script>
 (function () {{
   var form = document.getElementById('nsw-form');
@@ -408,18 +506,18 @@ class NurtureEngine:
   var errEl = document.getElementById('nsw-error');
   var confirmEl = document.getElementById('nsw-confirmation');
   var detailsEl = document.getElementById('nsw-confirmation-details');
-
+ 
   var minDate = new Date();
   minDate.setDate(minDate.getDate() + 1);
   document.getElementById('nsw-date').setAttribute('min', minDate.toISOString().split('T')[0]);
-
+ 
   form.addEventListener('submit', function (e) {{
     e.preventDefault();
     errEl.classList.remove('show');
     confirmEl.classList.remove('show');
     btn.disabled = true;
     btn.textContent = 'Confirming...';
-
+ 
     var data = {{
       name: document.getElementById('nsw-name').value.trim(),
       phone: document.getElementById('nsw-phone').value.trim(),
@@ -427,7 +525,7 @@ class NurtureEngine:
       date: document.getElementById('nsw-date').value,
       time_slot: document.getElementById('nsw-time').value,
     }};
-
+ 
     fetch('/api/nurture/schedule', {{
       method: 'POST',
       headers: {{ 'Content-Type': 'application/json' }},
@@ -456,7 +554,7 @@ class NurtureEngine:
       btn.textContent = 'Confirm Appointment';
     }});
   }});
-}})();
+}})( );
 </script>
 </div>"""
 
@@ -503,6 +601,24 @@ class NurtureEngine:
         }
 
         self._appointments.append(appointment)
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO appointments (
+                        appointment_id, name, phone, email, date, time_slot, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    appointment["appointment_id"],
+                    appointment["name"],
+                    appointment["phone"],
+                    appointment["email"],
+                    appointment["date"],
+                    appointment["time_slot"],
+                    appointment["created_at"]
+                ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to save appointment to database: %s", e)
 
         return {
             "ok": True,

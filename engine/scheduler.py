@@ -4,9 +4,13 @@ import asyncio
 import logging
 import time
 import uuid
+import os
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
+
+from engine.database import Database
 
 logger = logging.getLogger("ScanScheduler")
 
@@ -54,6 +58,69 @@ class ScanScheduler:
         self._search_fn: Optional[Callable] = None
         self._running = False
         self._task: Optional[asyncio.Task] = None
+        self._load_from_db()
+
+    def _load_from_db(self):
+        try:
+            with Database.get_connection() as conn:
+                cursor = conn.execute("SELECT * FROM schedules")
+                for r in cursor.fetchall():
+                    s = ScanSchedule(
+                        id=r["id"],
+                        name=r["name"],
+                        query=r["query"],
+                        provider=r["provider"],
+                        industry=r["industry"],
+                        location=r["location"],
+                        num_results=r["num_results"],
+                        min_score=r["min_score"],
+                        interval_minutes=r["interval_minutes"],
+                        enabled=bool(r["enabled"]),
+                        created_at=r["created_at"],
+                        last_run=r["last_run"],
+                        last_result_count=r["last_result_count"],
+                        total_runs=r["total_runs"],
+                    )
+                    self._schedules[s.id] = s
+                    # Load results
+                    self._results[s.id] = self._load_results(s.id)
+        except Exception as e:
+            logger.error("Failed to load schedules from database: %s", e)
+
+    def _save_schedule_to_db(self, s: ScanSchedule):
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO schedules (
+                        id, name, query, provider, industry, location, num_results, min_score, interval_minutes, enabled, created_at, last_run, last_result_count, total_runs
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    s.id, s.name, s.query, s.provider, s.industry, s.location, s.num_results, s.min_score, s.interval_minutes,
+                    1 if s.enabled else 0, s.created_at, s.last_run, s.last_result_count, s.total_runs
+                ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to save schedule to database: %s", e)
+
+    def _save_results(self, schedule_id: str, leads: List[Dict[str, Any]]):
+        os.makedirs("data/schedules", exist_ok=True)
+        path = f"data/schedules/{schedule_id}_results.json"
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(leads, f, default=str)
+        except Exception as e:
+            logger.error("Failed to save schedule results to file: %s", e)
+
+    def _load_results(self, schedule_id: str) -> List[Dict[str, Any]]:
+        path = f"data/schedules/{schedule_id}_results.json"
+        if not os.path.exists(path):
+            return []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error("Failed to load schedule results from file: %s", e)
+            return []
 
     def register_search_fn(self, fn: Callable):
         self._search_fn = fn
@@ -73,6 +140,7 @@ class ScanScheduler:
             created_at=datetime.now().isoformat(),
         )
         self._schedules[schedule.id] = schedule
+        self._save_schedule_to_db(schedule)
         logger.info(f"Added schedule '{schedule.name}' ({schedule.id}) every {schedule.interval_minutes}min")
         return schedule
 
@@ -84,11 +152,23 @@ class ScanScheduler:
                      "num_results", "min_score", "interval_minutes", "enabled"):
             if key in updates:
                 setattr(sched, key, updates[key])
+        self._save_schedule_to_db(sched)
         return sched
 
     def delete_schedule(self, schedule_id: str) -> bool:
         self._results.pop(schedule_id, None)
-        return self._schedules.pop(schedule_id, None) is not None
+        ok = self._schedules.pop(schedule_id, None) is not None
+        if ok:
+            try:
+                with Database.get_connection() as conn:
+                    conn.execute("DELETE FROM schedules WHERE id = ?", (schedule_id,))
+                    conn.commit()
+                path = f"data/schedules/{schedule_id}_results.json"
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception as e:
+                logger.error("Failed to delete schedule from database: %s", e)
+        return ok
 
     def get_schedule(self, schedule_id: str) -> Optional[ScanSchedule]:
         return self._schedules.get(schedule_id)
@@ -159,6 +239,7 @@ class ScanScheduler:
             sched.last_run = datetime.now().isoformat()
             sched.last_result_count = len(leads)
             sched.total_runs += 1
+            self._save_schedule_to_db(sched)
 
             if leads:
                 existing = self._results.get(sched.id, [])
@@ -166,6 +247,7 @@ class ScanScheduler:
                 new_leads = [l for l in leads if l.get("id") not in existing_ids]
                 existing.extend(new_leads)
                 self._results[sched.id] = existing
+                self._save_results(sched.id, existing)
                 logger.info(f"Schedule '{sched.name}': found {len(new_leads)} new leads")
 
         except Exception as e:

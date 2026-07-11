@@ -32,6 +32,12 @@ class EnrichmentResult:
 
 class EnrichmentProvider:
     name: str = "base"
+    """Fields this provider works best with, in order of preference."""
+    input_preferences: List[str] = []
+    """Fields this provider absolutely needs to produce useful output."""
+    input_required: List[str] = []
+    """Lower = tried first in smart routing mode."""
+    priority: int = 10
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
@@ -45,3 +51,13 @@ class EnrichmentProvider:
 
     def is_available(self) -> bool:
         return True
+
+    def suitability_score(self, input_fields: set) -> float:
+        """Score 0.0–1.0 how well-suited this provider is for the given input fields."""
+        required = set(self.input_required)
+        if required and not required.issubset(input_fields):
+            return 0.0
+        if not self.input_preferences:
+            return 1.0
+        matched = sum(1 for f in self.input_preferences if f in input_fields)
+        return matched / len(self.input_preferences)

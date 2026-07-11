@@ -1,0 +1,38 @@
+include README.md
+include pyproject.toml
+include requirements.txt
+include pytest.ini
+include run.py
+include run_tests.py
+include smoke_test.py
+include main.py
+include enrichment.py
+include scoring_llm.py
+include deploy.sh
+include Dockerfile
+include docker-compose.yml
+include docker-compose.prod.yml
+include .dockerignore
+include .env.example
+include .gitignore
+
+recursive-include engine *.py
+recursive-include crm_plus *.py
+recursive-include sales_pack *.json
+recursive-include static *.html
+recursive-include static/templates *.html
+recursive-include scripts *.py
+recursive-include deploy *.sh *.conf *.yml
+recursive-include deploy/nginx *
+
+prune legacy
+prune tests
+prune data
+prune desktop
+prune android
+prune electron-shell
+prune __pycache__
+prune .pytest_cache
+prune .lpls
+prune .git
+prune .github

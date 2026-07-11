@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6c5ce7">
+<link rel="manifest" href="/static/manifest.json">
+<title>LeadForge — SaaS Lead Generation Engine</title>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg2: #12121a;
+  --bg3: #1a1a28;
+  --border: #2a2a3e;
+  --text: #e8e8f0;
+  --text2: #a0a0b8;
+  --text3: #6a6a80;
+  --accent: #6c5ce7;
+  --accent2: #a29bfe;
+  --green: #00b894;
+  --red: #e17055;
+  --yellow: #fdcb6e;
+  --radius: 8px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+input, select, textarea, button { font-family: inherit; font-size: 0.9rem; }
+a { color: var(--accent2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Auth pages */
+.auth-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+.auth-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 40px; width: 100%; max-width: 420px; }
+.auth-card h1 { font-size: 1.5rem; margin-bottom: 4px; }
+.auth-card p { color: var(--text2); font-size: 0.85rem; margin-bottom: 24px; }
+.auth-card .subtitle { color: var(--text3); font-size: 0.75rem; margin-top: 16px; text-align: center; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 0.8rem; color: var(--text2); margin-bottom: 4px; }
+.form-group input { width: 100%; padding: 10px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); outline: none; }
+.form-group input:focus { border-color: var(--accent); }
+.btn { padding: 10px 20px; border: none; border-radius: var(--radius); cursor: pointer; font-weight: 600; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--border); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+.btn-block { width: 100%; }
+.error { color: var(--red); font-size: 0.8rem; margin-top: 4px; }
+.success { color: var(--green); font-size: 0.8rem; margin-top: 4px; }
+
+/* App layout */
+.app-layout { display: none; }
+.app-layout.active { display: flex; min-height: 100vh; }
+.sidebar { width: 240px; background: var(--bg2); border-right: 1px solid var(--border); padding: 20px; flex-shrink: 0; }
+.sidebar h2 { font-size: 1rem; margin-bottom: 20px; color: var(--accent2); }
+.sidebar nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar nav a { padding: 8px 12px; border-radius: var(--radius); color: var(--text2); font-size: 0.85rem; transition: all 0.15s; }
+.sidebar nav a:hover, .sidebar nav a.active { background: var(--bg3); color: var(--text); text-decoration: none; }
+.sidebar .org-info { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text3); }
+.main-content { flex: 1; padding: 24px; overflow-y: auto; }
+.main-content h1 { font-size: 1.3rem; margin-bottom: 20px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* Cards */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+.card h3 { font-size: 0.95rem; margin-bottom: 8px; }
+.card p { font-size: 0.85rem; color: var(--text2); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.stat-card .value { font-size: 1.5rem; font-weight: 700; color: var(--accent2); }
+.stat-card .label { font-size: 0.75rem; color: var(--text3); margin-top: 4px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { color: var(--text3); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+td { color: var(--text2); }
+tr:hover td { background: var(--bg3); }
+
+/* Badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+.badge-green { background: rgba(0,184,148,0.15); color: var(--green); }
+.badge-yellow { background: rgba(253,203,110,0.15); color: var(--yellow); }
+.badge-red { background: rgba(225,112,85,0.15); color: var(--red); }
+.badge-purple { background: rgba(108,92,231,0.15); color: var(--accent2); }
+
+/* Toggle */
+.toggle { position: relative; display: inline-block; width: 36px; height: 20px; cursor: pointer; }
+.toggle input { display: none; }
+.toggle .slider { position: absolute; inset: 0; background: var(--bg3); border-radius: 10px; transition: 0.2s; }
+.toggle .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 2px; bottom: 2px; background: var(--text2); border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .slider { background: var(--accent); }
+.toggle input:checked + .slider::before { transform: translateX(16px); background: #fff; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+.modal h2 { font-size: 1.1rem; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* Loading */
+.loading { text-align: center; padding: 40px; color: var(--text3); }
+.spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: var(--radius); font-size: 0.85rem; z-index: 200; animation: slideUp 0.3s ease; }
+.toast-success { background: var(--green); color: #fff; }
+.toast-error { background: var(--red); color: #fff; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+  .app-layout.active { flex-direction: column; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- Auth Pages -->
+<div id="authPage" class="auth-page">
+  <div class="auth-card">
+    <div id="authFormLogin">
+      <h1>LeadForge</h1>
+      <p>Sign in to your account</p>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter password">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="login()">Sign In</button>
+      <div class="subtitle">Don't have an account? <a href="#" onclick="showRegister()">Register</a></div>
+    </div>
+    <div id="authFormRegister" style="display:none">
+      <h1>Create Account</h1>
+      <p>Start generating leads in minutes</p>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="regName" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Organization</label>
+        <input type="text" id="regOrg" placeholder="Your company name">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="regPassword" placeholder="Min 8 characters">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="register()">Create Account</button>
+      <div class="subtitle">Already have an account? <a href="#" onclick="showLogin()">Sign in</a></div>
+    </div>
+    <div id="authError" class="error" style="display:none"></div>
+  </div>
+</div>
+
+<!-- App Layout -->
+<div id="appLayout" class="app-layout">
+  <div class="sidebar">
+    <h2>LeadForge</h2>
+    <nav>
+      <a href="#" class="active" onclick="showPage('dashboard', this)">Dashboard</a>
+      <a href="#" onclick="showPage('verticals', this)">Verticals</a>
+      <a href="#" onclick="showPage('leads', this)">Leads</a>
+      <a href="#" onclick="showPage('search', this)">Search</a>
+      <a href="#" onclick="showPage('enrichment', this)">Enrichment</a>
+      <a href="#" onclick="showPage('vault', this)">Key Vault</a>
+      <a href="#" onclick="showPage('apiKeys', this)">API Keys</a>
+      <a href="#" onclick="showPage('deploy', this)">Deploy</a>
+      <a href="#" onclick="showPage('settings', this)">Settings</a>
+    </nav>
+    <div class="org-info">
+      <div id="sidebarOrg">Loading...</div>
+      <div id="sidebarUser"></div>
+      <a href="#" onclick="logout()" style="font-size:0.75rem;color:var(--red);margin-top:8px;display:inline-block;">Sign Out</a>
+    </div>
+  </div>
+  <div class="main-content">
+    <!-- Dashboard -->
+    <div id="pageDashboard" class="page active">
+      <h1>Dashboard</h1>
+      <div class="stat-grid" id="dashStats">
+        <div class="stat-card"><div class="value" id="statLeads">0</div><div class="label">Total Leads</div></div>
+        <div class="stat-card"><div class="value" id="statVerticals">0</div><div class="label">Verticals</div></div>
+        <div class="stat-card"><div class="value" id="statTrades">44</div><div class="label">Trade Templates</div></div>
+        <div class="stat-card"><div class="value" id="statEnrich">0</div><div class="label">Enrichment Providers</div></div>
+      </div>
+      <div class="card">
+        <h3>Quick Start</h3>
+        <p style="margin-bottom:12px;">1. Add your API keys in the <a href="#" onclick="showPage('vault', document.querySelector('[onclick*=\\'vault\\']'))">Key Vault</a></p>
+        <p style="margin-bottom:12px;">2. Configure your <a href="#" onclick="showPage('verticals', document.querySelector('[onclick*=\\'verticals\\']'))">Verticals</a> for lead types</p>
+        <p style="margin-bottom:12px;">3. Run a <a href="#" onclick="showPage('search', document.querySelector('[onclick*=\\'search\\']'))">Search</a> to find leads</p>
+        <p>4. <a href="#" onclick="showPage('enrichment', document.querySelector('[onclick*=\\'enrichment\\']'))">Enrich</a> your leads with contact data</p>
+      </div>
+    </div>
+
+    <!-- Verticals -->
+    <div id="pageVerticals" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h1>Verticals</h1>
+        <button class="btn btn-primary btn-sm" onclick="showAddVertical()">+ Add Vertical</button>
+      </div>
+      <div id="verticalsList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- Leads -->
+    <div id="pageLeads" class="page">
+      <h1>Leads</h1>
+      <div id="leadsList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- Search -->
+    <div id="pageSearch" class="page">
+      <h1>Search</h1>
+      <div class="card">
+        <div class="form-group">
+          <label>Search Query</label>
+          <input type="text" id="searchQuery" placeholder="e.g., plumbing contractors in Portland OR">
+        </div>
+        <div class="form-group">
+          <label>Provider</label>
+          <select id="searchProvider">
+            <option value="exa">Exa</option>
+            <option value="perplexity">Perplexity</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="runSearch()">Search</button>
+      </div>
+      <div id="searchResults"></div>
+    </div>
+
+    <!-- Enrichment -->
+    <div id="pageEnrichment" class="page">
+      <h1>Enrichment</h1>
+      <div class="card">
+        <div class="form-group">
+          <label>Business Name</label>
+          <input type="text" id="enrichBizName" placeholder="Business name">
+        </div>
+        <div class="form-group">
+          <label>Trade / Vertical</label>
+          <input type="text" id="enrichTrade" placeholder="e.g., plumbing, real estate">
+        </div>
+        <button class="btn btn-primary" onclick="runEnrich()">Enrich</button>
+      </div>
+      <div id="enrichResult"></div>
+    </div>
+
+    <!-- Key Vault -->
+    <div id="pageVault" class="page">
+      <h1>Key Vault</h1>
+      <div id="vaultList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- API Keys -->
+    <div id="pageApiKeys" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h1>API Keys</h1>
+        <button class="btn btn-primary btn-sm" onclick="createApiKey()">+ New Key</button>
+      </div>
+      <div id="apiKeysList"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- Settings -->
+    <div id="pageSettings" class="page">
+      <h1>Settings</h1>
+      <div class="card">
+        <h3>Account</h3>
+        <p id="settingsUser">Loading...</p>
+        <p id="settingsOrg"></p>
+        <p id="settingsPlan"></p>
+      </div>
+    </div>
+
+    <!-- Deploy -->
+    <div id="pageDeploy" class="page">
+      <h1>Deploy Your Own Instance</h1>
+      <div class="card">
+        <h3>One-Click Deploy Script</h3>
+        <p style="margin-bottom:12px;">Run this on any Ubuntu/Debian server with root access. It installs Docker, gets SSL certs, and starts the full stack.</p>
+        <pre id="deployScript" style="background:var(--bg3);padding:16px;border-radius:var(--radius);font-size:0.75rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:12px;max-height:400px;overflow-y:auto;">Loading...</pre>
+        <button class="btn btn-primary" onclick="downloadDeployScript()">Download deploy.sh</button>
+        <button class="btn btn-secondary" style="margin-left:8px;" onclick="copyDeployScript()">Copy to Clipboard</button>
+      </div>
+      <div class="card">
+        <h3>Quick Start</h3>
+        <p style="margin-bottom:8px;">1. SSH into your server: <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;">ssh root@your-server-ip</code></p>
+        <p style="margin-bottom:8px;">2. Download and run: <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;">curl -sL https://growth.leviathansi.xyz/static/deploy.sh | sudo bash</code></p>
+        <p style="margin-bottom:8px;">3. Open the URL printed at the end and register</p>
+        <p style="color:var(--text3);font-size:0.8rem;">Requires: Ubuntu 20.04+, root access, ports 80/443 open, DNS pointing to the server</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent">
+    <h2 id="modalTitle">Title</h2>
+    <div id="modalBody"></div>
+    <div class="modal-actions" id="modalActions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modalConfirmBtn" onclick="modalConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = '';
+let TOKEN = localStorage.getItem('token');
+let USER = null;
+let ORG = null;
+
+// ─── Auth ───
+function showRegister() { document.getElementById('authFormLogin').style.display='none'; document.getElementById('authFormRegister').style.display=''; document.getElementById('authError').style.display='none'; }
+function showLogin() { document.getElementById('authFormLogin').style.display=''; document.getElementById('authFormRegister').style.display='none'; document.getElementById('authError').style.display='none'; }
+
+async function register() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const org = document.getElementById('regOrg').value.trim() || name + "'s Org";
+  const password = document.getElementById('regPassword').value;
+  if (!name || !email || !password) { showError('All fields required'); return; }
+  try {
+    const r = await fetch(BASE + '/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,email,org_name:org,password}) });
+    const d = await r.json();
+    if (!r.ok) { showError(d.detail); return; }
+    TOKEN = d.token;
+    localStorage.setItem('token', TOKEN);
+    USER = d.user;
+    ORG = d.org;
+    enterApp();
+  } catch(e) { showError(e.message); }
+}
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!email || !password) { showError('All fields required'); return; }
+  try {
+    const r = await fetch(BASE + '/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}) });
+    const d = await r.json();
+    if (!r.ok) { showError(d.detail); return; }
+    TOKEN = d.token;
+    localStorage.setItem('token', TOKEN);
+    USER = d.user;
+    ORG = d.org;
+    enterApp();
+  } catch(e) { showError(e.message); }
+}
+
+function showError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  TOKEN = null;
+  USER = null;
+  ORG = null;
+  document.getElementById('appLayout').classList.remove('active');
+  document.getElementById('authPage').style.display = '';
+}
+
+function enterApp() {
+  document.getElementById('authPage').style.display = 'none';
+  document.getElementById('appLayout').classList.add('active');
+  document.getElementById('sidebarOrg').textContent = ORG ? ORG.name : '';
+  document.getElementById('sidebarUser').textContent = USER ? USER.email : '';
+  loadDashboard();
+  loadVerticals();
+  loadLeads();
+  loadVault();
+  loadApiKeys();
+  loadSettings();
+}
+
+// ─── Navigation ───
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+// ─── API Helper ───
+async function api(path, opts = {}) {
+  const headers = { ...opts.headers };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  if (opts.body && !(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const r = await fetch(BASE + path, { ...opts, headers });
+  if (r.status === 401) { logout(); throw new Error('Session expired'); }
+  return r;
+}
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ─── Dashboard ───
+async function loadDashboard() {
+  try {
+    const r = await api('/api/stats');
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('statLeads').textContent = d.total_leads || 0;
+    }
+    const vr = await api('/api/auth/verticals');
+    if (vr.ok) {
+      const vd = await vr.json();
+      document.getElementById('statVerticals').textContent = (vd.verticals || []).length;
+    }
+    const pr = await api('/api/enrich/providers');
+    if (pr.ok) {
+      const pd = await pr.json();
+      document.getElementById('statEnrich').textContent = (pd.providers || []).filter(p => p.available).length;
+    }
+  } catch(e) { console.error(e); }
+}
+
+// ─── Verticals ───
+async function loadVerticals() {
+  try {
+    const r = await api('/api/auth/verticals');
+    const d = await r.json();
+    const list = d.verticals || [];
+    const html = list.length ? `<table><thead><tr><th>Name</th><th>Slug</th><th>Platforms</th><th>Avg Value</th><th>Enabled</th><th>Actions</th></tr></thead><tbody>
+      ${list.map(v => `<tr>
+        <td>${esc(v.name)}</td>
+        <td style="color:var(--text3)">${esc(v.slug)}</td>
+        <td>${(v.config.platforms || []).join(', ')}</td>
+        <td>$${(v.config.avg_job_value || 0).toLocaleString()}</td>
+        <td><label class="toggle"><input type="checkbox" ${v.enabled ? 'checked' : ''} onchange="toggleVertical('${v.id}', this.checked)"><span class="slider"></span></label></td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteVertical('${v.id}')">Delete</button></td>
+      </tr>`).join('')}
+    </tbody></table>` : '<p style="color:var(--text3)">No verticals configured yet. Add one to get started.</p>';
+    document.getElementById('verticalsList').innerHTML = html;
+  } catch(e) { document.getElementById('verticalsList').innerHTML = '<p class="error">Failed to load verticals</p>'; }
+}
+
+function showAddVertical() {
+  document.getElementById('modalTitle').textContent = 'Add Vertical';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>Name</label><input type="text" id="modalVName" placeholder="e.g., Real Estate Investors"></div>
+    <div class="form-group"><label>Slug</label><input type="text" id="modalVSlug" placeholder="real_estate_investors (auto-fills from name)"></div>
+    <div class="form-group"><label>Keywords (comma separated)</label><input type="text" id="modalVKeywords" placeholder="real estate investor, property investor"></div>
+    <div class="form-group"><label>Platforms (comma separated)</label><input type="text" id="modalVPlatforms" placeholder="google_maps, linkedin, facebook"></div>
+    <div class="form-group"><label>Avg Job Value ($)</label><input type="number" id="modalVValue" value="5000"></div>
+    <div class="form-group"><label>Lead CPL Ceiling ($)</label><input type="number" id="modalVCPL" value="100"></div>
+  `;
+  window._modalMode = 'addVertical';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function modalConfirm() {
+  if (window._modalMode === 'setKey') {
+    const key = document.getElementById('modalKey').value.trim();
+    if (!key) { toast('Key is required', 'error'); return; }
+    try {
+      const r = await api('/api/vault/keys/' + window._modalService, { method:'POST', body:JSON.stringify({key}) });
+      if (r.ok) { toast('Key saved'); closeModal(); loadVault(); }
+      else { const d = await r.json(); toast(d.detail || 'Failed', 'error'); }
+    } catch(e) { toast(e.message, 'error'); }
+    return;
+  }
+  if (window._modalMode === 'addVertical') {
+    const name = document.getElementById('modalVName').value.trim();
+    const slug = document.getElementById('modalVSlug').value.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const keywords = document.getElementById('modalVKeywords').value.split(',').map(s => s.trim()).filter(Boolean);
+    const platforms = document.getElementById('modalVPlatforms').value.split(',').map(s => s.trim()).filter(Boolean);
+    const avg_job_value = parseInt(document.getElementById('modalVValue').value) || 5000;
+    const lead_cpl_ceiling = parseInt(document.getElementById('modalVCPL').value) || 100;
+    if (!name) { toast('Name is required', 'error'); return; }
+    try {
+      const r = await api('/api/auth/verticals', { method:'POST', body:JSON.stringify({name,slug,config:{keywords,platforms,avg_job_value,lead_cpl_ceiling,urgency_triggers:[],best_platform:platforms[0]||'',conversion_rate:0.05}}) });
+      if (r.ok) { toast('Vertical added'); closeModal(); loadVerticals(); }
+      else { const d = await r.json(); toast(d.detail || 'Failed', 'error'); }
+    } catch(e) { toast(e.message, 'error'); }
+  }
+}
+
+async function toggleVertical(id, enabled) {
+  try { await api('/api/auth/verticals/' + id, { method:'PUT', body:JSON.stringify({enabled:enabled?1:0}) }); } catch(e) {}
+}
+
+async function deleteVertical(id) {
+  if (!confirm('Delete this vertical?')) return;
+  try {
+    const r = await api('/api/auth/verticals/' + id, { method:'DELETE' });
+    if (r.ok) { toast('Vertical deleted'); loadVerticals(); }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── Leads ───
+async function loadLeads() {
+  try {
+    const r = await api('/api/leads');
+    const d = await r.json();
+    const leads = d.leads || [];
+    const html = leads.length ? `<table><thead><tr><th>Title</th><th>Industry</th><th>Location</th><th>Score</th><th>Source</th></tr></thead><tbody>
+      ${leads.slice(0,50).map(l => `<tr>
+        <td>${esc(l.title || 'Unknown')}</td>
+        <td>${esc(l.industry || '')}</td>
+        <td>${esc(l.location || '')}</td>
+        <td><span class="badge ${(l.score||0) > 50 ? 'badge-green' : (l.score||0) > 20 ? 'badge-yellow' : 'badge-red'}">${Math.round(l.score||0)}</span></td>
+        <td>${esc(l.source || '')}</td>
+      </tr>`).join('')}
+    </tbody></table>` : '<p style="color:var(--text3)">No leads yet. Run a search to find leads.</p>';
+    document.getElementById('leadsList').innerHTML = html;
+  } catch(e) { document.getElementById('leadsList').innerHTML = '<p class="error">Failed to load leads</p>'; }
+}
+
+// ─── Search ───
+async function runSearch() {
+  const query = document.getElementById('searchQuery').value.trim();
+  const provider = document.getElementById('searchProvider').value;
+  if (!query) { toast('Enter a search query', 'error'); return; }
+  document.getElementById('searchResults').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const r = await api('/api/search/natural', { method:'POST', body:JSON.stringify({query,provider,num_results:20,min_score:0}) });
+    const d = await r.json();
+    const leads = d.leads || [];
+    const html = leads.length ? `<div class="card"><h3>${leads.length} leads found</h3></div><table><thead><tr><th>Title</th><th>Location</th><th>Score</th></tr></thead><tbody>
+      ${leads.map(l => `<tr><td>${esc(l.title||'')}</td><td>${esc(l.location||'')}</td><td><span class="badge badge-purple">${Math.round(l.score||0)}</span></td></tr>`).join('')}
+    </tbody></table>` : '<div class="card"><p style="color:var(--text3)">No leads found. Try a different query.</p></div>';
+    document.getElementById('searchResults').innerHTML = html;
+    loadLeads();
+  } catch(e) { document.getElementById('searchResults').innerHTML = '<p class="error">' + e.message + '</p>'; }
+}
+
+// ─── Enrichment ───
+async function runEnrich() {
+  const bizName = document.getElementById('enrichBizName').value.trim();
+  const trade = document.getElementById('enrichTrade').value.trim();
+  if (!bizName || !trade) { toast('Business name and trade required', 'error'); return; }
+  document.getElementById('enrichResult').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const r = await api('/api/enrich/lead', { method:'POST', body:JSON.stringify({business_name:bizName,trade}) });
+    const d = await r.json();
+    const fields = [
+      ['Business Name', d.business_name], ['Contact Name', d.contact_name], ['Phone', d.phone],
+      ['Email', d.email], ['Address', d.address], ['Website', d.website],
+      ['Employee Count', d.employee_count], ['Revenue', d.revenue],
+      ['Confidence', d.confidence != null ? (d.confidence * 100).toFixed(0) + '%' : ''],
+    ];
+    document.getElementById('enrichResult').innerHTML = `<div class="card"><h3>Enrichment Result</h3>
+      ${fields.filter(f => f[1]).map(f => `<p style="margin:4px 0"><strong>${f[0]}:</strong> ${esc(String(f[1]))}</p>`).join('')}
+      ${d.error ? `<p style="color:var(--red);margin-top:8px">${esc(d.error)}</p>` : ''}
+    </div>`;
+  } catch(e) { document.getElementById('enrichResult').innerHTML = '<p class="error">' + e.message + '</p>'; }
+}
+
+// ─── Key Vault ───
+async function loadVault() {
+  try {
+    const r = await api('/api/vault/keys');
+    const d = await r.json();
+    const services = Object.entries(d);
+    const html = services.length ? `<table><thead><tr><th>Service</th><th>Status</th><th>Action</th></tr></thead><tbody>
+      ${services.map(([svc, info]) => `<tr>
+        <td>${esc(svc)}</td>
+        <td><span class="badge ${info.configured ? 'badge-green' : 'badge-red'}">${info.configured ? 'Configured' : 'Missing'}</span></td>
+        <td><button class="btn btn-secondary btn-sm" onclick="showSetKey('${svc}')">${info.configured ? 'Update' : 'Set Key'}</button></td>
+      </tr>`).join('')}
+    </tbody></table>` : '<p style="color:var(--text3)">No services configured.</p>';
+    document.getElementById('vaultList').innerHTML = html;
+  } catch(e) { document.getElementById('vaultList').innerHTML = '<p class="error">Failed to load vault</p>'; }
+}
+
+function showSetKey(service) {
+  document.getElementById('modalTitle').textContent = 'Set Key: ' + service;
+  document.getElementById('modalBody').innerHTML = `<div class="form-group"><label>API Key</label><input type="password" id="modalKey" placeholder="Enter ${service} API key" style="width:100%"></div>`;
+  window._modalMode = 'setKey';
+  window._modalService = service;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+// ─── API Keys ───
+async function loadApiKeys() {
+  try {
+    const r = await api('/api/auth/api-keys');
+    const d = await r.json();
+    const keys = d.keys || [];
+    const html = keys.length ? `<table><thead><tr><th>Name</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead><tbody>
+      ${keys.map(k => `<tr>
+        <td>${esc(k.name)}</td>
+        <td>${k.created_at ? new Date(k.created_at).toLocaleDateString() : ''}</td>
+        <td>${k.last_used ? new Date(k.last_used).toLocaleDateString() : 'Never'}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteApiKey('${k.id}')">Delete</button></td>
+      </tr>`).join('')}
+    </tbody></table>` : '<p style="color:var(--text3)">No API keys. Create one for programmatic access.</p>';
+    document.getElementById('apiKeysList').innerHTML = html;
+  } catch(e) { document.getElementById('apiKeysList').innerHTML = '<p class="error">Failed to load API keys</p>'; }
+}
+
+async function createApiKey() {
+  try {
+    const r = await api('/api/auth/api-keys', { method:'POST', body:JSON.stringify({name:'key-' + Date.now()}) });
+    const d = await r.json();
+    if (r.ok) {
+      toast('API Key: ' + d.api_key + ' (copy now — won\'t be shown again)');
+      loadApiKeys();
+    }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteApiKey(id) {
+  if (!confirm('Delete this API key?')) return;
+  try {
+    const r = await api('/api/auth/api-keys/' + id, { method:'DELETE' });
+    if (r.ok) { toast('Key deleted'); loadApiKeys(); }
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── Settings ───
+async function loadSettings() {
+  try {
+    const r = await api('/api/auth/me');
+    const d = await r.json();
+    if (d.user) {
+      document.getElementById('settingsUser').textContent = 'Name: ' + d.user.name + ' (' + d.user.email + ')';
+      document.getElementById('settingsOrg').textContent = 'Organization: ' + (d.org ? d.org.name : '');
+      document.getElementById('settingsPlan').textContent = 'Plan: ' + (d.org ? d.org.plan : 'free');
+    }
+  } catch(e) {}
+}
+
+// ─── Modal ───
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+  window._modalMode = null;
+}
+
+// ─── Helpers ───
+function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── Deploy ───
+async function loadDeployScript() {
+  try {
+    const r = await fetch('/deploy/deploy.sh');
+    const text = await r.text();
+    document.getElementById('deployScript').textContent = text;
+  } catch(e) {
+    document.getElementById('deployScript').textContent = '#!/usr/bin/env bash\nset -euo pipefail\n\nDOMAIN="growth.leviathansi.xyz"\nREPO="https://github.com/chazam41892-gif/home-improvement-lead-gen.git"\nDIR="/opt/leadforge"\n\necho "LeadForge — One-Click Deploy"\n\nif [ "$EUID" -ne 0 ]; then echo "Run as root: sudo bash deploy.sh"; exit 1; fi\nif ! command -v docker &>/dev/null; then curl -fsSL https://get.docker.com | sh; fi\nif ! command -v git &>/dev/null; then apt-get update && apt-get install -y git; fi\n\nrm -rf "$DIR"\ngit clone "$REPO" "$DIR"\ncd "$DIR/deploy"\n\nmkdir -p /var/www/certbot\ndocker run --rm -p 80:80 -v /etc/letsencrypt:/etc/letsencrypt -v /var/www/certbot:/var/www/certbot certbot/certbot certonly --standalone -d "$DOMAIN" --agree-tos --non-interactive --email admin@"$DOMAIN" || true\n\ndocker compose up -d --build\n\necho "LeadForge is LIVE at https://$DOMAIN"';
+  }
+}
+
+function downloadDeployScript() {
+  const text = document.getElementById('deployScript').textContent;
+  const blob = new Blob([text], { type: 'text/x-shellscript' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'deploy.sh';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('deploy.sh downloaded');
+}
+
+function copyDeployScript() {
+  const text = document.getElementById('deployScript').textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard')).catch(() => toast('Failed to copy', 'error'));
+}
+
+// ─── Init ───
+if (TOKEN) {
+  api('/api/auth/me').then(r => { if (r.ok) return r.json(); }).then(d => {
+    if (d && d.user) { USER = d.user; ORG = d.org; enterApp(); }
+    else { localStorage.removeItem('token'); TOKEN = null; }
+  }).catch(() => { localStorage.removeItem('token'); TOKEN = null; });
+}
+</script>
+</body>
+</html>

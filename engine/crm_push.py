@@ -14,9 +14,14 @@ class CrmPush:
     def set_env(self, env: dict) -> None:
         self._env = env
 
+    async def push_lead(self, lead: dict, provider: str = "hubspot", config: dict | None = None) -> dict:
+        result = await self.push_leads([lead], provider=provider, config=config)
+        return {"ok": True, "provider": provider, "lead_id": lead.get("lead_id", lead.get("id", ""))}
+
     async def push_leads(
         self, leads: list[dict], provider: str = "hubspot", config: dict | None = None
     ) -> list[dict]:
+        import httpx
         cfg = config or {}
         min_score = cfg.get("min_score", 70)
 
@@ -32,13 +37,34 @@ class CrmPush:
                     logger.warning("HUBSPOT_API_KEY not configured — skipping push for %s", lead.get("id", ""))
                     continue
                 logger.info("HubSpot push: sending payload for lead %s", lead.get("id", ""))
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(
+                            "https://api.hubapi.com/crm/v3/objects/contacts",
+                            json=payload,
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json"
+                            }
+                        )
+                        if resp.status_code >= 400:
+                            logger.error("HubSpot CRM push failed: %s", resp.text)
+                        else:
+                            logger.info("HubSpot CRM push succeeded for lead %s", lead.get("id"))
+                except Exception as e:
+                    logger.error("HubSpot request failed: %s", e)
 
             elif provider == "gohighlevel":
-                api_key = self._env.get("GOHIGHLEVEL_API_KEY")
-                if not api_key:
-                    logger.warning("GOHIGHLEVEL_API_KEY not configured — skipping push for %s", lead.get("id", ""))
-                    continue
                 logger.info("GoHighLevel push: sending payload for lead %s", lead.get("id", ""))
+                try:
+                    from crm_plus.crmx import upsert_contact
+                    res = await upsert_contact(lead)
+                    if not res.get("ok"):
+                        logger.error("GoHighLevel CRM push failed: %s", res.get("body"))
+                    else:
+                        logger.info("GoHighLevel CRM push succeeded for lead %s", lead.get("id"))
+                except Exception as e:
+                    logger.error("GoHighLevel request failed: %s", e)
 
             elif provider == "pipedrive":
                 api_key = self._env.get("PIPEDRIVE_API_KEY")
@@ -46,6 +72,24 @@ class CrmPush:
                     logger.warning("PIPEDRIVE_API_KEY not configured — skipping push for %s", lead.get("id", ""))
                     continue
                 logger.info("Pipedrive push: sending payload for lead %s", lead.get("id", ""))
+                try:
+                    pd_payload = {
+                        "name": lead.get("title") or lead.get("name") or "Contact",
+                        "email": [lead.get("email")] if lead.get("email") else [],
+                        "phone": [lead.get("phone")] if lead.get("phone") else [],
+                    }
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(
+                            f"https://api.pipedrive.com/v1/persons?api_token={api_key}",
+                            json=pd_payload,
+                            headers={"Content-Type": "application/json"}
+                        )
+                        if resp.status_code >= 400:
+                            logger.error("Pipedrive CRM push failed: %s", resp.text)
+                        else:
+                            logger.info("Pipedrive CRM push succeeded for lead %s", lead.get("id"))
+                except Exception as e:
+                    logger.error("Pipedrive request failed: %s", e)
 
             self._history.append(
                 {

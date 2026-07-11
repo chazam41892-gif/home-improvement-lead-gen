@@ -26,6 +26,7 @@ Thumbs.db
 data/*.jsonl
 data/*.csv
 data/*.json
+data/*.db
 desktop/node_modules/
 desktop/src-tauri/target/
 desktop/dist/
@@ -45,3 +46,11 @@ htmlcov/
 
 # Logs
 *.log
+
+# Orphan scripts
+legacy/
+
+# Cloudflare / Node artifacts
+node_modules/
+leadgen-workflows/
+*.wrangler/

@@ -1,0 +1,194 @@
+import sqlite3
+import os
+import json
+import logging
+from typing import Dict, List, Any, Optional
+
+logger = logging.getLogger(__name__)
+
+DB_FILE = os.environ.get("DATABASE_FILE", "data/lead_gen.db")
+
+class Database:
+    db_file = DB_FILE
+
+    @classmethod
+    def set_db_file(cls, path: str):
+        cls.db_file = path
+
+    @classmethod
+    def get_connection(cls):
+        os.makedirs(os.path.dirname(cls.db_file) or "data", exist_ok=True)
+        conn = sqlite3.connect(cls.db_file)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    @classmethod
+    def initialize(cls):
+        with cls.get_connection() as conn:
+            # Create leads table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS leads (
+                    id TEXT PRIMARY KEY,
+                    title TEXT,
+                    url TEXT,
+                    snippet TEXT,
+                    industry TEXT,
+                    location TEXT,
+                    source TEXT,
+                    score REAL,
+                    found_at TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    notes TEXT,
+                    score_breakdown TEXT
+                )
+            """)
+            # Add status column if missing
+            try:
+                conn.execute("ALTER TABLE leads ADD COLUMN status TEXT DEFAULT 'new'")
+            except sqlite3.OperationalError:
+                pass
+            # Add first_name/last_name columns if missing
+            try:
+                conn.execute("ALTER TABLE leads ADD COLUMN first_name TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN last_name TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN address TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN project_description TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN utm_source TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN utm_medium TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN utm_campaign TEXT")
+            except sqlite3.OperationalError:
+                pass
+            # Create trade_accounts table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS trade_accounts (
+                    account_id TEXT PRIMARY KEY,
+                    lead_id TEXT,
+                    business_name TEXT,
+                    phone TEXT,
+                    email TEXT,
+                    address TEXT,
+                    website TEXT,
+                    trade TEXT,
+                    source TEXT,
+                    plan TEXT,
+                    status TEXT,
+                    created_at TEXT,
+                    monthly_fee REAL,
+                    leads_generated INTEGER DEFAULT 0,
+                    conversions INTEGER DEFAULT 0
+                )
+            """)
+            # Create trade_payments table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS trade_payments (
+                    payment_id TEXT PRIMARY KEY,
+                    account_id TEXT,
+                    amount REAL,
+                    method TEXT,
+                    status TEXT,
+                    timestamp TEXT
+                )
+            """)
+            # Create stripe_mappings table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS stripe_mappings (
+                    account_id TEXT PRIMARY KEY,
+                    stripe_customer_id TEXT,
+                    stripe_subscription_id TEXT,
+                    plan TEXT,
+                    status TEXT,
+                    created_at TEXT,
+                    cancelled_at TEXT,
+                    cancel_at_period_end INTEGER DEFAULT 0
+                )
+            """)
+            # Create schedules table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS schedules (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    query TEXT,
+                    provider TEXT,
+                    industry TEXT,
+                    location TEXT,
+                    num_results INTEGER,
+                    min_score REAL,
+                    interval_minutes INTEGER,
+                    enabled INTEGER DEFAULT 1,
+                    created_at TEXT,
+                    last_run TEXT,
+                    last_result_count INTEGER DEFAULT 0,
+                    total_runs INTEGER DEFAULT 0
+                )
+            """)
+            # Create nurture_sequences table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS nurture_sequences (
+                    id TEXT PRIMARY KEY,
+                    lead_name TEXT,
+                    lead_id TEXT,
+                    lead_email TEXT,
+                    lead_phone TEXT,
+                    industry TEXT,
+                    created_at TEXT,
+                    actions TEXT,
+                    current_step INTEGER DEFAULT 0,
+                    completed INTEGER DEFAULT 0
+                )
+            """)
+            # Create appointments table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS appointments (
+                    appointment_id TEXT PRIMARY KEY,
+                    name TEXT,
+                    phone TEXT,
+                    email TEXT,
+                    date TEXT,
+                    time_slot TEXT,
+                    created_at TEXT
+                )
+            """)
+            # Create landing_pages table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS landing_pages (
+                    page_id TEXT PRIMARY KEY,
+                    html TEXT
+                )
+            """)
+            # Create utm_events table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS utm_events (
+                    id TEXT PRIMARY KEY,
+                    event_type TEXT NOT NULL,
+                    lead_id TEXT,
+                    utm_source TEXT,
+                    utm_medium TEXT,
+                    utm_campaign TEXT,
+                    utm_term TEXT,
+                    utm_content TEXT,
+                    page_path TEXT,
+                    referrer TEXT,
+                    user_agent TEXT,
+                    ip TEXT,
+                    timestamp TEXT NOT NULL,
+                    metadata TEXT
+                )
+            """)
+            # Create crm_campaigns table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS crm_campaigns (
+                    campaign_id TEXT PRIMARY KEY,
+                    name TEXT,
+                    target_count INTEGER,
+                    channels TEXT,
+                    agents_active INTEGER,
+                    estimated_reach INTEGER,
+                    launched_at TEXT
+                )
+            """)
+            conn.commit()
+        logger.info("Database initialized successfully at %s", cls.db_file)
+
+# Auto-initialize database on import
+Database.initialize()

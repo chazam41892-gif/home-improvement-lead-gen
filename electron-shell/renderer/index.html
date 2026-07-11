@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' http://localhost:* https://*; script-src 'self' 'unsafe-inline';">
+  <title>LeadForge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <h1>Connecting to LeadForge...</h1>
+    <p id="server-url-display"></p>
+  </div>
+  <script>
+    (function() {
+      var serverUrl = window.leadforge ? window.leadforge.getServerUrl() : 'http://localhost:8080/app';
+      document.getElementById('server-url-display').textContent = serverUrl;
+      setTimeout(function() {
+        window.location.href = serverUrl;
+      }, 1500);
+    })();
+  </script>
+</body>
+</html>

@@ -24,6 +24,7 @@ from engine.scheduler import ScanScheduler
 from engine.landing import LandingPageGenerator
 from engine.capture import LeadCaptureProcessor
 from engine.ads import AdCopyGenerator
+from engine.ad_apis import AdPlatformManager, AdCampaignPlan
 from engine.nurture import NurtureEngine
 from engine.business_config import BusinessConfig
 from engine.crm_push import CrmPush
@@ -35,7 +36,9 @@ from engine import persistence
 from engine.key_vault import KeyVault, SERVICE_KEYS
 from engine.enrichment import enrich_lead, EnrichOrchestrator
 from engine.enrichment.base import EnrichmentResult
+from engine.auth import auth_manager
 from crm_plus.crm_plus_routes import router as crm_plus_router, set_engine as set_crm_engine, set_conversion as set_crm_conversion
+from engine.growth_portal import growth_router, tracking_router
 
 load_dotenv()
 
@@ -65,6 +68,16 @@ _CONFIG_CHECKS = {
     "STRIPE_WEBHOOK_SECRET": {"required_for": ["billing"], "doc": "Stripe webhook verification"},
     "EXA_API_KEY": {"required_for": ["search"], "doc": "Exa AI search provider"},
     "PERPLEXITY_API_KEY": {"required_for": ["perplexity"], "doc": "Perplexity AI search provider"},
+    "GOOGLE_ADS_DEVELOPER_TOKEN": {"required_for": ["google_ads"], "doc": "Google Ads API developer token"},
+    "GOOGLE_ADS_CUSTOMER_ID": {"required_for": ["google_ads"], "doc": "Google Ads customer ID"},
+    "GOOGLE_ADS_REFRESH_TOKEN": {"required_for": ["google_ads"], "doc": "Google Ads OAuth refresh token"},
+    "META_ACCESS_TOKEN": {"required_for": ["meta_ads"], "doc": "Meta Marketing API access token"},
+    "META_AD_ACCOUNT_ID": {"required_for": ["meta_ads"], "doc": "Meta ad account ID"},
+    "TWILIO_ACCOUNT_SID": {"required_for": ["sms", "calls"], "doc": "Twilio SMS/call provider"},
+    "TWILIO_AUTH_TOKEN": {"required_for": ["sms", "calls"], "doc": "Twilio auth token"},
+    "TWILIO_FROM_NUMBER": {"required_for": ["sms", "calls"], "doc": "Twilio sender phone number"},
+    "SENDGRID_API_KEY": {"required_for": ["email"], "doc": "SendGrid email provider"},
+    "SENDGRID_FROM_EMAIL": {"required_for": ["email"], "doc": "SendGrid from email address"},
 }
 
 _MISSING_CONFIG: list[str] = []
@@ -91,6 +104,16 @@ def verify_api_key(request: Request):
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer ") and auth[7:] == _API_KEY:
         return True
+    if auth.startswith("Bearer "):
+        token = auth[7:]
+        payload = auth_manager.verify_jwt(token)
+        if payload:
+            request.state.user = payload
+            return True
+        info = auth_manager.verify_api_key(token)
+        if info:
+            request.state.user = info
+            return True
     raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing API key")
 
 # ─── Rate Limiting (token bucket) ───────────────────────────────────
@@ -145,7 +168,7 @@ async def _scheduler_search(query, num_results, min_score, provider):
 
 scheduler.register_search_fn(_scheduler_search)
 
-env_keys = ("EXA_", "PERPLEXITY_", "ANTHROPIC_", "COMETAPI_", "CLEARBIT_", "HUNTER_", "STRIPE_")
+env_keys = ("EXA_", "PERPLEXITY_", "ANTHROPIC_", "OPENAI_", "COMETAPI_", "CLEARBIT_", "HUNTER_", "APOLLO_", "PEOPLE_DATA_LABS_", "LOOX_", "ENRICHMENT_", "STRIPE_")
 env_map = {k: v for k, v in os.environ.items() if k.startswith(env_keys)}
 engine.set_env(env_map)
 
@@ -167,6 +190,7 @@ except ImportError:
 landing_gen = LandingPageGenerator()
 capture_processor = LeadCaptureProcessor(engine, landing_pages=landing_gen._pages)
 ads_gen = AdCopyGenerator()
+ad_platforms = AdPlatformManager()
 nurture = NurtureEngine()
 business_config = BusinessConfig()
 crm_push = CrmPush()
@@ -209,10 +233,7 @@ async def _nurture_loop():
     _nurture_loop_running = True
     while _nurture_loop_running:
         try:
-            due = nurture.get_due_actions()
-            for action in due:
-                logger.info("Nurture action due", extra={"type": action.get("type"), "sequence_id": action.get("sequence_id")})
-                nurture.mark_action_sent(action["sequence_id"], action["action_index"])
+            await nurture.execute_due_actions()
         except Exception as e:
             logger.error("Nurture action error", exc_info=True)
         await asyncio.sleep(30)
@@ -259,6 +280,8 @@ app.add_middleware(
 )
 
 app.include_router(crm_plus_router)
+app.include_router(growth_router)
+app.include_router(tracking_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -276,6 +299,8 @@ async def health():
         "stripe_configured": stripe_integration.is_configured,
         "exa_configured": engine.has_exa_key,
         "perplexity_configured": engine.has_perplexity_key,
+        "google_ads_configured": ad_platforms.google.is_configured,
+        "meta_ads_configured": ad_platforms.meta.is_configured,
         "total_leads": len(engine._leads),
         "missing_config": {var: info["doc"] for var, info in _CONFIG_CHECKS.items() if not os.getenv(var)},
     }
@@ -448,6 +473,7 @@ async def get_stats():
     stats["nurture"] = nurture.get_stats()
     stats["crm_push"] = crm_push.get_stats()
     stats["business_config"] = business_config.get_config()
+    stats["ad_platforms"] = ad_platforms.status()
     return stats
 
 @app.get("/api/history")
@@ -704,6 +730,53 @@ async def generate_utm(data: Dict[str, Any], request: Request):
     )
     return {"ok": True, "utm_url": result}
 
+
+# ─── Ad Platform API Campaigns ────────────────────────────────────
+
+@app.get("/api/ads/platforms/status")
+async def ads_platform_status(request: Request):
+    verify_api_key(request)
+    return ad_platforms.status()
+
+
+@app.post("/api/ads/platforms/launch")
+async def ads_platform_launch(data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    rate_limit(request, tokens=3)
+    required = ["platform", "name", "industry", "landing_page_url"]
+    missing = [f for f in required if not data.get(f)]
+    if missing:
+        raise HTTPException(400, f"Missing required fields: {', '.join(missing)}")
+
+    copy = ads_gen.generate_ad_copy(
+        industry=data["industry"],
+        location=data.get("location", ""),
+        usp=data.get("usp", ""),
+        platform="google" if data["platform"] in ("google", "google_ads", "both") else "facebook",
+        count=1,
+    )[0]
+
+    keywords = ads_gen.generate_keywords(
+        industry=data["industry"],
+        location=data.get("location", ""),
+    )
+
+    plan = AdCampaignPlan(
+        platform=data["platform"],
+        name=data["name"],
+        budget_cents=int(data.get("budget_cents", 5000)),
+        industry=data["industry"],
+        location=data.get("location", ""),
+        headline=copy["headline"],
+        description=copy["description"],
+        cta=copy["cta"],
+        keywords=keywords.get("broad", []),
+        landing_page_url=data["landing_page_url"],
+        start_date=data.get("start_date"),
+        end_date=data.get("end_date"),
+    )
+    return await ad_platforms.launch(plan)
+
 # ─── Nurture Engine ────────────────────────────────────────────────
 
 @app.post("/api/nurture/sequence")
@@ -787,6 +860,33 @@ async def update_business_config(data: Dict[str, Any], request: Request):
 async def get_business_metrics():
     return business_config.get_metrics()
 
+
+@app.post("/api/business/evaluate-lead")
+async def evaluate_lead_economics(request: Request):
+    verify_api_key(request)
+    body = await request.json()
+    trade_id = body.get("trade", "")
+    lead_score = body.get("lead_score", 50)
+    trade = get_trade_config(trade_id)
+    if not trade:
+        raise HTTPException(400, f"Unknown trade: {trade_id}")
+    return business_config.evaluate_lead(
+        trade_avg_job_value=trade.get("avg_job_value", 0),
+        trade_cpl_ceiling=trade.get("lead_cpl_ceiling", 0),
+        lead_score=lead_score,
+    )
+
+
+@app.get("/api/business/plans")
+async def list_business_plans():
+    from engine.stripe_integration import PLANS
+    return {
+        "plans": [
+            {"id": plan, "monthly_cents": cents, "monthly_dollars": cents / 100}
+            for plan, cents in PLANS.items()
+        ]
+    }
+
 # ─── CRM Push History ──────────────────────────────────────────────
 
 @app.get("/api/crm/history")
@@ -796,6 +896,150 @@ async def get_crm_history(limit: int = Query(20, le=100)):
 @app.get("/api/crm/stats")
 async def get_crm_stats():
     return crm_push.get_stats()
+
+# ─── Multi-Tenant Auth ──────────────────────────────────────────────
+
+@app.post("/api/auth/register", dependencies=[])
+async def auth_register(data: Dict[str, Any]):
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+    name = data.get("name", "").strip()
+    org_name = data.get("org_name", "").strip() or f"{name}'s Org"
+    if not email or not password or not name:
+        raise HTTPException(400, "email, password, and name are required")
+    if len(password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    try:
+        result = auth_manager.register(email, password, name, org_name)
+        return {"ok": True, **result}
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
+@app.post("/api/auth/login", dependencies=[])
+async def auth_login(data: Dict[str, Any]):
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+    if not email or not password:
+        raise HTTPException(400, "email and password are required")
+    try:
+        result = auth_manager.login(email, password)
+        return {"ok": True, **result}
+    except ValueError as e:
+        raise HTTPException(401, str(e))
+
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(401, "Invalid token")
+    u = auth_manager.get_user(user_id)
+    if not u:
+        raise HTTPException(404, "User not found")
+    org = auth_manager.get_org(u["org_id"])
+    return {"user": u, "org": org}
+
+
+@app.get("/api/auth/api-keys")
+async def auth_list_keys(request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(401, "Not authenticated")
+    return {"keys": auth_manager.list_api_keys(user_id)}
+
+
+@app.post("/api/auth/api-keys")
+async def auth_create_key(data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    user_id = user.get("sub") or user.get("user_id")
+    org_id = user.get("org_id")
+    if not user_id or not org_id:
+        raise HTTPException(401, "Not authenticated")
+    name = data.get("name", "default")
+    key = auth_manager.create_api_key(user_id, org_id, name)
+    return {"ok": True, "api_key": key, "name": name}
+
+
+@app.delete("/api/auth/api-keys/{key_id}")
+async def auth_delete_key(key_id: str, request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(401, "Not authenticated")
+    ok = auth_manager.delete_api_key(key_id, user_id)
+    if not ok:
+        raise HTTPException(404, "API key not found")
+    return {"ok": True}
+
+
+@app.get("/api/auth/verticals")
+async def auth_list_verticals(request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    org_id = user.get("org_id")
+    if not org_id:
+        raise HTTPException(401, "Not authenticated")
+    return {"verticals": auth_manager.get_org_verticals(org_id)}
+
+
+@app.post("/api/auth/verticals")
+async def auth_add_vertical(data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    org_id = user.get("org_id")
+    if not org_id:
+        raise HTTPException(401, "Not authenticated")
+    name = data.get("name", "").strip()
+    slug = data.get("slug", "").strip() or name.lower().replace(" ", "-")
+    config = data.get("config", {})
+    if not name:
+        raise HTTPException(400, "name is required")
+    result = auth_manager.add_vertical(org_id, name, slug, config)
+    return {"ok": True, "vertical": result}
+
+
+@app.put("/api/auth/verticals/{vertical_id}")
+async def auth_update_vertical(vertical_id: str, data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    org_id = user.get("org_id")
+    if not org_id:
+        raise HTTPException(401, "Not authenticated")
+    ok = auth_manager.update_vertical(vertical_id, org_id, data)
+    if not ok:
+        raise HTTPException(404, "Vertical not found")
+    return {"ok": True}
+
+
+@app.delete("/api/auth/verticals/{vertical_id}")
+async def auth_delete_vertical(vertical_id: str, request: Request):
+    verify_api_key(request)
+    user = getattr(request.state, "user", None)
+    org_id = user.get("org_id")
+    if not org_id:
+        raise HTTPException(401, "Not authenticated")
+    ok = auth_manager.delete_vertical(vertical_id, org_id)
+    if not ok:
+        raise HTTPException(404, "Vertical not found")
+    return {"ok": True}
+
+
+@app.get("/app", response_class=HTMLResponse)
+async def saas_app():
+    path = STATIC_DIR / "app.html"
+    if path.exists():
+        return HTMLResponse(path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>App</h1><p>App UI not found.</p>")
+
 
 # ─── Trade-Specific Lead Discovery ─────────────────────────────────
 
@@ -999,11 +1243,18 @@ async def vault_delete_key(service: str, request: Request):
 _orchestrator: Optional[EnrichOrchestrator] = None
 
 
-def _get_enrich_orch() -> EnrichOrchestrator:
+def _get_enrich_orch(routing_mode: str = "parallel") -> EnrichOrchestrator:
     global _orchestrator
     if _orchestrator is None:
-        _orchestrator = EnrichOrchestrator()
+        _orchestrator = EnrichOrchestrator(routing_mode=routing_mode)
     return _orchestrator
+
+
+@app.get("/api/enrich/routing")
+async def enrich_routing_info(request: Request):
+    verify_api_key(request)
+    orch = _get_enrich_orch()
+    return orch.get_routing_info()
 
 
 @app.get("/api/enrich/providers")
@@ -1016,15 +1267,26 @@ async def enrich_providers(request: Request):
     }
 
 
+@app.put("/api/enrich/providers/{service}")
+async def toggle_provider(service: str, request: Request):
+    verify_api_key(request)
+    body = await request.json()
+    enabled = body.get("enabled", True)
+    orch = _get_enrich_orch()
+    if not orch.set_provider_enabled(service, enabled):
+        raise HTTPException(404, f"Unknown provider: {service}")
+    return {"name": service, "enabled": enabled}
+
+
 @app.post("/api/enrich/lead")
-async def enrich_single_lead(request: Request):
+async def enrich_single_lead(request: Request, routing_mode: str = "parallel"):
     verify_api_key(request)
     body = await request.json()
     business_name = body.get("business_name", "")
     trade = body.get("trade", "")
     if not business_name or not trade:
         raise HTTPException(400, "business_name and trade are required")
-    orch = _get_enrich_orch()
+    orch = _get_enrich_orch(routing_mode=routing_mode)
     result = await orch.enrich(
         business_name=business_name,
         trade=trade,
@@ -1036,13 +1298,13 @@ async def enrich_single_lead(request: Request):
 
 
 @app.post("/api/enrich/batch")
-async def enrich_batch(request: Request):
+async def enrich_batch(request: Request, routing_mode: str = "parallel"):
     verify_api_key(request)
     body = await request.json()
     leads = body.get("leads", [])
     if not leads:
         raise HTTPException(400, "leads array is required")
-    orch = _get_enrich_orch()
+    orch = _get_enrich_orch(routing_mode=routing_mode)
     results = await orch.enrich_batch(leads)
     return {
         "total": len(results),
@@ -1113,4 +1375,4 @@ if __name__ == "__main__":
     print(f"\n  Lead Gen Pro v3.1.0 — http://localhost:{port}")
     print(f"  API Docs    — http://localhost:{port}/docs")
     print(f"  Dashboard   — http://localhost:{port}/\n")
-    uvicorn.run("main:app", host=host, port=port, reload=True)
+    uvicorn.run("main:app", host=host, port=port, reload=os.getenv("RELOAD", "0") == "1")

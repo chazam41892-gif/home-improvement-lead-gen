@@ -1,10 +1,10 @@
 import json
 import logging
-import os
 from datetime import datetime
 from typing import Any, Optional
 
 from .base import TradeLead
+from engine.database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,10 @@ class ConversionPipeline:
 
     def __init__(self, data_dir: str = "data"):
         self.data_dir = data_dir
-        self._leads_file = os.path.join(data_dir, "trade_leads.jsonl")
-        self._accounts_file = os.path.join(data_dir, "trade_accounts.jsonl")
-        self._payments_file = os.path.join(data_dir, "trade_payments.jsonl")
-        os.makedirs(data_dir, exist_ok=True)
+        import os
+        db_path = os.path.join(data_dir, "lead_gen.db")
+        Database.set_db_file(db_path)
+        Database.initialize()
 
     async def convert_to_account(self, lead: TradeLead, plan: str = "starter") -> dict:
         """
@@ -44,7 +44,33 @@ class ConversionPipeline:
             "leads_generated": 0,
             "conversions": 0,
         }
-        self._append_jsonl(self._accounts_file, account)
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO trade_accounts (
+                        account_id, lead_id, business_name, phone, email, address, website, trade, source, plan, status, created_at, monthly_fee, leads_generated, conversions
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    account["account_id"],
+                    account["lead_id"],
+                    account["business_name"],
+                    account["phone"],
+                    account["email"],
+                    account["address"],
+                    account["website"],
+                    account["trade"],
+                    account["source"],
+                    account["plan"],
+                    account["status"],
+                    account["created_at"],
+                    account["monthly_fee"],
+                    account["leads_generated"],
+                    account["conversions"]
+                ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to save trade account: %s", e)
+
         lead.converted = True
         lead.account_id = account["account_id"]
         lead.status = "converted"
@@ -60,7 +86,23 @@ class ConversionPipeline:
             "status": "completed",
             "timestamp": datetime.now().isoformat(),
         }
-        self._append_jsonl(self._payments_file, payment)
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO trade_payments (
+                        payment_id, account_id, amount, method, status, timestamp
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    payment["payment_id"],
+                    payment["account_id"],
+                    payment["amount"],
+                    payment["method"],
+                    payment["status"],
+                    payment["timestamp"]
+                ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to save trade payment: %s", e)
         logger.info("Payment recorded: %s for account %s ($%.2f)", payment["payment_id"], account_id, amount)
         return payment
 
@@ -79,10 +121,26 @@ class ConversionPipeline:
         return subscription
 
     def get_accounts(self) -> list[dict]:
-        return self._read_jsonl(self._accounts_file)
+        accounts = []
+        try:
+            with Database.get_connection() as conn:
+                cursor = conn.execute("SELECT * FROM trade_accounts")
+                for r in cursor.fetchall():
+                    accounts.append(dict(r))
+        except Exception as e:
+            logger.error("Failed to read trade accounts: %s", e)
+        return accounts
 
     def get_payments(self) -> list[dict]:
-        return self._read_jsonl(self._payments_file)
+        payments = []
+        try:
+            with Database.get_connection() as conn:
+                cursor = conn.execute("SELECT * FROM trade_payments")
+                for r in cursor.fetchall():
+                    payments.append(dict(r))
+        except Exception as e:
+            logger.error("Failed to read trade payments: %s", e)
+        return payments
 
     def get_revenue_stats(self) -> dict:
         payments = self.get_payments()
@@ -105,18 +163,3 @@ class ConversionPipeline:
     def _plan_fee(self, plan: str) -> float:
         fees = {"starter": 97, "growth": 197, "pro": 497, "enterprise": 997}
         return fees.get(plan, 97)
-
-    def _append_jsonl(self, path: str, record: dict):
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record, default=str) + "\n")
-
-    def _read_jsonl(self, path: str) -> list[dict]:
-        if not os.path.exists(path):
-            return []
-        records = []
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    records.append(json.loads(line))
-        return records

@@ -6,10 +6,10 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
-COMETAPI_KEY = os.getenv("COMETAPI_API_KEY")
-COMETAPI_MODEL = os.getenv("COMETAPI_MODEL", "claude-sonnet-4-20250514")
+from engine.key_vault import KeyVault
+
+ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
+COMETAPI_MODEL = "claude-sonnet-4-20250514"
 
 PROMPT_TEMPLATE = """
 You are an expert lead‑qualification analyst.
@@ -31,7 +31,8 @@ Example output:
 
 
 async def _score_via_anthropic(lead: Dict[str, Any], model: str) -> Dict[str, Any]:
-    if not ANTHROPIC_API_KEY:
+    api_key = KeyVault.get("anthropic")
+    if not api_key:
         return {"score": 0, "rationale": "ANTHROPIC_API_KEY not set"}
     payload = {
         "model": model,
@@ -42,7 +43,7 @@ async def _score_via_anthropic(lead: Dict[str, Any], model: str) -> Dict[str, An
         ],
     }
     headers = {
-        "x-api-key": ANTHROPIC_API_KEY,
+        "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
@@ -59,7 +60,10 @@ async def _score_via_anthropic(lead: Dict[str, Any], model: str) -> Dict[str, An
 
 
 async def _score_via_cometapi(lead: Dict[str, Any], model: str) -> Dict[str, Any]:
-    if not COMETAPI_KEY:
+    api_key = KeyVault.get("cometapi")
+    if not api_key:
+        api_key = os.environ.get("COMETAPI_API_KEY")
+    if not api_key:
         return {"score": 0, "rationale": "COMETAPI_API_KEY not set"}
     payload = {
         "model": model,
@@ -70,7 +74,7 @@ async def _score_via_cometapi(lead: Dict[str, Any], model: str) -> Dict[str, Any
         ],
     }
     headers = {
-        "Authorization": f"Bearer {COMETAPI_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "content-type": "application/json",
     }
     async with httpx.AsyncClient(timeout=60) as client:
