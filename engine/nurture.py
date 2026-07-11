@@ -155,19 +155,27 @@ class NurtureEngine:
             "business_name": business_name,
         }
 
+        # Compliance footer placeholders
+        business_address = lead_data.get("business_address", "")
+        unsubscribe_url = lead_data.get("unsubscribe_url", "")
+
         sms_template = (
             "Hi {name}, thanks for reaching out! We received your request "
-            "and will review it shortly. - {business_name}"
+            "and will review it shortly. Reply STOP to opt out. - {business_name}"
         ).format(**ctx)
+
+        email_body = (
+            "Hi {name}, just confirming we received your project details. "
+            "Our team is reviewing and will reach out with a personalized "
+            "proposal within 24 hours. In the meantime, feel free to call "
+            "us at {phone} if you have any questions.\n\n"
+            "Best,\n{business_name}\n{business_address}\n\n"
+            "To unsubscribe from emails, click here: {unsubscribe_url}"
+        ).format(business_address=business_address, unsubscribe_url=unsubscribe_url, **ctx)
 
         email_template = {
             "subject": "We're reviewing your project",
-            "body": (
-                "Hi {name}, just confirming we received your project details. "
-                "Our team is reviewing and will reach out with a personalized "
-                "proposal within 24 hours. In the meantime, feel free to call "
-                "us at {phone} if you have any questions. Best, {business_name}"
-            ).format(**ctx),
+            "body": email_body,
         }
 
         call_template = (
@@ -182,6 +190,7 @@ class NurtureEngine:
                 "template": sms_template,
                 "sent": False,
                 "scheduled_at": "",
+                "requires_consent": "sms",
             },
             {
                 "type": "email",
@@ -189,6 +198,7 @@ class NurtureEngine:
                 "template": email_template,
                 "sent": False,
                 "scheduled_at": "",
+                "requires_consent": "email",
             },
             {
                 "type": "call",
@@ -196,6 +206,7 @@ class NurtureEngine:
                 "template": call_template,
                 "sent": False,
                 "scheduled_at": "",
+                "requires_consent": "call",
             },
         ]
 
@@ -264,11 +275,51 @@ class NurtureEngine:
 
         return due
 
+    def _has_opt_out(self, channel: str, identifier: str) -> bool:
+        if not identifier:
+            return False
+        try:
+            with Database.get_connection() as conn:
+                row = conn.execute(
+                    "SELECT id FROM opt_outs WHERE channel = ? AND identifier = ?",
+                    (channel, identifier),
+                ).fetchone()
+                return row is not None
+        except Exception as e:
+            logger.error("Failed to check opt-out: %s", e)
+            return False
+
+    def _record_opt_out(self, channel: str, identifier: str, reason: str = "opt-out") -> None:
+        if not identifier:
+            return
+        try:
+            with Database.get_connection() as conn:
+                conn.execute(
+                    "INSERT OR IGNORE INTO opt_outs (id, channel, identifier, reason, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (uuid.uuid4().hex[:12], channel, identifier, reason, datetime.now().isoformat()),
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to record opt-out: %s", e)
+
+    def record_stop(self, phone: str) -> bool:
+        self._record_opt_out("sms", phone, "STOP")
+        return True
+
     def mark_action_sent(self, sequence_id: str, action_index: int, result: Dict[str, Any] | None = None) -> bool:
         seq = self._load_sequence_by_id(sequence_id)
         if not seq:
             return False
         if action_index < 0 or action_index >= len(seq.actions):
+            return False
+
+        # Only mark as sent on success; failures remain pending for retry
+        if result and not result.get("ok", False):
+            action = seq.actions[action_index]
+            action["failed_at"] = datetime.now().isoformat()
+            action["failure_count"] = action.get("failure_count", 0) + 1
+            action["result"] = result
+            self._save_sequence_to_db(seq)
             return False
 
         seq.actions[action_index]["sent"] = True
@@ -292,12 +343,19 @@ class NurtureEngine:
         for action in due:
             seq_id = action["sequence_id"]
             idx = action["action_index"]
-            # Always refresh the sequence from DB before dispatch to avoid stale state
             seq = self._load_sequence_by_id(seq_id)
             if not seq:
                 continue
             atype = action["type"]
             template = action["template"]
+            consent_channel = action.get("requires_consent", atype)
+            identifier = seq.lead_phone if consent_channel in ("sms", "call") else seq.lead_email
+            if self._has_opt_out(consent_channel, identifier):
+                logger.info("Skipping nurture action %s for %s due to opt-out", atype, seq_id)
+                self.mark_action_sent(seq_id, idx, {"ok": True, "provider": "opt-out", "skipped": True})
+                results.append({"sequence_id": seq_id, "action": atype, "result": {"ok": True, "skipped": True, "reason": "opt-out"}})
+                continue
+
             result: Dict[str, Any] = {"ok": False, "error": "unknown action type"}
             try:
                 if atype == "sms":
@@ -310,6 +368,8 @@ class NurtureEngine:
                     )
                 elif atype == "call":
                     result = await messenger.queue_call(seq.lead_phone, template)
+                    if result.get("ok"):
+                        self._persist_call_task(seq)
             except Exception as e:
                 logger.error("Failed to execute nurture action %s for %s: %s", atype, seq_id, e)
                 result = {"ok": False, "error": str(e)}
@@ -317,6 +377,26 @@ class NurtureEngine:
             self.mark_action_sent(seq_id, idx, result)
             results.append({"sequence_id": seq_id, "action": atype, "result": result})
         return results
+
+    def _persist_call_task(self, seq: Sequence) -> None:
+        try:
+            with Database.get_connection() as conn:
+                conn.execute(
+                    """INSERT OR REPLACE INTO call_tasks (task_id, lead_id, phone, note, due_at, completed, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        uuid.uuid4().hex[:12],
+                        seq.lead_id,
+                        seq.lead_phone,
+                        f"Call {seq.lead_name} — follow-up sequence",
+                        datetime.now().isoformat(),
+                        0,
+                        datetime.now().isoformat(),
+                    ),
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to persist call task: %s", e)
 
     # ─── Queries ─────────────────────────────────────────────────────
 

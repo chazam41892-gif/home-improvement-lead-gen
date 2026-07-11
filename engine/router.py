@@ -130,6 +130,9 @@ class SmartRouter:
     def register_llm_score_fn(self, fn):
         self._llm_score_fn = fn
 
+    def register_crm_push_fn(self, fn):
+        self._crm_push_fn = fn
+
     def _check_keys(self, step: RoutingStep) -> List[str]:
         if step.name == "llm_score":
             provider = step.config.get("provider", "anthropic")
@@ -275,7 +278,16 @@ class SmartRouter:
 
         to_push = [l for l in leads if (l.get("score") or 0) >= min_score][:max_per]
         if to_push:
-            logger.info(f"CRM push ({provider}): {len(to_push)} leads ready")
+            logger.info("CRM push (%s): %d leads ready", provider, len(to_push))
+            fn = getattr(self, "_crm_push_fn", None)
+            if fn:
+                try:
+                    await fn(to_push, {"provider": provider, "min_score": min_score})
+                    logger.info("CRM push (%s): completed for %d leads", provider, len(to_push))
+                except Exception as e:
+                    logger.error("CRM push (%s) failed: %s", provider, e)
+            else:
+                logger.warning("CRM push function not registered — leads not pushed")
 
         return leads
 

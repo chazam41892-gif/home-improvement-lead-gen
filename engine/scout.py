@@ -397,16 +397,44 @@ class LeadScoutEngine:
         lead = self._leads.get(lead_id)
         if not lead:
             return None
+        allowed = {
+            "title", "snippet", "industry", "location", "source", "email", "phone",
+            "notes", "status", "first_name", "last_name", "address", "project_description",
+            "utm_source", "utm_medium", "utm_campaign",
+            "sms_consent", "email_consent", "call_consent", "consent_source",
+        }
         for key, val in updates.items():
-            if hasattr(lead, key):
+            if key in allowed and hasattr(lead, key):
                 setattr(lead, key, val)
+        # Persist updated lead to DB
+        try:
+            from engine.database import Database
+            from engine.persistence import save_leads
+            save_leads({lead_id: lead})
+        except Exception as e:
+            logger.error("Failed to persist updated lead: %s", e)
         return lead.as_dict()
 
     def delete_lead(self, lead_id: str) -> bool:
-        return self._leads.pop(lead_id, None) is not None
+        ok = self._leads.pop(lead_id, None) is not None
+        try:
+            from engine.database import Database
+            with Database.get_connection() as conn:
+                conn.execute("DELETE FROM leads WHERE id = ?", (lead_id,))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to delete lead from database: %s", e)
+        return ok
 
     def clear_leads(self):
         self._leads.clear()
+        try:
+            from engine.database import Database
+            with Database.get_connection() as conn:
+                conn.execute("DELETE FROM leads")
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to clear leads from database: %s", e)
 
     def export_csv(self, min_score: float = 0) -> str:
         leads = self.get_leads(min_score=min_score)

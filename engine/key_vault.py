@@ -243,3 +243,42 @@ class KeyVault:
             logger.info("KeyVault: %s key %s deleted", service, label)
             return True
         return False
+
+    @classmethod
+    def _get_encryption_key(cls):
+        """Derive a Fernet key from machine/user-specific data.
+
+        This is not high security; it is only meant to keep keys from being
+        stored in plain text on disk. In production, prefer HiveMind Vault.
+        """
+        import base64
+        import hashlib
+        # Use a stable but per-machine seed so moving the file alone doesn't decrypt it.
+        seed = os.environ.get("VAULT_MASTER_SEED", str(Path.home().resolve()))
+        digest = hashlib.sha256(seed.encode("utf-8")).digest()
+        return base64.urlsafe_b64encode(digest)
+
+    @classmethod
+    def _save(cls) -> bool:
+        """Persist vault entries to disk using Fernet encryption (legacy fallback)."""
+        try:
+            from cryptography.fernet import Fernet
+            vault_path = os.path.join(os.path.dirname(__file__) or ".", "..", VAULT_FILE)
+            os.makedirs(os.path.dirname(vault_path) or ".", exist_ok=True)
+            data = {}
+            for svc, entries in cls._entries.items():
+                vault_entries = [
+                    {"key": e.key, "label": e.label}
+                    for e in entries if e.source == "vault"
+                ]
+                if vault_entries:
+                    data[svc] = vault_entries
+            fernet = Fernet(cls._get_encryption_key())
+            plaintext = json.dumps(data)
+            ciphertext = fernet.encrypt(plaintext.encode("utf-8")).decode("utf-8")
+            with open(vault_path, "w") as f:
+                json.dump({"encrypted": True, "ciphertext": ciphertext}, f)
+            return True
+        except Exception as e:
+            logger.error("Failed to save legacy key vault: %s", e)
+            return False

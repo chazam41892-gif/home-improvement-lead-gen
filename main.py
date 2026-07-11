@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import time as _time_module
+_start_time: float = _time_module.time()
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -205,15 +208,7 @@ async def _crm_push_fn(leads, config):
     provider = config.get("provider", "hubspot") if config else "hubspot"
     return await crm_push.push_leads(leads, provider=provider, config=config)
 
-engine._router._crm_push_fn = _crm_push_fn
-import types
-orig_crm_push = engine._router._run_crm_push
-async def _patched_crm_push(self, leads, step):
-    fn = getattr(self, '_crm_push_fn', None)
-    if fn:
-        return await fn(leads, step.config)
-    return await orig_crm_push(leads, step)
-engine._router._run_crm_push = types.MethodType(_patched_crm_push, engine._router)
+engine._router.register_crm_push_fn(_crm_push_fn)
 
 set_crm_engine(engine)
 
@@ -297,7 +292,7 @@ if STATIC_DIR.exists():
 async def health():
     return {
         "status": "ok",
-        "version": "3.1.0",
+        "version": "3.2.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime_sec": round(time.time() - _start_time),
         "auth_enabled": _AUTH_ENABLED,
@@ -310,33 +305,31 @@ async def health():
         "missing_config": {var: info["doc"] for var, info in _CONFIG_CHECKS.items() if not os.getenv(var)},
     }
 
-import time as _time_module
-_start_time: float = _time_module.time()
-
 # ─── Settings ───────────────────────────────────────────────────────
 
-@app.get("/api/settings", dependencies=[])
-async def get_settings():
+@app.get("/api/settings")
+async def get_settings(request: Request):
+    verify_api_key(request)
     return {
         "exa_key_configured": engine.has_exa_key,
-        "exa_key_prefix": (engine._exa.api_key[:8] + "...") if engine.has_exa_key and len(engine._exa.api_key) > 8 else None,
         "perplexity_key_configured": engine.has_perplexity_key,
-        "perplexity_key_prefix": (engine._perplexity.api_key[:8] + "...") if engine.has_perplexity_key and len(engine._perplexity.api_key) > 8 else None,
     }
 
 @app.post("/api/settings/key")
-async def set_api_key(data: Dict[str, str]):
+async def set_api_key(data: Dict[str, str], request: Request):
+    verify_api_key(request)
     key = data.get("key", "").strip()
     service = data.get("service", "exa").strip().lower()
     if not key:
         raise HTTPException(400, "API key is required")
+    if service not in SERVICE_KEYS:
+        raise HTTPException(400, f"Unknown service: {service}")
+    KeyVault.set_key(service, key)
     if service == "exa":
         engine.set_exa_key(key)
-        return {"ok": True, "message": "Exa API key configured"}
     elif service == "perplexity":
         engine.set_perplexity_key(key)
-        return {"ok": True, "message": "Perplexity API key configured"}
-    raise HTTPException(400, f"Unknown service: {service}. Use 'exa' or 'perplexity'.")
+    return {"ok": True, "message": f"{service} API key configured"}
 
 # ─── Smart Routing ─────────────────────────────────────────────────
 

@@ -22,6 +22,10 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY = 86400 * 7  # 7 days
 
+if not JWT_SECRET and os.getenv("AUTH_DISABLED", "").strip().lower() not in ("1", "true", "yes"):
+    raise RuntimeError(
+        "JWT_SECRET is required for production auth. Set it in your .env file or disable auth with AUTH_DISABLED=1 for local dev."
+    )
 if not JWT_SECRET:
     JWT_SECRET = hashlib.sha256(os.urandom(64)).hexdigest()
     logger.warning("JWT_SECRET not set — using ephemeral key. Sessions invalidate on restart.")
@@ -102,7 +106,8 @@ class AuthManager:
                 raise ValueError("Email already registered")
 
             org_id = uuid.uuid4().hex[:16]
-            slug = org_name.lower().replace(" ", "-").replace("_", "-")[:50]
+            slug = org_name.lower()
+            slug = __import__("re").sub(r"[^a-z0-9]+", "-", slug).strip("-")[:50]
             slug = slug or f"org-{org_id[:8]}"
             # Ensure globally unique slug
             suffix = 0
@@ -307,24 +312,23 @@ class AuthManager:
         return {"id": vid, "name": name, "slug": slug, "config": config, "enabled": True}
 
     def update_vertical(self, vertical_id: str, org_id: str, data: Dict[str, Any]) -> bool:
-        with Database.get_connection() as conn:
-            fields = []
-            values = []
-            for key in ("name", "slug", "enabled"):
-                if key in data:
-                    fields.append(f"{key} = ?")
+        allowed_columns = {"name": "name", "slug": "slug", "enabled": "enabled", "config": "config"}
+        set_clauses = []
+        values = []
+        for key, col in allowed_columns.items():
+            if key in data:
+                if key == "config":
+                    values.append(json.dumps(data[key]))
+                else:
                     values.append(data[key])
-            if "config" in data:
-                fields.append("config = ?")
-                values.append(json.dumps(data["config"]))
-            if not fields:
-                return False
-            values.append(vertical_id)
-            values.append(org_id)
-            cursor = conn.execute(
-                f"UPDATE org_verticals SET {', '.join(fields)} WHERE id = ? AND org_id = ?",
-                values,
-            )
+                set_clauses.append(f"{col} = ?")
+        if not set_clauses:
+            return False
+        values.append(vertical_id)
+        values.append(org_id)
+        query = f"UPDATE org_verticals SET {', '.join(set_clauses)} WHERE id = ? AND org_id = ?"
+        with Database.get_connection() as conn:
+            cursor = conn.execute(query, values)
             conn.commit()
             return cursor.rowcount > 0
 

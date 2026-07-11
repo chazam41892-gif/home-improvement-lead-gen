@@ -40,25 +40,22 @@ class Database:
                     email TEXT,
                     phone TEXT,
                     notes TEXT,
-                    score_breakdown TEXT
+                    score_breakdown TEXT,
+                    status TEXT DEFAULT 'new',
+                    first_name TEXT,
+                    last_name TEXT,
+                    address TEXT,
+                    project_description TEXT,
+                    utm_source TEXT,
+                    utm_medium TEXT,
+                    utm_campaign TEXT,
+                    sms_consent INTEGER DEFAULT 0,
+                    email_consent INTEGER DEFAULT 0,
+                    call_consent INTEGER DEFAULT 0,
+                    consent_source TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            # Add status column if missing
-            try:
-                conn.execute("ALTER TABLE leads ADD COLUMN status TEXT DEFAULT 'new'")
-            except sqlite3.OperationalError:
-                pass
-            # Add first_name/last_name columns if missing
-            try:
-                conn.execute("ALTER TABLE leads ADD COLUMN first_name TEXT")
-                conn.execute("ALTER TABLE leads ADD COLUMN last_name TEXT")
-                conn.execute("ALTER TABLE leads ADD COLUMN address TEXT")
-                conn.execute("ALTER TABLE leads ADD COLUMN project_description TEXT")
-                conn.execute("ALTER TABLE leads ADD COLUMN utm_source TEXT")
-                conn.execute("ALTER TABLE leads ADD COLUMN utm_medium TEXT")
-                conn.execute("ALTER TABLE leads ADD COLUMN utm_campaign TEXT")
-            except sqlite3.OperationalError:
-                pass
             # Create trade_accounts table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS trade_accounts (
@@ -187,6 +184,54 @@ class Database:
                     launched_at TEXT
                 )
             """)
+            # Create opt_outs table for TCPA/CAN-SPAM/GDPR compliance
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS opt_outs (
+                    id TEXT PRIMARY KEY,
+                    channel TEXT NOT NULL,
+                    identifier TEXT NOT NULL,
+                    reason TEXT,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(channel, identifier)
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_opt_outs_identifier ON opt_outs(channel, identifier)")
+            # Create call_tasks table for human call reminders
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS call_tasks (
+                    task_id TEXT PRIMARY KEY,
+                    lead_id TEXT,
+                    phone TEXT,
+                    note TEXT,
+                    due_at TEXT,
+                    completed INTEGER DEFAULT 0,
+                    completed_at TEXT,
+                    assigned_to TEXT,
+                    created_at TEXT
+                )
+            """)
+            # Create trade_subscriptions table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS trade_subscriptions (
+                    subscription_id TEXT PRIMARY KEY,
+                    account_id TEXT NOT NULL,
+                    plan TEXT NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    started_at TEXT,
+                    next_billing TEXT,
+                    stripe_subscription_id TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_trade_subscriptions_account ON trade_subscriptions(account_id)")
+            # Indexes for commonly filtered columns
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_score ON leads(score)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_industry ON leads(industry)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_found_at ON leads(found_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_trade_payments_account ON trade_payments(account_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stripe_mappings_sub ON stripe_mappings(stripe_subscription_id)")
             conn.commit()
         logger.info("Database initialized successfully at %s", cls.db_file)
 

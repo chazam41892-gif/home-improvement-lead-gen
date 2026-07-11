@@ -22,8 +22,11 @@ def save_leads(leads: dict) -> int:
                         score_val = score_val.get("total", 0.0)
                     conn.execute("""
                         INSERT OR REPLACE INTO leads (
-                            id, title, url, snippet, industry, location, source, score, found_at, email, phone, notes, score_breakdown
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            id, title, url, snippet, industry, location, source, score, found_at, email, phone, notes, score_breakdown,
+                            status, first_name, last_name, address, project_description,
+                            utm_source, utm_medium, utm_campaign,
+                            sms_consent, email_consent, call_consent, consent_source
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         lid,
                         d.get("title", ""),
@@ -37,7 +40,19 @@ def save_leads(leads: dict) -> int:
                         d.get("email", ""),
                         d.get("phone", ""),
                         d.get("notes", ""),
-                        json.dumps(d.get("score_breakdown") or d.get("score_breakdown", {}))
+                        json.dumps(d.get("score_breakdown") or d.get("score_breakdown", {})),
+                        d.get("status", "new"),
+                        d.get("first_name", ""),
+                        d.get("last_name", ""),
+                        d.get("address", ""),
+                        d.get("project_description", ""),
+                        d.get("utm_source", ""),
+                        d.get("utm_medium", ""),
+                        d.get("utm_campaign", ""),
+                        1 if d.get("sms_consent") else 0,
+                        1 if d.get("email_consent") else 0,
+                        1 if d.get("call_consent") else 0,
+                        d.get("consent_source", ""),
                     ))
                     count += 1
                 except Exception as e:
@@ -77,6 +92,19 @@ def load_leads(engine=None) -> dict:
                         phone=r["phone"],
                         notes=r["notes"],
                     )
+                    # Restore newer columns as attributes
+                    lead.status = r["status"]
+                    lead.first_name = r["first_name"]
+                    lead.last_name = r["last_name"]
+                    lead.address = r["address"]
+                    lead.project_description = r["project_description"]
+                    lead.utm_source = r["utm_source"]
+                    lead.utm_medium = r["utm_medium"]
+                    lead.utm_campaign = r["utm_campaign"]
+                    lead.sms_consent = bool(r["sms_consent"])
+                    lead.email_consent = bool(r["email_consent"])
+                    lead.call_consent = bool(r["call_consent"])
+                    lead.consent_source = r["consent_source"]
                     leads[lid] = lead
                 else:
                     d = {
@@ -92,6 +120,18 @@ def load_leads(engine=None) -> dict:
                         "email": r["email"],
                         "phone": r["phone"],
                         "notes": r["notes"],
+                        "status": r["status"],
+                        "first_name": r["first_name"],
+                        "last_name": r["last_name"],
+                        "address": r["address"],
+                        "project_description": r["project_description"],
+                        "utm_source": r["utm_source"],
+                        "utm_medium": r["utm_medium"],
+                        "utm_campaign": r["utm_campaign"],
+                        "sms_consent": bool(r["sms_consent"]),
+                        "email_consent": bool(r["email_consent"]),
+                        "call_consent": bool(r["call_consent"]),
+                        "consent_source": r["consent_source"],
                     }
                     try:
                         d["score_breakdown"] = json.loads(r["score_breakdown"]) if r["score_breakdown"] else {}

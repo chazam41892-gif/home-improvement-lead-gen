@@ -5,6 +5,7 @@ from typing import Optional, TYPE_CHECKING
 from .trades import TRADE_REGISTRY, get_trade_config
 from .base import TradeLead
 from .platforms import PLATFORM_SEARCHERS, set_exa_provider
+from .scoring import score_trade_leads
 
 if TYPE_CHECKING:
     from ..search.exa import ExaSearchProvider
@@ -55,12 +56,15 @@ class TradeLeadDiscovery:
                     seen_keys.add(key)
                     all_leads.append(lead)
 
+        # Score discovered leads using trade-specific scoring
+        scored = score_trade_leads(all_leads, trade)
+
         async with self._lock:
             self._results.setdefault(f"{trade}:{location}", [])
-            self._results[f"{trade}:{location}"].extend(all_leads)
+            self._results[f"{trade}:{location}"].extend(scored)
 
-        logger.info("Discovered %d leads for %s in %s", len(all_leads), trade, location)
-        return all_leads
+        logger.info("Discovered and scored %d leads for %s in %s", len(scored), trade, location)
+        return scored
 
     async def discover_all(
         self,
@@ -71,8 +75,17 @@ class TradeLeadDiscovery:
         target_trades = trades or list(TRADE_REGISTRY.keys())
         results: dict[str, list[TradeLead]] = {}
 
-        for trade in target_trades:
-            leads = await self.discover(trade, location, max_per_platform=max_per_trade)
+        # Discover trades concurrently with a limit to avoid provider rate limits
+        semaphore = asyncio.Semaphore(4)
+
+        async def _discover_one(trade: str) -> tuple[str, list[TradeLead]]:
+            async with semaphore:
+                leads = await self.discover(trade, location, max_per_platform=max_per_trade)
+                return trade, leads
+
+        tasks = [_discover_one(t) for t in target_trades]
+        for task in asyncio.as_completed(tasks):
+            trade, leads = await task
             results[trade] = leads
 
         return results

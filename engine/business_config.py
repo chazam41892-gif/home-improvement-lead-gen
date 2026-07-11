@@ -30,17 +30,25 @@ class BusinessConfig:
 
     def update_config(self, updates: dict) -> dict:
         known = {
-            "avg_job_size",
-            "gross_margin",
-            "lead_cost_ceiling",
-            "monthly_ad_budget",
-            "target_roas",
-            "business_name",
-            "business_phone",
-            "business_email",
+            "avg_job_size": float,
+            "gross_margin": float,
+            "lead_cost_ceiling": float,
+            "monthly_ad_budget": float,
+            "target_roas": float,
+            "business_name": str,
+            "business_phone": str,
+            "business_email": str,
         }
         for key, value in updates.items():
             if key in known:
+                expected = known[key]
+                try:
+                    if expected in (int, float):
+                        value = expected(value)
+                        if expected == float and value < 0:
+                            raise ValueError(f"{key} must be non-negative")
+                except (TypeError, ValueError):
+                    raise ValueError(f"Invalid value for {key}: expected {expected.__name__}")
                 setattr(self, key, value)
         return self.get_config()
 
@@ -70,6 +78,13 @@ class BusinessConfig:
 
     def evaluate_lead(self, trade_avg_job_value: float, trade_cpl_ceiling: float, lead_score: float = 50) -> dict:
         """Return an economic verdict for a lead given the business model and trade economics."""
+        if trade_avg_job_value <= 0 or trade_cpl_ceiling <= 0 or self.gross_margin <= 0 or self.lead_cost_ceiling <= 0:
+            return {
+                "verdict": "invalid",
+                "error": "Trade economics or business config missing required positive values",
+                "lead_score": lead_score,
+            }
+
         effective_job_value = max(trade_avg_job_value, self.avg_job_size)
         profit_per_job = effective_job_value * self.gross_margin
         # Better leads reduce the effective number of leads needed to close
