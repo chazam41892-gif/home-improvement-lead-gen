@@ -96,6 +96,16 @@ ready.
 2. Required vars for production are listed in `scripts/validate_env.py`.
 3. The `/health` endpoint reports which integrations are configured at runtime.
 
+## How to deploy to production via Cloudflare Tunnel
+
+1. Provision a host with Docker (local server, NAS, VM, or VPS).
+2. Clone this repo and create `.env` with production secrets.
+3. Run `bash deploy/cloudflare/scripts/setup-tunnel.sh` to create a tunnel for
+   `growth.leviathansi.xyz` and get a `TUNNEL_TOKEN`.
+4. Add `TUNNEL_TOKEN` to `.env`.
+5. Run `cd deploy/cloudflare && docker compose up -d`.
+6. Verify `https://growth.leviathansi.xyz/health` returns `{"status":"ok"}`.
+
 ## Critical rules
 
 - **ADD-ONLY.** Never delete existing files without archiving to `_archive/YYYY-MM-DD/`.
