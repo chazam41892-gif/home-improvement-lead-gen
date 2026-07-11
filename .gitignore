@@ -26,6 +26,7 @@ Thumbs.db
 data/*.jsonl
 data/*.csv
 data/*.json
+data/*.db
 desktop/node_modules/
 desktop/src-tauri/target/
 desktop/dist/

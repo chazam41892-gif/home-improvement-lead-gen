@@ -43,6 +43,22 @@ class Database:
                     score_breakdown TEXT
                 )
             """)
+            # Add status column if missing
+            try:
+                conn.execute("ALTER TABLE leads ADD COLUMN status TEXT DEFAULT 'new'")
+            except sqlite3.OperationalError:
+                pass
+            # Add first_name/last_name columns if missing
+            try:
+                conn.execute("ALTER TABLE leads ADD COLUMN first_name TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN last_name TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN address TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN project_description TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN utm_source TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN utm_medium TEXT")
+                conn.execute("ALTER TABLE leads ADD COLUMN utm_campaign TEXT")
+            except sqlite3.OperationalError:
+                pass
             # Create trade_accounts table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS trade_accounts (
@@ -159,8 +175,18 @@ class Database:
                     metadata TEXT
                 )
             """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_utm_lead ON utm_events(lead_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_utm_campaign ON utm_events(utm_campaign)")
+            # Create crm_campaigns table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS crm_campaigns (
+                    campaign_id TEXT PRIMARY KEY,
+                    name TEXT,
+                    target_count INTEGER,
+                    channels TEXT,
+                    agents_active INTEGER,
+                    estimated_reach INTEGER,
+                    launched_at TEXT
+                )
+            """)
             conn.commit()
         logger.info("Database initialized successfully at %s", cls.db_file)
 

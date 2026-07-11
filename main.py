@@ -24,6 +24,7 @@ from engine.scheduler import ScanScheduler
 from engine.landing import LandingPageGenerator
 from engine.capture import LeadCaptureProcessor
 from engine.ads import AdCopyGenerator
+from engine.ad_apis import AdPlatformManager, AdCampaignPlan
 from engine.nurture import NurtureEngine
 from engine.business_config import BusinessConfig
 from engine.crm_push import CrmPush
@@ -67,6 +68,16 @@ _CONFIG_CHECKS = {
     "STRIPE_WEBHOOK_SECRET": {"required_for": ["billing"], "doc": "Stripe webhook verification"},
     "EXA_API_KEY": {"required_for": ["search"], "doc": "Exa AI search provider"},
     "PERPLEXITY_API_KEY": {"required_for": ["perplexity"], "doc": "Perplexity AI search provider"},
+    "GOOGLE_ADS_DEVELOPER_TOKEN": {"required_for": ["google_ads"], "doc": "Google Ads API developer token"},
+    "GOOGLE_ADS_CUSTOMER_ID": {"required_for": ["google_ads"], "doc": "Google Ads customer ID"},
+    "GOOGLE_ADS_REFRESH_TOKEN": {"required_for": ["google_ads"], "doc": "Google Ads OAuth refresh token"},
+    "META_ACCESS_TOKEN": {"required_for": ["meta_ads"], "doc": "Meta Marketing API access token"},
+    "META_AD_ACCOUNT_ID": {"required_for": ["meta_ads"], "doc": "Meta ad account ID"},
+    "TWILIO_ACCOUNT_SID": {"required_for": ["sms", "calls"], "doc": "Twilio SMS/call provider"},
+    "TWILIO_AUTH_TOKEN": {"required_for": ["sms", "calls"], "doc": "Twilio auth token"},
+    "TWILIO_FROM_NUMBER": {"required_for": ["sms", "calls"], "doc": "Twilio sender phone number"},
+    "SENDGRID_API_KEY": {"required_for": ["email"], "doc": "SendGrid email provider"},
+    "SENDGRID_FROM_EMAIL": {"required_for": ["email"], "doc": "SendGrid from email address"},
 }
 
 _MISSING_CONFIG: list[str] = []
@@ -179,6 +190,7 @@ except ImportError:
 landing_gen = LandingPageGenerator()
 capture_processor = LeadCaptureProcessor(engine, landing_pages=landing_gen._pages)
 ads_gen = AdCopyGenerator()
+ad_platforms = AdPlatformManager()
 nurture = NurtureEngine()
 business_config = BusinessConfig()
 crm_push = CrmPush()
@@ -287,6 +299,8 @@ async def health():
         "stripe_configured": stripe_integration.is_configured,
         "exa_configured": engine.has_exa_key,
         "perplexity_configured": engine.has_perplexity_key,
+        "google_ads_configured": ad_platforms.google.is_configured,
+        "meta_ads_configured": ad_platforms.meta.is_configured,
         "total_leads": len(engine._leads),
         "missing_config": {var: info["doc"] for var, info in _CONFIG_CHECKS.items() if not os.getenv(var)},
     }
@@ -459,6 +473,7 @@ async def get_stats():
     stats["nurture"] = nurture.get_stats()
     stats["crm_push"] = crm_push.get_stats()
     stats["business_config"] = business_config.get_config()
+    stats["ad_platforms"] = ad_platforms.status()
     return stats
 
 @app.get("/api/history")
@@ -714,6 +729,53 @@ async def generate_utm(data: Dict[str, Any], request: Request):
         content=data.get("content", ""),
     )
     return {"ok": True, "utm_url": result}
+
+
+# ─── Ad Platform API Campaigns ────────────────────────────────────
+
+@app.get("/api/ads/platforms/status")
+async def ads_platform_status(request: Request):
+    verify_api_key(request)
+    return ad_platforms.status()
+
+
+@app.post("/api/ads/platforms/launch")
+async def ads_platform_launch(data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    rate_limit(request, tokens=3)
+    required = ["platform", "name", "industry", "landing_page_url"]
+    missing = [f for f in required if not data.get(f)]
+    if missing:
+        raise HTTPException(400, f"Missing required fields: {', '.join(missing)}")
+
+    copy = ads_gen.generate_ad_copy(
+        industry=data["industry"],
+        location=data.get("location", ""),
+        usp=data.get("usp", ""),
+        platform="google" if data["platform"] in ("google", "google_ads", "both") else "facebook",
+        count=1,
+    )[0]
+
+    keywords = ads_gen.generate_keywords(
+        industry=data["industry"],
+        location=data.get("location", ""),
+    )
+
+    plan = AdCampaignPlan(
+        platform=data["platform"],
+        name=data["name"],
+        budget_cents=int(data.get("budget_cents", 5000)),
+        industry=data["industry"],
+        location=data.get("location", ""),
+        headline=copy["headline"],
+        description=copy["description"],
+        cta=copy["cta"],
+        keywords=keywords.get("broad", []),
+        landing_page_url=data["landing_page_url"],
+        start_date=data.get("start_date"),
+        end_date=data.get("end_date"),
+    )
+    return await ad_platforms.launch(plan)
 
 # ─── Nurture Engine ────────────────────────────────────────────────
 

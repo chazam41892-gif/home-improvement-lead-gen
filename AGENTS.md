@@ -10,6 +10,8 @@ the Leviathan Growth portal at `growth.leviathansi.xyz`.
 - **Search:** Exa + Perplexity
 - **Enrichment:** Apollo + Exa + LLM
 - **Billing:** Stripe Checkout + subscription gating
+- **Messaging:** Twilio (SMS/calls) + SendGrid (email)
+- **Ads:** Google Ads + Meta Marketing API campaign launch scaffolds
 - **Memory:** HiveMind vault bridge (`engine/key_vault.py`)
 
 ## Where agents should work
@@ -69,6 +71,30 @@ ready.
 2. Add a handler in `engine/growth_portal/portal.py` `module_landing()` for the
    new module ID.
 3. Add pricing to the profile page if the module changes tier requirements.
+
+## How to add a new ad platform integration
+
+1. Add a provider class in `engine/ad_apis.py` that mirrors `GoogleAdsAPI` or
+   `MetaMarketingAPI`.
+2. Implement `is_configured`, credential gating, and a `create_campaign` method.
+3. Register the provider in `AdPlatformManager.__init__` and wire it in
+   `AdPlatformManager.launch()`.
+4. Document required env vars in `scripts/validate_env.py` and `main.py`.
+5. Add a test in `tests/test_integration_hooks.py`.
+
+## How to use the embedded lead-capture widget
+
+1. Serve `static/widgets/lead-capture.js` from any page.
+2. Include script attributes: `data-business`, `data-industry`, `data-primary`,
+   `data-source`, `data-api`.
+3. Form submissions hit `/api/capture/lead` and auto-attach UTM parameters.
+4. Add new `data-*` attributes by updating `static/widgets/lead-capture.js`.
+
+## How to validate a deployment
+
+1. Run `python scripts/validate_env.py [minimal|demo|production]`.
+2. Required vars for production are listed in `scripts/validate_env.py`.
+3. The `/health` endpoint reports which integrations are configured at runtime.
 
 ## Critical rules
 

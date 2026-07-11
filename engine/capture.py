@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+from engine.database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,14 @@ class _CaptureLead:
         self.email = data.get("email", "")
         self.phone = data.get("phone", "")
         self.notes = data.get("notes", "")
+        self.first_name = data.get("first_name", "")
+        self.last_name = data.get("last_name", "")
+        self.address = data.get("address", "")
+        self.project_description = data.get("project_description", "")
+        self.utm_source = data.get("utm_source", "")
+        self.utm_medium = data.get("utm_medium", "")
+        self.utm_campaign = data.get("utm_campaign", "")
+        self.status = data.get("status", "new")
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -64,6 +75,14 @@ class _CaptureLead:
             "email": self.email,
             "phone": self.phone,
             "notes": self.notes,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "address": self.address,
+            "project_description": self.project_description,
+            "utm_source": self.utm_source,
+            "utm_medium": self.utm_medium,
+            "utm_campaign": self.utm_campaign,
+            "status": self.status,
             "_capture_source": getattr(self, "_capture_source", ""),
         }
 
@@ -127,6 +146,8 @@ class LeadCaptureProcessor:
 
         score = _SimpleScore(50.0)
 
+        first_name = name.split(" ", 1)[0] if name else ""
+        last_name = name.split(" ", 1)[1] if " " in name else ""
         lead_data = {
             "id": lead_id,
             "title": name,
@@ -141,11 +162,20 @@ class LeadCaptureProcessor:
             "email": email,
             "phone": phone,
             "notes": project_description,
+            "first_name": first_name,
+            "last_name": last_name,
+            "address": address,
+            "project_description": project_description,
+            "utm_source": data.get("utm_source", ""),
+            "utm_medium": data.get("utm_medium", ""),
+            "utm_campaign": data.get("utm_campaign", ""),
+            "status": "new",
             "_capture_source": source_page_id,
         }
 
         lead_obj = _CaptureLead(lead_data)
         self._engine._leads[lead_id] = lead_obj
+        self._persist_capture(lead_obj)
 
         lead_dict = lead_obj.as_dict()
 
@@ -183,6 +213,44 @@ class LeadCaptureProcessor:
         except Exception:
             pass
         return "home improvement"
+
+    def _persist_capture(self, lead_obj: _CaptureLead) -> None:
+        """Persist captured lead to the canonical database."""
+        try:
+            with Database.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO leads (
+                        id, title, url, snippet, industry, location, source, score, found_at,
+                        email, phone, notes, score_breakdown, status,
+                        first_name, last_name, address, project_description,
+                        utm_source, utm_medium, utm_campaign
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    lead_obj.id,
+                    lead_obj.title,
+                    lead_obj.url,
+                    lead_obj.snippet,
+                    lead_obj.industry,
+                    lead_obj.location,
+                    lead_obj.source,
+                    lead_obj.score.total,
+                    lead_obj.found_at,
+                    lead_obj.email,
+                    lead_obj.phone,
+                    lead_obj.notes,
+                    json.dumps(lead_obj.score.as_dict()),
+                    lead_obj.status,
+                    lead_obj.first_name,
+                    lead_obj.last_name,
+                    lead_obj.address,
+                    lead_obj.project_description,
+                    lead_obj.utm_source,
+                    lead_obj.utm_medium,
+                    lead_obj.utm_campaign,
+                ))
+                conn.commit()
+        except Exception as e:
+            logger.error("Failed to persist captured lead: %s", e)
 
     def get_submissions(self, limit: int = 50) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
