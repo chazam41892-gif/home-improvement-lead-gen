@@ -140,6 +140,27 @@ class Database:
                     html TEXT
                 )
             """)
+            # Create utm_events table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS utm_events (
+                    id TEXT PRIMARY KEY,
+                    event_type TEXT NOT NULL,
+                    lead_id TEXT,
+                    utm_source TEXT,
+                    utm_medium TEXT,
+                    utm_campaign TEXT,
+                    utm_term TEXT,
+                    utm_content TEXT,
+                    page_path TEXT,
+                    referrer TEXT,
+                    user_agent TEXT,
+                    ip TEXT,
+                    timestamp TEXT NOT NULL,
+                    metadata TEXT
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_utm_lead ON utm_events(lead_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_utm_campaign ON utm_events(utm_campaign)")
             conn.commit()
         logger.info("Database initialized successfully at %s", cls.db_file)
 

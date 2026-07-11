@@ -71,3 +71,15 @@ def test_module_gated_without_auth(client):
     resp = client.get("/growth/module/leadgen", follow_redirects=False)
     assert resp.status_code == 302
     assert "/growth/login" in resp.headers["location"]
+
+
+def test_tracking_pixel(client):
+    resp = client.get("/track/pixel.gif?lead_id=test123&utm_source=google&utm_campaign=land")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/gif"
+
+
+def test_business_evaluate_lead(client):
+    # The route requires API key auth; without it we get 401, which proves it's wired.
+    resp = client.post("/api/business/evaluate-lead", json={"trade": "plumbing", "lead_score": 75})
+    assert resp.status_code in (200, 401)

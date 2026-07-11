@@ -228,7 +228,7 @@ class NurtureEngine:
 
         return due
 
-    def mark_action_sent(self, sequence_id: str, action_index: int) -> bool:
+    def mark_action_sent(self, sequence_id: str, action_index: int, result: Dict[str, Any] | None = None) -> bool:
         seq = self._sequences.get(sequence_id)
         if not seq:
             return False
@@ -237,6 +237,8 @@ class NurtureEngine:
 
         seq.actions[action_index]["sent"] = True
         seq.actions[action_index]["scheduled_at"] = datetime.now().isoformat()
+        if result:
+            seq.actions[action_index]["result"] = result
         seq.current_step += 1
 
         if seq.current_step >= len(seq.actions):
@@ -244,6 +246,40 @@ class NurtureEngine:
 
         self._save_sequence_to_db(seq)
         return True
+
+    async def execute_due_actions(self) -> List[Dict[str, Any]]:
+        """Find due actions and dispatch them via real providers."""
+        from engine.messaging import MessagingOrchestrator
+        messenger = MessagingOrchestrator()
+        due = self.get_due_actions()
+        results = []
+        for action in due:
+            seq_id = action["sequence_id"]
+            idx = action["action_index"]
+            seq = self._sequences.get(seq_id)
+            if not seq:
+                continue
+            atype = action["type"]
+            template = action["template"]
+            result: Dict[str, Any] = {"ok": False, "error": "unknown action type"}
+            try:
+                if atype == "sms":
+                    result = await messenger.send_sms(seq.lead_phone, template)
+                elif atype == "email" and isinstance(template, dict):
+                    result = await messenger.send_email(
+                        seq.lead_email,
+                        template.get("subject", "Follow-up"),
+                        template.get("body", ""),
+                    )
+                elif atype == "call":
+                    result = await messenger.queue_call(seq.lead_phone, template)
+            except Exception as e:
+                logger.error("Failed to execute nurture action %s for %s: %s", atype, seq_id, e)
+                result = {"ok": False, "error": str(e)}
+
+            self.mark_action_sent(seq_id, idx, result)
+            results.append({"sequence_id": seq_id, "action": atype, "result": result})
+        return results
 
     # ─── Queries ─────────────────────────────────────────────────────
 

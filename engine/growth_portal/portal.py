@@ -21,6 +21,7 @@ from ..auth import auth_manager
 from ..stripe_integration import StripeIntegration
 from ..database import Database
 from .modules import list_modules, get_module, can_access_module
+from .tracking import _record_event
 
 logger = logging.getLogger(__name__)
 

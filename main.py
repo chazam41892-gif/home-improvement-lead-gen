@@ -37,7 +37,7 @@ from engine.enrichment import enrich_lead, EnrichOrchestrator
 from engine.enrichment.base import EnrichmentResult
 from engine.auth import auth_manager
 from crm_plus.crm_plus_routes import router as crm_plus_router, set_engine as set_crm_engine, set_conversion as set_crm_conversion
-from engine.growth_portal import growth_router
+from engine.growth_portal import growth_router, tracking_router
 
 load_dotenv()
 
@@ -221,10 +221,7 @@ async def _nurture_loop():
     _nurture_loop_running = True
     while _nurture_loop_running:
         try:
-            due = nurture.get_due_actions()
-            for action in due:
-                logger.info("Nurture action due", extra={"type": action.get("type"), "sequence_id": action.get("sequence_id")})
-                nurture.mark_action_sent(action["sequence_id"], action["action_index"])
+            await nurture.execute_due_actions()
         except Exception as e:
             logger.error("Nurture action error", exc_info=True)
         await asyncio.sleep(30)
@@ -272,6 +269,7 @@ app.add_middleware(
 
 app.include_router(crm_plus_router)
 app.include_router(growth_router)
+app.include_router(tracking_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -799,6 +797,33 @@ async def update_business_config(data: Dict[str, Any], request: Request):
 @app.get("/api/business/metrics")
 async def get_business_metrics():
     return business_config.get_metrics()
+
+
+@app.post("/api/business/evaluate-lead")
+async def evaluate_lead_economics(request: Request):
+    verify_api_key(request)
+    body = await request.json()
+    trade_id = body.get("trade", "")
+    lead_score = body.get("lead_score", 50)
+    trade = get_trade_config(trade_id)
+    if not trade:
+        raise HTTPException(400, f"Unknown trade: {trade_id}")
+    return business_config.evaluate_lead(
+        trade_avg_job_value=trade.get("avg_job_value", 0),
+        trade_cpl_ceiling=trade.get("lead_cpl_ceiling", 0),
+        lead_score=lead_score,
+    )
+
+
+@app.get("/api/business/plans")
+async def list_business_plans():
+    from engine.stripe_integration import PLANS
+    return {
+        "plans": [
+            {"id": plan, "monthly_cents": cents, "monthly_dollars": cents / 100}
+            for plan, cents in PLANS.items()
+        ]
+    }
 
 # ─── CRM Push History ──────────────────────────────────────────────
 
