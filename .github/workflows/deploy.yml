@@ -42,12 +42,15 @@ jobs:
           tags: leadgen:latest
 
       - name: Deploy via SSH
-        if: ${{ secrets.DEPLOY_HOST != '' && secrets.DEPLOY_USER != '' }}
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
+            echo "Deploy credentials not configured — skipping SSH deploy"
+            exit 0
+          fi
           mkdir -p ~/.ssh
           echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -59,7 +62,3 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd /opt/leadgen && docker compose up --build -d"
-
-      - name: Deploy skipped — no SSH credentials
-        if: ${{ secrets.DEPLOY_HOST == '' || secrets.DEPLOY_USER == '' }}
-        run: echo "DEPLOY_HOST/DEPLOY_USER not set — build completed without deploy"
