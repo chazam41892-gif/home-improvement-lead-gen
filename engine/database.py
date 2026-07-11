@@ -236,4 +236,7 @@ class Database:
         logger.info("Database initialized successfully at %s", cls.db_file)
 
 # Auto-initialize database on import
-Database.initialize()
+try:
+    Database.initialize()
+except Exception as e:
+    logger.error("Failed to auto-initialize database: %s", e)

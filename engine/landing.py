@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import re
 import uuid
 from html import escape
 from typing import Any, Optional
+
+_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$|^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$|^hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$")
+_URL_SCHEME_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 _HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -491,10 +495,16 @@ class LandingPageGenerator:
         benefits = config.get("benefits", self._default_benefits())
         trust_signals = config.get("trust_signals", self._default_trust_signals())
         primary_color = config.get("primary_color", "#6366f1")
+        if not _COLOR_RE.match(primary_color):
+            primary_color = "#6366f1"
         form_fields = config.get("form_fields", self._default_form_fields())
         cta_text = config.get("cta_text", "Get Your Free Estimate")
         hero_image_url = config.get("hero_image_url", "")
+        if hero_image_url and not _URL_SCHEME_RE.match(hero_image_url):
+            hero_image_url = ""
         logo_url = config.get("logo_url", "")
+        if logo_url and not _URL_SCHEME_RE.match(logo_url):
+            logo_url = ""
         footer_text = config.get("footer_text", f"\u00a9 {business_name}. All rights reserved.")
 
         page_title = escape(f"{business_name} | Free Estimate")

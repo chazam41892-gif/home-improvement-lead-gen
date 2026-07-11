@@ -142,7 +142,142 @@ body {
 .row2 { display: flex; gap: 8px; }
 .row2 .form-group { flex: 1; }
 
-/* ─── Routing Pipeline ─── */
+/* ─── New Tab Styles ─── */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .metric-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .metric-card .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+  .metric-card .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .filter-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .filter-bar .form-group { flex: 1; min-width: 150px; }
+  .filter-bar .form-group.small { flex: 0 0 auto; min-width: 120px; }
+  .filter-bar .form-group label { display: none; }
+  .table-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .status-new { background: var(--accent-glow); color: var(--accent2); }
+  .status-contacted { background: var(--yellow-bg); color: var(--yellow); }
+  .status-qualified { background: var(--green-bg); color: var(--green); }
+  .status-disqualified { background: var(--red-bg); color: var(--red); }
+  .status-nurturing { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+  .campaign-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .campaign-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .campaign-title { font-weight: 600; font-size: 1rem; }
+  .campaign-meta { display: flex; gap: 16px; font-size: 0.8rem; color: var(--text2); flex-wrap: wrap; }
+  .campaign-meta span { display: flex; align-items: center; gap: 4px; }
+  .chart-placeholder {
+    height: 200px;
+    background: var(--bg3);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text3);
+    font-size: 0.9rem;
+  }
+  .settings-section {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .settings-section h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+  .key-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  .key-input-row label { min-width: 180px; font-size: 0.8rem; color: var(--text2); }
+  .key-input-row input { flex: 1; }
+  .key-input-row .key-status { min-width: 120px; text-align: right; font-size: 0.75rem; }
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-row .info { flex: 1; }
+  .toggle-row .info .name { font-weight: 500; font-size: 0.85rem; }
+  .toggle-row .info .desc { font-size: 0.7rem; color: var(--text3); margin-top: 2px; }
+  .form-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .form-row .form-group { flex: 1; min-width: 200px; }
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state h3 { font-size: 1rem; margin-bottom: 8px; color: var(--text2); }
+  .empty-state p { font-size: 0.85rem; }
+  .action-btn-group { display: flex; gap: 4px; }
+  .loading-inline { display: inline-flex; align-items: center; gap: 8px; color: var(--text2); font-size: 0.85rem; }
+  .spinner-sm {
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 .routing-step {
   display: flex;
   align-items: center;
@@ -619,12 +754,18 @@ body {
     <div class="main-header">
       <div style="display:flex;gap:4px;">
         <button id="tabDiscovery" class="tab-btn tab-active" onclick="switchTab('discovery')">Discovery</button>
+        <button id="tabLeads" class="tab-btn" onclick="switchTab('leads')">Leads</button>
+        <button id="tabNurture" class="tab-btn" onclick="switchTab('nurture')">Nurture</button>
+        <button id="tabCampaigns" class="tab-btn" onclick="switchTab('campaigns')">Campaigns</button>
+        <button id="tabCRM" class="tab-btn" onclick="switchTab('crm')">CRM</button>
+        <button id="tabAnalytics" class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
         <button id="tabLanding" class="tab-btn" onclick="switchTab('landing')">Landing Pages</button>
         <button id="tabSchedules" class="tab-btn" onclick="switchTab('schedules')">Schedules</button>
         <button id="tabTrades" class="tab-btn" onclick="switchTab('trades')">Trade Discovery</button>
         <button id="tabRevenue" class="tab-btn" onclick="switchTab('revenue')">Revenue</button>
         <button id="tabBilling" class="tab-btn" onclick="switchTab('billing')">Billing</button>
         <button id="tabEnrichment" class="tab-btn" onclick="switchTab('enrichment')">Enrichment</button>
+        <button id="tabSettings" class="tab-btn" onclick="switchTab('settings')">Settings</button>
       </div>
       <div class="header-actions">
         <span id="searchCount" class="search-count">0 leads</span>
@@ -829,12 +970,513 @@ body {
           <h3 style="font-size:1rem;margin-bottom:12px;">Batch Results</h3>
           <div id="batchEnrichBody"></div>
         </div>
-      </div>
-    </div>
-  </div>
 </div>
+     </div>
+   </div>
+ </div>
 
-<!-- ─── Lead Detail Modal ─── -->
+ <!-- ─── Leads Tab ─── -->
+ <div id="tabLeadsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+       <h3 style="font-size:1rem;">Lead Inbox</h3>
+       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+         <input type="text" id="leadsSearch" class="form-input" placeholder="Search leads..." style="min-width:200px;" oninput="filterLeads()">
+         <select id="leadsStatusFilter" class="form-input" onchange="filterLeads()" style="width:auto;">
+           <option value="">All Statuses</option>
+           <option value="new">New</option>
+           <option value="contacted">Contacted</option>
+           <option value="qualified">Qualified</option>
+           <option value="converted">Converted</option>
+           <option value="lost">Lost</option>
+         </select>
+         <select id="leadsSourceFilter" class="form-input" onchange="filterLeads()" style="width:auto;">
+           <option value="">All Sources</option>
+         </select>
+         <button class="btn btn-primary" onclick="refreshLeads()">&#8635; Refresh</button>
+         <button class="btn btn-ghost" onclick="exportLeadsCSV()">&#8595; CSV</button>
+       </div>
+     </div>
+     <div id="leadsTableContainer">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading leads...</div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Nurture Tab ─── -->
+ <div id="tabNurtureContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+       <h3 style="font-size:1rem;margin-bottom:12px;">Nurture Sequences</h3>
+       <button class="btn btn-primary" onclick="showCreateSequenceModal()">+ Create Sequence</button>
+     </div>
+     <div id="sequencesList">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading sequences...</div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Campaigns Tab ─── -->
+ <div id="tabCampaignsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+       <h3 style="font-size:1rem;margin-bottom:12px;">Ad Campaigns</h3>
+       <button class="btn btn-primary" onclick="showCreateCampaignModal()">+ Create Campaign</button>
+     </div>
+     <div id="campaignsList">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading campaigns...</div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── CRM Tab ─── -->
+ <div id="tabCRMContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+       <h3 style="font-size:1rem;margin-bottom:12px;">CRM Push</h3>
+       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+         <div class="form-group" style="flex:1;min-width:200px;">
+           <label>Provider</label>
+           <select id="crmProvider" class="form-input">
+             <option value="hubspot">HubSpot</option>
+             <option value="gohighlevel">GoHighLevel</option>
+             <option value="pipedrive">Pipedrive</option>
+           </select>
+         </div>
+         <div class="form-group" style="flex:1;min-width:200px;">
+           <label>Lead Status Filter</label>
+           <select id="crmLeadStatus" class="form-input">
+             <option value="qualified">Qualified</option>
+             <option value="new">New</option>
+             <option value="contacted">Contacted</option>
+             <option value="all">All</option>
+           </select>
+         </div>
+         <button class="btn btn-primary" onclick="pushLeadsToCRM()">Push Leads to CRM</button>
+         <button class="btn btn-ghost" onclick="loadCRMHistory()">&#128269; View History</button>
+       </div>
+     </div>
+     <div id="crmResults">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Configure provider keys in Settings, then push leads.</div>
+     </div>
+     <div id="crmHistory" style="display:none;margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">
+       <h4 style="margin-bottom:12px;">Push History</h4>
+       <div id="crmHistoryBody"></div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Analytics Tab ─── -->
+ <div id="tabAnalyticsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+       <h3 style="font-size:1rem;">Analytics Dashboard</h3>
+       <button class="btn btn-ghost btn-sm" onclick="loadAnalytics()">&#8635; Refresh</button>
+     </div>
+     <div class="metric-grid" style="margin-bottom:24px;">
+       <div class="metric-card"><div class="value" id="anaTotalLeads">0</div><div class="label">Total Leads</div></div>
+       <div class="metric-card"><div class="value" id="anaQualifiedLeads">0</div><div class="label">Qualified</div></div>
+       <div class="metric-card"><div class="value" id="anaConvertedLeads">0</div><div class="label">Converted</div></div>
+       <div class="metric-card"><div class="value" id="anaAvgScore">0</div><div class="label">Avg Score</div></div>
+       <div class="metric-card"><div class="value" id="anaTotalSearches">0</div><div class="label">Total Searches</div></div>
+       <div class="metric-card"><div class="value" id="anaPipelineRuns">0</div><div class="label">Pipeline Runs</div></div>
+     </div>
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+       <div class="metric-card" style="grid-column:1/-1;">
+         <h4 style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">Lead Sources</h4>
+         <div id="anaSourcesChart" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+       </div>
+     </div>
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+       <div class="metric-card" style="grid-column:1/-1;">
+         <h4 style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">Recent Pipeline Runs</h4>
+         <div id="anaRecentRuns"></div>
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Settings Tab ─── -->
+ <div id="tabSettingsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+       <h3 style="font-size:1rem;">Settings</h3>
+     </div>
+     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:24px;">
+<div class="settings-section">
+          <h4 style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:16px;font-weight:600;">API Keys</h4>
+          <div class="form-group">
+            <label>Exa AI (Search)</label>
+            <input type="password" id="settingsExaKey" class="form-input" placeholder="Exa API key..." spellcheck="false">
+            <div id="settingsExaStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>Perplexity AI (Search)</label>
+            <input type="password" id="settingsPerplexityKey" class="form-input" placeholder="Perplexity API key..." spellcheck="false">
+            <div id="settingsPerplexityStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>Anthropic (LLM Scoring)</label>
+            <input type="password" id="settingsAnthropicKey" class="form-input" placeholder="Anthropic API key..." spellcheck="false">
+            <div id="settingsAnthropicStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>OpenAI (LLM Scoring)</label>
+            <input type="password" id="settingsOpenAIKey" class="form-input" placeholder="OpenAI API key..." spellcheck="false">
+            <div id="settingsOpenAIStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>Twilio (SMS/Calls)</label>
+            <input type="password" id="settingsTwilioSID" class="form-input" placeholder="Account SID..." spellcheck="false">
+            <input type="password" id="settingsTwilioAuth" class="form-input" placeholder="Auth Token..." spellcheck="false" style="margin-top:8px;">
+            <input type="text" id="settingsTwilioFrom" class="form-input" placeholder="From Number (E.164)" style="margin-top:8px;">
+            <div id="settingsTwilioSIDStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>SendGrid (Email)</label>
+            <input type="password" id="settingsSendGridKey" class="form-input" placeholder="SendGrid API key..." spellcheck="false">
+            <input type="email" id="settingsSendGridFrom" class="form-input" placeholder="From Email" style="margin-top:8px;">
+            <div id="settingsSendGridStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>Stripe (Billing)</label>
+            <input type="password" id="settingsStripeKey" class="form-input" placeholder="Stripe Secret Key..." spellcheck="false">
+            <input type="password" id="settingsStripeWebhook" class="form-input" placeholder="Webhook Secret..." spellcheck="false" style="margin-top:8px;">
+            <div id="settingsStripeStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>Google Ads</label>
+            <input type="password" id="settingsGoogleAdsDev" class="form-input" placeholder="Developer Token..." spellcheck="false">
+            <input type="text" id="settingsGoogleAdsCust" class="form-input" placeholder="Customer ID..." style="margin-top:8px;">
+            <input type="password" id="settingsGoogleAdsRefresh" class="form-input" placeholder="Refresh Token..." spellcheck="false" style="margin-top:8px;">
+            <div id="settingsGoogleAdsDevStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>Meta Marketing API</label>
+            <input type="password" id="settingsMetaToken" class="form-input" placeholder="Access Token..." spellcheck="false">
+            <input type="text" id="settingsMetaAccount" class="form-input" placeholder="Ad Account ID..." style="margin-top:8px;">
+            <div id="settingsMetaTokenStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <div class="form-group">
+            <label>Enrichment Providers</label>
+            <input type="password" id="settingsApolloKey" class="form-input" placeholder="Apollo API Key..." spellcheck="false">
+            <input type="password" id="settingsClearbitKey" class="form-input" placeholder="Clearbit API Key..." spellcheck="false" style="margin-top:8px;">
+            <input type="password" id="settingsHunterKey" class="form-input" placeholder="Hunter API Key..." spellcheck="false" style="margin-top:8px;">
+            <div id="settingsEnrichmentStatus" class="key-status"><span class="dot dot-red"></span><span>Not configured</span></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveAllKeys()">Save All Keys to Vault</button>
+          <div id="saveHint" class="save-hint">&#10003; Keys saved</div>
+        </div>
+
+       <div class="settings-section">
+         <h4 style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:16px;font-weight:600;">Business Configuration</h4>
+         <div class="form-group">
+           <label>Business Name</label>
+           <input type="text" id="bizName" class="form-input" placeholder="Your Business Name">
+         </div>
+         <div class="form-group">
+           <label>Business Phone</label>
+           <input type="tel" id="bizPhone" class="form-input" placeholder="+15551234567">
+         </div>
+         <div class="form-group">
+           <label>Business Email</label>
+           <input type="email" id="bizEmail" class="form-input" placeholder="hello@yourbusiness.com">
+         </div>
+         <div class="form-group">
+           <label>Business Address (for compliance footers)</label>
+           <textarea id="bizAddress" class="form-input" rows="2" placeholder="123 Main St, City, ST 12345"></textarea>
+         </div>
+         <div class="row2">
+           <div class="form-group">
+             <label>Avg Job Size ($)</label>
+             <input type="number" id="bizAvgJob" class="form-input" placeholder="8500" step="100" min="0">
+           </div>
+           <div class="form-group">
+             <label>Gross Margin (%)</label>
+             <input type="number" id="bizMargin" class="form-input" placeholder="35" step="1" min="0" max="100">
+           </div>
+         </div>
+         <div class="row2">
+           <div class="form-group">
+             <label>Lead Cost Ceiling ($)</label>
+             <input type="number" id="bizLeadCost" class="form-input" placeholder="85" step="1" min="0">
+           </div>
+           <div class="form-group">
+             <label>Monthly Ad Budget ($)</label>
+             <input type="number" id="bizAdBudget" class="form-input" placeholder="2000" step="100" min="0">
+           </div>
+         </div>
+         <div class="form-group">
+           <label>Target ROAS</label>
+           <input type="number" id="bizTargetRoas" class="form-input" placeholder="4.0" step="0.1" min="0.1">
+         </div>
+         <button class="btn btn-primary" onclick="saveBusinessConfig()">Save Business Config</button>
+         <div id="bizConfigHint" class="save-hint">&#10003; Configuration saved</div>
+       </div>
+
+       <div class="settings-section" style="grid-column:1/-1;">
+         <h4 style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:16px;font-weight:600;">Smart Routing Pipeline</h4>
+         <div id="routingStepsSettings"></div>
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Leads Tab ─── -->
+ <div id="tabLeadsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+       <h3 style="font-size:1rem;">Lead Inbox</h3>
+       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+         <button class="btn btn-primary btn-sm" onclick="refreshLeads()">&#8635; Refresh</button>
+         <button class="btn btn-success btn-sm" onclick="exportLeadsCSV()">&#8595; Export CSV</button>
+         <button class="btn btn-ghost btn-sm" onclick="clearAllLeads()">&#128465; Clear All</button>
+       </div>
+     </div>
+     <div class="filter-bar">
+       <div class="form-group">
+         <input type="text" id="leadSearchInput" class="form-input" placeholder="Search by name, business, phone, email..." onkeydown="if(event.key==='Enter')filterLeads()">
+       </div>
+       <div class="form-group small">
+         <select id="leadStatusFilter" class="form-input" onchange="filterLeads()">
+           <option value="">All Statuses</option>
+           <option value="new">New</option>
+           <option value="contacted">Contacted</option>
+           <option value="qualified">Qualified</option>
+           <option value="disqualified">Disqualified</option>
+           <option value="nurturing">Nurturing</option>
+         </select>
+       </div>
+       <div class="form-group small">
+         <select id="leadSourceFilter" class="form-input" onchange="filterLeads()">
+           <option value="">All Sources</option>
+         </select>
+       </div>
+       <div class="form-group small">
+         <select id="leadSortSelect" class="form-input" onchange="filterLeads()">
+           <option value="score_desc">Score: High to Low</option>
+           <option value="score_asc">Score: Low to High</option>
+           <option value="date_desc">Newest First</option>
+           <option value="date_asc">Oldest First</option>
+         </select>
+       </div>
+     </div>
+     <div id="leadsTableContainer">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading leads...</div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Nurture Tab ─── -->
+ <div id="tabNurtureContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+       <h3 style="font-size:1rem;">Nurture Sequences</h3>
+       <button class="btn btn-primary btn-sm" onclick="showCreateSequenceModal()">+ Create Sequence</button>
+     </div>
+     <div id="sequencesList">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading sequences...</div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Campaigns Tab ─── -->
+ <div id="tabCampaignsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+       <h3 style="font-size:1rem;">Ad Campaigns</h3>
+       <button class="btn btn-primary btn-sm" onclick="showCreateCampaignModal()">+ Create Campaign</button>
+     </div>
+     <div id="campaignsList">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading campaigns...</div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── CRM Tab ─── -->
+ <div id="tabCRMContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+       <h3 style="font-size:1rem;">CRM Push History</h3>
+       <div style="display:flex;gap:8px;">
+         <button class="btn btn-primary btn-sm" onclick="showPushToCRMModal()">&#8594; Push Leads to CRM</button>
+         <button class="btn btn-ghost btn-sm" onclick="loadCRMHistory()">&#8635; Refresh</button>
+       </div>
+     </div>
+     <div id="crmHistoryList">
+       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading CRM history...</div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Analytics Tab ─── -->
+ <div id="tabAnalyticsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <h3 style="font-size:1rem;margin-bottom:16px;">Analytics Dashboard</h3>
+     <div class="metric-grid" id="analyticsMetrics">
+       <div class="metric-card"><div class="label">Total Leads</div><div class="value" id="anTotalLeads">0</div></div>
+       <div class="metric-card"><div class="label">Avg Score</div><div class="value" id="anAvgScore">0</div></div>
+       <div class="metric-card"><div class="label">Searches Run</div><div class="value" id="anSearches">0</div></div>
+       <div class="metric-card"><div class="label">Pipeline Runs</div><div class="value" id="anRuns">0</div></div>
+       <div class="metric-card"><div class="label">Nurture Active</div><div class="value" id="anNurtureActive">0</div></div>
+       <div class="metric-card"><div class="label">CRM Pushes</div><div class="value" id="anCRMPushes">0</div></div>
+     </div>
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;">
+       <div class="chart-placeholder" id="sourceChart">Lead Sources Chart (coming soon)</div>
+       <div class="chart-placeholder" id="scoreChart">Score Distribution Chart (coming soon)</div>
+     </div>
+     <div style="margin-top:24px;">
+       <h4 style="font-size:0.9rem;margin-bottom:12px;color:var(--text2);">Recent Pipeline Runs</h4>
+       <div id="recentRunsList"></div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Settings Tab ─── -->
+ <div id="tabSettingsContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <h3 style="font-size:1rem;margin-bottom:16px;">Settings</h3>
+     
+     <div class="settings-section">
+       <h4>&#128272; Business Configuration</h4>
+       <div class="form-row">
+         <div class="form-group">
+           <label>Business Name</label>
+           <input type="text" id="bizName" class="form-input" placeholder="Your Business Name">
+         </div>
+         <div class="form-group">
+           <label>Business Phone</label>
+           <input type="tel" id="bizPhone" class="form-input" placeholder="+1 (555) 123-4567">
+         </div>
+         <div class="form-group">
+           <label>Business Email</label>
+           <input type="email" id="bizEmail" class="form-input" placeholder="hello@yourbiz.com">
+         </div>
+       </div>
+       <div class="form-row">
+         <div class="form-group">
+           <label>Avg Job Size ($)</label>
+           <input type="number" id="bizAvgJob" class="form-input" placeholder="8500" step="100">
+         </div>
+         <div class="form-group">
+           <label>Gross Margin (%)</label>
+           <input type="number" id="bizMargin" class="form-input" placeholder="35" step="1" min="0" max="100">
+         </div>
+         <div class="form-group">
+           <label>Lead Cost Ceiling ($)</label>
+           <input type="number" id="bizCPL" class="form-input" placeholder="85" step="1">
+         </div>
+       </div>
+       <div class="form-row">
+         <div class="form-group">
+           <label>Monthly Ad Budget ($)</label>
+           <input type="number" id="bizBudget" class="form-input" placeholder="2000" step="100">
+         </div>
+         <div class="form-group">
+           <label>Target ROAS</label>
+           <input type="number" id="bizROAS" class="form-input" placeholder="4" step="0.1">
+         </div>
+       </div>
+       <button class="btn btn-primary" onclick="saveBusinessConfig()">Save Business Config</button>
+       <span id="bizConfigSaved" style="margin-left:12px;color:var(--green);font-size:0.8rem;display:none;">Saved!</span>
+     </div>
+
+     <div class="settings-section">
+       <h4>&#128273; API Keys</h4>
+       <div class="key-input-row">
+         <label>Exa AI (Search)</label>
+         <input type="password" id="settingsExaKey" class="form-input" placeholder="Exa API key...">
+         <span class="key-status" id="settingsExaStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Perplexity AI (Search)</label>
+         <input type="password" id="settingsPerplexityKey" class="form-input" placeholder="Perplexity API key...">
+         <span class="key-status" id="settingsPerplexityStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Anthropic (LLM Scoring)</label>
+         <input type="password" id="settingsAnthropicKey" class="form-input" placeholder="Anthropic API key...">
+         <span class="key-status" id="settingsAnthropicStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>OpenAI (LLM Scoring)</label>
+         <input type="password" id="settingsOpenAIKey" class="form-input" placeholder="OpenAI API key...">
+         <span class="key-status" id="settingsOpenAIStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Stripe (Billing)</label>
+         <input type="password" id="settingsStripeKey" class="form-input" placeholder="Stripe Secret Key...">
+         <span class="key-status" id="settingsStripeStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Twilio SID (SMS/Calls)</label>
+         <input type="password" id="settingsTwilioSID" class="form-input" placeholder="Twilio Account SID...">
+         <span class="key-status" id="settingsTwilioSIDStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Twilio Auth Token</label>
+         <input type="password" id="settingsTwilioAuth" class="form-input" placeholder="Twilio Auth Token...">
+         <span class="key-status" id="settingsTwilioAuthStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Twilio From Number</label>
+         <input type="tel" id="settingsTwilioFrom" class="form-input" placeholder="+15551234567">
+         <span class="key-status" id="settingsTwilioFromStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>SendGrid API Key (Email)</label>
+         <input type="password" id="settingsSendGridKey" class="form-input" placeholder="SendGrid API Key...">
+         <span class="key-status" id="settingsSendGridStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>SendGrid From Email</label>
+         <input type="email" id="settingsSendGridFrom" class="form-input" placeholder="noreply@yourdomain.com">
+         <span class="key-status" id="settingsSendGridFromStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Google Ads Developer Token</label>
+         <input type="password" id="settingsGoogleAdsDev" class="form-input" placeholder="Google Ads Developer Token...">
+         <span class="key-status" id="settingsGoogleAdsDevStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Google Ads Customer ID</label>
+         <input type="text" id="settingsGoogleAdsCust" class="form-input" placeholder="123-456-7890">
+         <span class="key-status" id="settingsGoogleAdsCustStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Google Ads Refresh Token</label>
+         <input type="password" id="settingsGoogleAdsRefresh" class="form-input" placeholder="OAuth Refresh Token...">
+         <span class="key-status" id="settingsGoogleAdsRefreshStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Meta Access Token</label>
+         <input type="password" id="settingsMetaToken" class="form-input" placeholder="Meta Marketing API Access Token...">
+         <span class="key-status" id="settingsMetaTokenStatus"></span>
+       </div>
+       <div class="key-input-row">
+         <label>Meta Ad Account ID</label>
+         <input type="text" id="settingsMetaAccount" class="form-input" placeholder="act_123456789">
+         <span class="key-status" id="settingsMetaAccountStatus"></span>
+       </div>
+       <button class="btn btn-primary" onclick="saveAllKeys()">Save All Keys to Vault</button>
+     </div>
+
+     <div class="settings-section">
+       <h4>&#9881; Routing Pipeline</h4>
+       <div id="settingsRoutingSteps"></div>
+     </div>
+
+     <div class="settings-section">
+       <h4>&#128465; Danger Zone</h4>
+       <div style="display:flex;gap:12px;flex-wrap:wrap;">
+         <button class="btn btn-danger" onclick="if(confirm('Clear ALL leads? This cannot be undone.')) clearAllLeads()">Clear All Leads</button>
+         <button class="btn btn-danger" onclick="if(confirm('Reset ALL settings? This cannot be undone.')) resetAllSettings()">Reset All Settings</button>
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ─── Lead Detail Modal ─── -->
 <div id="leadModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -1235,6 +1877,12 @@ function switchTab(tab) {
   document.getElementById('tabRevenueContent').style.display = tab === 'revenue' ? '' : 'none';
   document.getElementById('tabBillingContent').style.display = tab === 'billing' ? '' : 'none';
   document.getElementById('tabEnrichmentContent').style.display = tab === 'enrichment' ? '' : 'none';
+  document.getElementById('tabLeadsContent').style.display = tab === 'leads' ? '' : 'none';
+  document.getElementById('tabNurtureContent').style.display = tab === 'nurture' ? '' : 'none';
+  document.getElementById('tabCampaignsContent').style.display = tab === 'campaigns' ? '' : 'none';
+  document.getElementById('tabCRMContent').style.display = tab === 'crm' ? '' : 'none';
+  document.getElementById('tabAnalyticsContent').style.display = tab === 'analytics' ? '' : 'none';
+  document.getElementById('tabSettingsContent').style.display = tab === 'settings' ? '' : 'none';
   document.getElementById('tabDiscovery').className = tab === 'discovery' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabLanding').className = tab === 'landing' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabSchedules').className = tab === 'schedules' ? 'tab-btn tab-active' : 'tab-btn';
@@ -1242,6 +1890,12 @@ function switchTab(tab) {
   document.getElementById('tabRevenue').className = tab === 'revenue' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabBilling').className = tab === 'billing' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabEnrichment').className = tab === 'enrichment' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabLeads').className = tab === 'leads' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabNurture').className = tab === 'nurture' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabCampaigns').className = tab === 'campaigns' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabCRM').className = tab === 'crm' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabAnalytics').className = tab === 'analytics' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabSettings').className = tab === 'settings' ? 'tab-btn tab-active' : 'tab-btn';
   if (tab === 'schedules') {
     loadSchedules();
     refreshSchedulerStats();
@@ -1260,6 +1914,24 @@ function switchTab(tab) {
   }
   if (tab === 'enrichment') {
     loadEnrichmentLeads();
+  }
+  if (tab === 'leads') {
+    refreshLeads();
+  }
+  if (tab === 'nurture') {
+    loadSequences();
+  }
+  if (tab === 'campaigns') {
+    loadCampaigns();
+  }
+  if (tab === 'crm') {
+    loadCRMHistory();
+  }
+  if (tab === 'analytics') {
+    loadAnalytics();
+  }
+  if (tab === 'settings') {
+    loadSettings();
   }
 }
 
@@ -1763,6 +2435,777 @@ function renderBatchResults(data) {
   $('batchEnrichResults').style.display = '';
   $('batchEnrichResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// ─── Leads Tab ───
+let allLeads = [];
+let filteredLeads = [];
+
+async function refreshLeads() {
+  const container = $('leadsTableContainer');
+  container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3);"><div class="spinner" style="margin:0 auto 8px;"></div>Loading leads...</div>';
+  try {
+    const r = await fetch(BASE + '/api/leads');
+    if (!r.ok) throw new Error('Failed to load leads');
+    const data = await r.json();
+    allLeads = data.leads || [];
+    populateSourceFilter();
+    filterLeads();
+  } catch(e) {
+    container.innerHTML = '<div class="error-box">Error loading leads: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function populateSourceFilter() {
+  const sources = [...new Set(allLeads.map(l => l.source).filter(Boolean))].sort();
+  const sel = $('leadsSourceFilter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All Sources</option>' + sources.map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
+  sel.value = current;
+}
+
+function filterLeads() {
+  const search = ($('leadsSearch').value || '').toLowerCase();
+  const status = $('leadsStatusFilter').value;
+  const source = $('leadsSourceFilter').value;
+  
+  filteredLeads = allLeads.filter(l => {
+    const matchSearch = !search || 
+      (l.title && l.title.toLowerCase().includes(search)) ||
+      (l.location && l.location.toLowerCase().includes(search)) ||
+      (l.url && l.url.toLowerCase().includes(search)) ||
+      (l.id && l.id.toLowerCase().includes(search));
+    const matchStatus = !status || l.status === status;
+    const matchSource = !source || l.source === source;
+    return matchSearch && matchStatus && matchSource;
+  });
+  
+  renderLeadsTable();
+}
+
+function renderLeadsTable() {
+  const container = $('leadsTableContainer');
+  if (filteredLeads.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">&#128269;</div><h3>No leads found</h3><p>Try adjusting your filters or run a search.</p></div>';
+    return;
+  }
+  
+  let html = '<div class="table-toolbar"><span style="color:var(--text2);font-size:0.8rem;">Showing ' + filteredLeads.length + ' of ' + allLeads.length + ' leads</span></div>';
+  html += '<div style="overflow-x:auto;"><table class="results-table"><thead><tr>';
+  html += '<th>Business</th><th>Location</th><th>Score</th><th>Source</th><th>Status</th><th>Found</th><th>Actions</th>';
+  html += '</tr></thead><tbody>';
+  
+  filteredLeads.forEach(l => {
+    const scoreClass = l.score >= 70 ? 'score-high' : l.score >= 40 ? 'score-mid' : 'score-low';
+    const statusClass = 'status-' + (l.status || 'new');
+    const foundDate = l.found_at ? new Date(l.found_at).toLocaleDateString() : '—';
+    html += '<tr>';
+    html += '<td class="title-cell"><a href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener">' + escapeHtml(l.title || 'Unknown') + '</a></td>';
+    html += '<td>' + escapeHtml(l.location || '—') + '</td>';
+    html += '<td><span class="score-badge ' + scoreClass + '">' + (l.score || 0) + '</span></td>';
+    html += '<td>' + escapeHtml(l.source || '—') + '</td>';
+    html += '<td><span class="status-badge ' + statusClass + '">' + (l.status || 'new') + '</span></td>';
+    html += '<td style="font-size:0.75rem;color:var(--text3);">' + foundDate + '</td>';
+    html += '<td><div class="action-btn-group">';
+    html += '<button class="btn btn-icon" onclick="viewLeadDetail(\'' + escapeHtml(l.id) + '\')" title="View Details">&#128269;</button>';
+    html += '<button class="btn btn-icon" onclick="editLeadStatus(\'' + escapeHtml(l.id) + '\', \'' + (l.status || 'new') + '\')" title="Change Status">&#9998;</button>';
+    html += '<button class="btn btn-icon" onclick="pushLeadToCRM(\'' + escapeHtml(l.id) + '\')" title="Push to CRM">&#128187;</button>';
+    html += '<button class="btn btn-icon" onclick="startNurtureForLead(\'' + escapeHtml(l.id) + '\')" title="Start Nurture">&#128257;</button>';
+    html += '<button class="btn btn-icon danger" onclick="deleteLead(\'' + escapeHtml(l.id) + '\')" title="Delete">&#128465;</button>';
+    html += '</div></td>';
+    html += '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+function viewLeadDetail(id) {
+  const lead = allLeads.find(l => l.id === id);
+  if (!lead) return;
+  const modal = $('leadModal');
+  $('modalTitle').textContent = lead.title || 'Lead Details';
+  
+  const fields = [
+    { label: 'ID', value: lead.id },
+    { label: 'Business', value: lead.title || '—' },
+    { label: 'URL', value: lead.url ? '<a href="' + escapeHtml(lead.url) + '" target="_blank">' + escapeHtml(lead.url) + '</a>' : '—' },
+    { label: 'Location', value: lead.location || '—' },
+    { label: 'Source', value: lead.source || '—' },
+    { label: 'Score', value: lead.score || 0 },
+    { label: 'Status', value: '<span class="status-badge status-' + (lead.status || 'new') + '">' + (lead.status || 'new') + '</span>' },
+    { label: 'Found', value: lead.found_at ? new Date(lead.found_at).toLocaleString() : '—' },
+    { label: 'Snippet', value: lead.snippet || '—' },
+  ];
+  
+  if (lead.enriched) {
+    fields.push(
+      { label: 'Contact Name', value: lead.contact_name || '—' },
+      { label: 'Title', value: lead.title || '—' },
+      { label: 'Phone', value: lead.phone || '—' },
+      { label: 'Email', value: lead.email || '—' },
+      { label: 'Address', value: lead.address || '—' },
+      { label: 'Website', value: lead.website || '—' },
+      { label: 'Employees', value: lead.employee_count || '—' },
+      { label: 'Revenue', value: lead.revenue || '—' },
+      { label: 'Confidence', value: lead.confidence_score != null ? lead.confidence_score + '%' : '—' }
+    );
+  }
+  
+  $('modalBody').innerHTML = fields.map(f => 
+    '<div style="padding:10px 0;border-bottom:1px solid var(--border);"><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">' + f.label + '</div><div style="font-size:0.9rem;margin-top:2px;">' + f.value + '</div></div>'
+  ).join('');
+  
+  modal.classList.add('show');
+}
+
+function closeModal() {
+  $('leadModal').classList.remove('show');
+}
+
+async function editLeadStatus(id, currentStatus) {
+  const statuses = ['new', 'contacted', 'qualified', 'converted', 'lost'];
+  const newStatus = prompt('Enter new status (' + statuses.join(', ') + '):', currentStatus);
+  if (!newStatus || !statuses.includes(newStatus) || newStatus === currentStatus) return;
+  
+  try {
+    const r = await fetch(BASE + '/api/leads/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (!r.ok) throw new Error('Failed to update');
+    await refreshLeads();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function deleteLead(id) {
+  if (!confirm('Delete this lead?')) return;
+  try {
+    const r = await fetch(BASE + '/api/leads/' + id, { method: 'DELETE' });
+    if (!r.ok) throw new Error('Failed to delete');
+    await refreshLeads();
+    await refreshStats();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function pushLeadToCRM(id) {
+  const provider = prompt('CRM Provider (hubspot, gohighlevel, pipedrive):', 'hubspot');
+  if (!provider) return;
+  try {
+    const r = await fetch(BASE + '/api/crm/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_ids: [id], provider }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Push failed');
+    alert('Pushed to ' + provider + ': ' + (data.results?.[0]?.status || 'done'));
+    await refreshLeads();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function startNurtureForLead(id) {
+  const lead = allLeads.find(l => l.id === id);
+  if (!lead) return;
+  const phone = lead.phone || prompt('Phone number for SMS/Call:', '');
+  const email = lead.email || prompt('Email for email nurture:', '');
+  if (!phone && !email) { alert('Need phone or email'); return; }
+  
+  try {
+    const r = await fetch(BASE + '/api/nurture/sequence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: id,
+        lead_name: lead.title || 'Lead',
+        lead_phone: phone,
+        lead_email: email,
+        lead_data: lead,
+      }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    alert('Nurture sequence started!');
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function exportLeadsCSV() {
+  if (allLeads.length === 0) { alert('No leads to export'); return; }
+  const headers = ['id', 'title', 'url', 'location', 'source', 'score', 'status', 'found_at', 'snippet', 'enriched', 'contact_name', 'phone', 'email', 'address', 'website', 'employee_count', 'revenue', 'confidence_score'];
+  const rows = [headers.join(',')];
+  allLeads.forEach(l => {
+    rows.push(headers.map(h => '"' + String(l[h] || '').replace(/"/g, '""') + '"').join(','));
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'leads-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Nurture Tab ───
+async function loadSequences() {
+  const container = $('sequencesList');
+  container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3);"><div class="spinner" style="margin:0 auto 8px;"></div>Loading sequences...</div>';
+  try {
+    const r = await fetch(BASE + '/api/nurture/sequences');
+    if (!r.ok) throw new Error('Failed to load sequences');
+    const data = await r.json();
+    renderSequences(data.sequences || []);
+  } catch(e) {
+    container.innerHTML = '<div class="error-box">Error: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderSequences(sequences) {
+  const container = $('sequencesList');
+  if (sequences.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">&#128257;</div><h3>No nurture sequences yet</h3><p>Create a sequence to start automated follow-ups.</p></div>';
+    return;
+  }
+  
+  container.innerHTML = sequences.map(s => {
+    const completed = s.actions?.filter(a => a.sent).length || 0;
+    const total = s.actions?.length || 0;
+    const isActive = !s.completed && total > 0;
+    return '<div class="campaign-card">'
+      + '<div class="campaign-header">'
+      + '<div class="campaign-title">' + escapeHtml(s.lead_name || 'Sequence') + ' <span style="font-weight:400;color:var(--text2);font-size:0.85rem;">(' + s.lead_id?.slice(0,8) + ')</span></div>'
+      + '<span class="status-badge ' + (isActive ? 'status-nurturing' : 'status-qualified') + '">' + (isActive ? 'Active' : 'Completed') + '</span>'
+      + '</div>'
+      + '<div class="campaign-meta">'
+      + '<span>Steps: ' + completed + '/' + total + '</span>'
+      + '<span>Created: ' + (s.created_at ? new Date(s.created_at).toLocaleDateString() : '—') + '</span>'
+      + '<span>Phone: ' + escapeHtml(s.lead_phone || '—') + '</span>'
+      + '<span>Email: ' + escapeHtml(s.lead_email || '—') + '</span>'
+      + '</div>'
+      + '<div style="margin-top:12px;display:flex;gap:8px;">'
+      + '<button class="btn btn-sm btn-ghost" onclick="viewSequence(\'' + escapeHtml(s.id) + '\')">View Steps</button>'
+      + '<button class="btn btn-sm btn-ghost" onclick="executeNurtureNow(\'' + escapeHtml(s.id) + '\')">Run Due Now</button>'
+      + '<button class="btn btn-sm btn-danger" onclick="deleteSequence(\'' + escapeHtml(s.id) + '\')">Delete</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+async function viewSequence(id) {
+  try {
+    const r = await fetch(BASE + '/api/nurture/sequences/' + id);
+    if (!r.ok) throw new Error('Failed to load');
+    const seq = await r.json();
+    
+    let html = '<h4 style="margin-bottom:12px;">Sequence: ' + escapeHtml(seq.lead_name) + '</h4>';
+    html += '<div style="margin-bottom:12px;color:var(--text2);font-size:0.85rem;">';
+    html += 'ID: ' + seq.id + ' | Status: <span class="status-badge ' + (seq.completed ? 'status-qualified' : 'status-nurturing') + '">' + (seq.completed ? 'Completed' : 'Active') + '</span>';
+    html += ' | Phone: ' + escapeHtml(seq.lead_phone || '—');
+    html += ' | Email: ' + escapeHtml(seq.lead_email || '—');
+    html += '</div>';
+    
+    if (seq.actions && seq.actions.length > 0) {
+      html += '<table class="results-table"><thead><tr><th>#</th><th>Type</th><th>Template</th><th>Sent</th><th>Scheduled</th><th>Result</th></tr></thead><tbody>';
+      seq.actions.forEach((a, i) => {
+        const sent = a.sent ? '<span class="status-badge status-qualified">Yes</span>' : '<span class="status-badge status-new">Pending</span>';
+        const tmpl = a.type === 'email' && a.template ? a.template.subject || 'Email' : (a.template || 'Call');
+        html += '<tr><td>' + (i+1) + '</td><td>' + a.type + '</td><td style="max-width:300px;">' + escapeHtml(JSON.stringify(tmpl)).slice(0,100) + '</td><td>' + sent + '</td><td>' + (a.scheduled_at ? new Date(a.scheduled_at).toLocaleString() : '—') + '</td><td>' + (a.result ? '<span class="status-badge ' + (a.result.ok ? 'status-qualified' : 'status-disqualified') + '">' + (a.result.ok ? 'OK' : 'Failed') + '</span>' : '—') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    
+    $('modalBody').innerHTML = html;
+    $('modalTitle').textContent = 'Sequence Details';
+    $('leadModal').classList.add('show');
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function showCreateSequenceModal() {
+  const leadId = prompt('Lead ID to create sequence for:');
+  if (!leadId) return;
+  const lead = allLeads.find(l => l.id === leadId);
+  const name = prompt('Lead name:', lead?.title || '');
+  const phone = prompt('Phone number:', lead?.phone || '');
+  const email = prompt('Email:', lead?.email || '');
+  
+  if (!name) { alert('Lead name required'); return; }
+  
+  fetch(BASE + '/api/nurture/sequence', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lead_id: leadId, lead_name: name, lead_phone: phone, lead_email: email, lead_data: lead || {} }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.id) {
+      alert('Sequence created!');
+      loadSequences();
+    } else {
+      alert('Error: ' + (data.detail || 'Unknown'));
+    }
+  })
+  .catch(e => alert('Error: ' + e.message));
+}
+
+async function executeNurtureNow(id) {
+  try {
+    const r = await fetch(BASE + '/api/nurture/mark-sent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sequence_id: id, action_index: 0, result: { ok: true, provider: 'manual' } }),
+    });
+    if (!r.ok) throw new Error('Failed');
+    alert('Executed next due action');
+    loadSequences();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function deleteSequence(id) {
+  if (!confirm('Delete this nurture sequence?')) return;
+  try {
+    await fetch(BASE + '/api/nurture/sequences/' + id, { method: 'DELETE' });
+    loadSequences();
+  } catch(e) {}
+}
+
+// ─── Campaigns Tab ───
+async function loadCampaigns() {
+  const container = $('campaignsList');
+  container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3);"><div class="spinner" style="margin:0 auto 8px;"></div>Loading campaigns...</div>';
+  try {
+    const r = await fetch(BASE + '/api/ads/platforms/status');
+    const data = await r.json();
+    renderCampaigns(data);
+  } catch(e) {
+    container.innerHTML = '<div class="error-box">Error: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderCampaigns(data) {
+  const container = $('campaignsList');
+  const platforms = data.platforms || {};
+  const hasConfig = platforms.google?.configured || platforms.meta?.configured;
+  
+  if (!hasConfig) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">&#128240;</div><h3>No Ad Platforms Configured</h3><p>Add Google Ads and/or Meta API keys in Settings to create campaigns.</p></div>';
+    return;
+  }
+  
+  let html = '<div style="margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">';
+  html += '<h4 style="margin-bottom:8px;">Platform Status</h4>';
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;">';
+  if (platforms.google) {
+    html += '<span class="key-status ' + (platforms.google.configured ? '' : 'dot-red') + '"><span class="dot ' + (platforms.google.configured ? 'dot-green' : 'dot-red') + '"></span><span>Google Ads: ' + (platforms.google.configured ? 'Connected' : 'Not Configured') + '</span></span>';
+  }
+  if (platforms.meta) {
+    html += '<span class="key-status ' + (platforms.meta.configured ? '' : 'dot-red') + '"><span class="dot ' + (platforms.meta.configured ? 'dot-green' : 'dot-red') + '"></span><span>Meta Ads: ' + (platforms.meta.configured ? 'Connected' : 'Not Configured') + '</span></span>';
+  }
+  html += '</div></div>';
+  
+  // Campaign creation form
+  html += '<div style="padding:16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);margin-bottom:16px;">';
+  html += '<h4 style="margin-bottom:12px;">Create New Campaign</h4>';
+  html += '<div class="form-row">';
+  html += '<div class="form-group"><label>Campaign Name</label><input type="text" id="campName" class="form-input" placeholder="Summer Roofing Push"></div>';
+  html += '<div class="form-group"><label>Trade</label><input type="text" id="campTrade" class="form-input" placeholder="roofing"></div>';
+  html += '<div class="form-group"><label>Location</label><input type="text" id="campLocation" class="form-input" placeholder="Eugene, OR"></div>';
+  html += '</div>';
+  html += '<div class="form-row">';
+  html += '<div class="form-group"><label>Platform</label><select id="campPlatform" class="form-input"><option value="google">Google Ads</option><option value="meta">Meta Ads</option></select></div>';
+  html += '<div class="form-group"><label>Daily Budget ($)</label><input type="number" id="campBudget" class="form-input" placeholder="50" step="10" min="5"></div>';
+  html += '<div class="form-group"><label>Objective</label><select id="campObjective" class="form-input"><option value="leads">Leads</option><option value="calls">Calls</option><option value="traffic">Traffic</option></select></div>';
+  html += '</div>';
+  html += '<button class="btn btn-primary" onclick="createAdCampaign()">Create Campaign</button>';
+  html += '</div>';
+  
+  container.innerHTML = html;
+}
+
+function showCreateCampaignModal() {
+  // The form is inline in the campaigns tab
+  $('campName').focus();
+}
+
+async function createAdCampaign() {
+  const name = $('campName').value.trim();
+  const trade = $('campTrade').value.trim();
+  const location = $('campLocation').value.trim();
+  const platform = $('campPlatform').value;
+  const budget = parseFloat($('campBudget').value) || 50;
+  const objective = $('campObjective').value;
+  
+  if (!name || !trade || !location) {
+    alert('Name, trade, and location are required');
+    return;
+  }
+  
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Creating...';
+  
+  try {
+    const r = await fetch(BASE + '/api/ads/platforms/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform,
+        campaign_name: name,
+        trade,
+        location,
+        daily_budget: budget,
+        objective,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to create campaign');
+    alert('Campaign created! ' + (data.campaign_id || ''));
+    $('campName').value = '';
+    $('campTrade').value = '';
+    $('campLocation').value = '';
+    loadCampaigns();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Campaign';
+  }
+}
+
+// ─── CRM Tab ───
+async function pushLeadsToCRM() {
+  const provider = $('crmProvider').value;
+  const status = $('crmLeadStatus').value;
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Pushing...';
+  
+  try {
+    let leadsToPush = allLeads;
+    if (status !== 'all') {
+      leadsToPush = allLeads.filter(l => l.status === status);
+    }
+    if (leadsToPush.length === 0) {
+      alert('No leads match the selected status');
+      return;
+    }
+    
+    const r = await fetch(BASE + '/api/crm/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_ids: leadsToPush.map(l => l.id),
+        provider,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Push failed');
+    
+    const success = data.results?.filter(r => r.ok).length || 0;
+    const failed = data.results?.filter(r => !r.ok).length || 0;
+    alert('CRM Push Complete: ' + success + ' succeeded, ' + failed + ' failed');
+    loadCRMHistory();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Push Leads to CRM';
+  }
+}
+
+async function loadCRMHistory() {
+  const container = $('crmHistoryBody');
+  const section = $('crmHistory');
+  section.style.display = '';
+  
+  try {
+    const r = await fetch(BASE + '/api/crm/history');
+    if (!r.ok) throw new Error('Failed to load history');
+    const data = await r.json();
+    const history = data.history || [];
+    
+    if (history.length === 0) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">No CRM push history yet.</div>';
+      return;
+    }
+    
+    let html = '<table class="results-table"><thead><tr><th>Time</th><th>Provider</th><th>Leads</th><th>Succeeded</th><th>Failed</th><th>Details</th></tr></thead><tbody>';
+    history.forEach(h => {
+      html += '<tr>';
+      html += '<td style="font-size:0.75rem;">' + (h.timestamp ? new Date(h.timestamp).toLocaleString() : '—') + '</td>';
+      html += '<td>' + escapeHtml(h.provider) + '</td>';
+      html += '<td>' + (h.total_leads || 0) + '</td>';
+      html += '<td style="color:var(--green);">' + (h.succeeded || 0) + '</td>';
+      html += '<td style="color:var(--red);">' + (h.failed || 0) + '</td>';
+      html += '<td style="font-size:0.7rem;max-width:300px;">' + escapeHtml(JSON.stringify(h.details || {})) + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div class="error-box">Error: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ─── Analytics Tab ───
+async function loadAnalytics() {
+  try {
+    const [statsRes, businessRes, crmRes] = await Promise.all([
+      fetch(BASE + '/api/stats'),
+      fetch(BASE + '/api/business/metrics'),
+      fetch(BASE + '/api/crm/stats'),
+    ]);
+    const stats = await statsRes.json();
+    const business = await businessRes.json();
+    const crm = await crmRes.json();
+    
+    // Update metric cards
+    $('anaTotalLeads').textContent = stats.total_leads || 0;
+    $('anaQualifiedLeads').textContent = stats.qualified_leads || 0;
+    $('anaConvertedLeads').textContent = stats.converted_leads || 0;
+    $('anaAvgScore').textContent = stats.avg_score ? stats.avg_score.toFixed(1) : 0;
+    $('anaTotalSearches').textContent = stats.total_searches || 0;
+    $('anaPipelineRuns').textContent = stats.pipeline_runs || 0;
+    
+    // Source distribution
+    const sources = stats.source_breakdown || {};
+    const sourceContainer = $('anaSourcesChart');
+    sourceContainer.innerHTML = Object.entries(sources).map(([src, count]) => 
+      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg3);border-radius:6px;"><span style="font-weight:600;min-width:120px;">' + escapeHtml(src) + '</span><div style="flex:1;height:8px;background:var(--bg4);border-radius:4px;overflow:hidden;"><div style="width:' + (count / Math.max(...Object.values(sources), 1) * 100) + '%;height:100%;background:var(--accent);"></div></div><span style="font-weight:600;min-width:40px;text-align:right;">' + count + '</span></div>'
+    ).join('') || '<span style="color:var(--text3);">No source data</span>';
+    
+    // Recent runs
+    const runs = stats.recent_runs || [];
+    const runsContainer = $('anaRecentRuns');
+    if (runs.length === 0) {
+      runsContainer.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">No pipeline runs yet.</div>';
+    } else {
+      runsContainer.innerHTML = '<table class="results-table"><thead><tr><th>Time</th><th>Query</th><th>Provider</th><th>Results</th><th>Merged</th><th>Duration</th></tr></thead><tbody>' +
+        runs.map(r => '<tr><td style="font-size:0.75rem;">' + (r.timestamp ? new Date(r.timestamp).toLocaleString() : '—') + '</td><td>' + escapeHtml(r.query) + '</td><td>' + escapeHtml(r.provider) + '</td><td>' + (r.count || 0) + '</td><td>' + (r.merged_count || 0) + '</td><td>' + (r.duration_sec ? r.duration_sec.toFixed(1) + 's' : '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+  } catch(e) {
+    console.error('Analytics load error:', e);
+  }
+}
+
+// ─── Settings Tab ───
+async function loadSettings() {
+  // Load business config
+  try {
+    const r = await fetch(BASE + '/api/business/config');
+    if (r.ok) {
+      const config = await r.json();
+      $('bizName').value = config.business_name || '';
+      $('bizPhone').value = config.business_phone || '';
+      $('bizEmail').value = config.business_email || '';
+      $('bizAddress').value = config.business_address || '';
+      $('bizAvgJob').value = config.avg_job_size || '';
+      $('bizMargin').value = config.gross_margin || '';
+      $('bizCPL').value = config.lead_cost_ceiling || '';
+      $('bizBudget').value = config.monthly_ad_budget || '';
+      $('bizROAS').value = config.target_roas || '';
+    }
+  } catch(e) {}
+  
+  // Load API key statuses
+  loadKeyStatuses();
+  
+  // Load routing config
+  loadRoutingConfigForSettings();
+}
+
+async function loadKeyStatuses() {
+  const services = [
+    { id: 'exa', label: 'Exa AI', input: 'exaKeyInput', status: 'exaKeyStatus' },
+    { id: 'perplexity', label: 'Perplexity', input: 'perplexityKeyInput', status: 'perplexityKeyStatus' },
+    { id: 'anthropic', label: 'Anthropic', input: 'anthropicKeyInput', status: 'anthropicKeyStatus' },
+    { id: 'openai', label: 'OpenAI', input: 'openaiKeyInput', status: 'openaiKeyStatus' },
+    { id: 'stripe', label: 'Stripe', input: 'stripeKeyInput', status: 'stripeKeyStatus' },
+    { id: 'twilio_sid', label: 'Twilio SID', input: 'twilioSidInput', status: 'twilioKeyStatus' },
+    { id: 'twilio_auth', label: 'Twilio Auth', input: 'twilioTokenInput', status: 'twilioKeyStatus' },
+    { id: 'twilio_from', label: 'Twilio From', input: 'twilioFromInput', status: 'twilioKeyStatus' },
+    { id: 'sendgrid', label: 'SendGrid', input: 'sendgridKeyInput', status: 'sendgridKeyStatus' },
+    { id: 'sendgrid_from', label: 'SendGrid From', input: 'sendgridFromInput', status: 'sendgridKeyStatus' },
+    { id: 'google_ads_dev', label: 'Google Ads Dev', input: 'googleAdsDevTokenInput', status: 'googleAdsKeyStatus' },
+    { id: 'google_ads_cust', label: 'Google Ads Customer', input: 'googleAdsCustomerIdInput', status: 'googleAdsKeyStatus' },
+    { id: 'google_ads_refresh', label: 'Google Ads Refresh', input: 'googleAdsRefreshTokenInput', status: 'googleAdsKeyStatus' },
+    { id: 'meta_token', label: 'Meta Token', input: 'metaAccessTokenInput', status: 'metaKeyStatus' },
+    { id: 'meta_account', label: 'Meta Account', input: 'metaAdAccountInput', status: 'metaKeyStatus' },
+    { id: 'apollo', label: 'Apollo', input: 'apolloKeyInput', status: 'enrichmentKeyStatus' },
+    { id: 'clearbit', label: 'Clearbit', input: 'clearbitKeyInput', status: 'enrichmentKeyStatus' },
+    { id: 'hunter', label: 'Hunter', input: 'hunterKeyInput', status: 'enrichmentKeyStatus' },
+  ];
+  
+  for (const svc of services) {
+    try {
+      const r = await fetch(BASE + '/api/vault/keys/' + svc.id);
+      if (r.ok) {
+        const data = await r.json();
+        const el = $(svc.status);
+        if (el) el.innerHTML = '<span class="dot dot-green"></span><span>Configured in vault</span>';
+      } else {
+        const el = $(svc.status);
+        if (el) el.innerHTML = '<span class="dot dot-red"></span><span>Not configured</span>';
+      }
+    } catch(e) {
+      const el = $(svc.status);
+      if (el) el.innerHTML = '<span class="dot dot-red"></span><span>Not configured</span>';
+    }
+  }
+}
+
+async function loadRoutingConfigForSettings() {
+  try {
+    const r = await fetch(BASE + '/api/routing/config');
+    if (!r.ok) return;
+    const data = await r.json();
+    const container = $('settingsRoutingSteps');
+    const steps = data.steps || [];
+    
+    container.innerHTML = steps.map(s => {
+      const required = s.keys_required?.join(', ') || 'none';
+      return '<div class="toggle-row">'
+        + '<div class="info">'
+        + '<div class="name">' + escapeHtml(s.label) + ' <span style="color:var(--text3);font-weight:400;">(' + s.name + ')</span></div>'
+        + '<div class="desc">' + escapeHtml(s.description) + (required !== 'none' ? ' | Requires: ' + required : '') + '</div>'
+        + '</div>'
+        + '<button class="toggle ' + (s.enabled ? 'on' : '') + '" onclick="toggleRoutingStep(\'' + s.name + '\', ' + !s.enabled + ')"></button>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    console.error('Failed to load routing for settings:', e);
+  }
+}
+
+async function toggleRoutingStep(name, enabled) {
+  try {
+    const r = await fetch(BASE + '/api/routing/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: name, updates: { enabled } }),
+    });
+    if (!r.ok) throw new Error('Failed');
+    loadRoutingConfigForSettings();
+    loadRoutingConfig();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function saveBusinessConfig() {
+  const config = {
+    business_name: $('bizName').value.trim(),
+    business_phone: $('bizPhone').value.trim(),
+    business_email: $('bizEmail').value.trim(),
+    business_address: $('bizAddress').value.trim(),
+    avg_job_size: parseFloat($('bizAvgJob').value) || 8500,
+    gross_margin: parseFloat($('bizMargin').value) || 0.35,
+    lead_cost_ceiling: parseFloat($('bizCPL').value) || 85,
+    monthly_ad_budget: parseFloat($('bizBudget').value) || 2000,
+    target_roas: parseFloat($('bizROAS').value) || 4,
+  };
+  
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Saving...';
+  
+  try {
+    const r = await fetch(BASE + '/api/business/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!r.ok) throw new Error('Failed to save');
+    const saved = document.getElementById('bizConfigSaved');
+    if (saved) { saved.style.display = 'inline'; setTimeout(() => saved.style.display = 'none', 2000); }
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Business Config';
+  }
+}
+
+async function saveAllKeys() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Saving...';
+  
+  const keys = {
+    exa: $('exaKeyInput').value.trim(),
+    perplexity: $('perplexityKeyInput').value.trim(),
+    anthropic: $('anthropicKeyInput').value.trim(),
+    openai: $('openaiKeyInput').value.trim(),
+    stripe: $('stripeKeyInput').value.trim(),
+    twilio_sid: $('twilioSidInput').value.trim(),
+    twilio_auth: $('twilioTokenInput').value.trim(),
+    twilio_from: $('twilioFromInput').value.trim(),
+    sendgrid: $('sendgridKeyInput').value.trim(),
+    sendgrid_from: $('sendgridFromInput').value.trim(),
+    google_ads_dev: $('googleAdsDevTokenInput').value.trim(),
+    google_ads_cust: $('googleAdsCustomerIdInput').value.trim(),
+    google_ads_refresh: $('googleAdsRefreshTokenInput').value.trim(),
+    meta_token: $('metaAccessTokenInput').value.trim(),
+    meta_account: $('metaAdAccountInput').value.trim(),
+    apollo: $('apolloKeyInput').value.trim(),
+    clearbit: $('clearbitKeyInput').value.trim(),
+    hunter: $('hunterKeyInput').value.trim(),
+  };
+  
+  try {
+    for (const [service, key] of Object.entries(keys)) {
+      if (!key) continue;
+      const r = await fetch(BASE + '/api/vault/keys/' + service, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      });
+      if (!r.ok) throw new Error('Failed to save ' + service);
+    }
+    alert('All keys saved to vault!');
+    loadKeyStatuses();
+    // Also update engine keys for search providers
+    if (keys.exa) { await fetch(BASE + '/api/settings/key', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: keys.exa, service: 'exa' }) }); }
+    if (keys.perplexity) { await fetch(BASE + '/api/settings/key', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: keys.perplexity, service: 'perplexity' }) }); }
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save All Keys to Vault';
+  }
+}
+
+async function clearAllLeads() {
+  if (!confirm('This will delete ALL leads. Are you sure?')) return;
+  if (!confirm('Type YES to confirm')) return;
+  try {
+    await fetch(BASE + '/api/leads', { method: 'DELETE' });
+    alert('All leads cleared');
+    await refreshLeads();
+    await refreshStats();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function resetAllSettings() {
+  if (!confirm('This will reset ALL settings. Type RESET to confirm.')) return;
+  const input = prompt('Type RESET to confirm:');
+  if (input !== 'RESET') return;
+  try {
+    await fetch(BASE + '/api/settings/reset', { method: 'POST' });
+    alert('Settings reset. Please reload the page.');
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+// Initial load for new tabs when page loads
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSettings();
+});
 </script>
 </body>
 </html>

@@ -17,6 +17,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr
 
+import html as _html
+
 from ..auth import auth_manager
 from ..stripe_integration import StripeIntegration
 from ..database import Database
@@ -270,11 +272,11 @@ async def profile_page(request: Request):
     <main class="max-w-4xl mx-auto px-4 py-12">
       <h1 class="text-3xl font-bold mb-8">Your Profile</h1>
       <div class="bg-gray-800 p-6 rounded-xl mb-8">
-        <p><strong>Name:</strong> {user['user']['name']}</p>
-        <p><strong>Email:</strong> {user['user']['email']}</p>
-        <p><strong>Company:</strong> {org['name']}</p>
-        <p><strong>Current plan:</strong> {org.get('plan','free').capitalize()}</p>
-        <p><strong>Subscription status:</strong> {sub_status.get('status','none')}</p>
+        <p><strong>Name:</strong> {_html.escape(user['user']['name'])}</p>
+        <p><strong>Email:</strong> {_html.escape(user['user']['email'])}</p>
+        <p><strong>Company:</strong> {_html.escape(org['name'])}</p>
+        <p><strong>Current plan:</strong> {_html.escape(org.get('plan','free')).capitalize()}</p>
+        <p><strong>Subscription status:</strong> {_html.escape(sub_status.get('status','none'))}</p>
       </div>
       <h2 class="text-2xl font-bold mb-4">Available plans</h2>
       <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -309,7 +311,7 @@ async def module_landing(request: Request, module_slug: str):
     <header class="border-b border-gray-800">
       <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
         <a href="/growth" class="text-2xl font-bold tracking-tight">Leviathan <span class="text-emerald-400">Growth</span></a>
-        <span class="text-gray-400">{user['user']['name']}</span>
+          <span class="text-gray-400">{_html.escape(user['user']['name'])}</span>
       </div>
     </header>
     <main class="max-w-4xl mx-auto px-4 py-12 text-center">
@@ -327,7 +329,7 @@ def _leadgen_module_html(user: Dict[str, Any]) -> str:
         <a href="/growth" class="text-2xl font-bold tracking-tight">Leviathan <span class="text-emerald-400">Growth</span></a>
         <div class="flex items-center gap-4">
           <a href="/growth/profile" class="text-sm text-emerald-400 hover:underline">Profile</a>
-          <span class="text-sm text-gray-400">{user['user']['name']}</span>
+          <span class="text-sm text-gray-400">{_html.escape(user['user']['name'])}</span>
         </div>
       </div>
     </header>
@@ -426,6 +428,9 @@ async def api_login(request: Request):
         raise HTTPException(401, str(e))
 
     next_url = request.query_params.get("next", "/growth/")
+    # Validate redirect URL to prevent open redirect attacks
+    if not next_url.startswith("/growth/"):
+        next_url = "/growth/"
     resp = RedirectResponse(next_url, status_code=302)
     resp.set_cookie("growth_token", result["token"], httponly=True, max_age=604800, samesite="lax")
     return resp
