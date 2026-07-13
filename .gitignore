@@ -1,8 +1,53 @@
-# Secrets
+# ─── SECRETS — NEVER COMMIT ──────────────────────────────────────────
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+*.secret
+*.secrets
+vault/
+*.vault
+key_vault.json
+unified_vault.py
+hivemind.vault
+# API Key patterns (generic)
+*_API_KEY
+*_SECRET_KEY
+*_ACCESS_TOKEN
+*_PRIVATE_KEY
+STRIPE_*
+ANTHROPIC_*
+OPENAI_*
+EXA_*
+PERPLEXITY_*
+GOOGLE_ADS_*
+META_*
+TWILIO_*
+SENDGRID_*
+CLEARBIT_*
+HUNTER_*
+APOLLO_*
+PEOPLE_DATA_LABS_*
+LOOX_*
+COMETAPI_*
+ENRICHMENT_*
+SWARM_API_*
+GITHUB_*
+CLOUDFLARE_*
+HETZNER_*
+SUPABASE_*
+DISCORD_*
+JWT_SECRET
+VAULT_MASTER_SEED
 
-# Python
+# ─── Python ──────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.egg-info/

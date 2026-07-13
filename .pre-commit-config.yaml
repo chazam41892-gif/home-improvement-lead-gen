@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: no-env-files
+        name: Block .env files & hardcoded secrets
+        entry: bash scripts/pre-commit-check.sh
+        language: system
+        stages: [commit]
