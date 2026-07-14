@@ -2,8 +2,10 @@ import os
 import httpx
 from typing import Dict, Any
 
+from engine.key_vault import KeyVault
+
 def _headers():
-    token = os.getenv("CRMX_API_KEY", "")
+    token = KeyVault.get("crmx_api_key") or ""
     return {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -12,8 +14,8 @@ def _headers():
     }
 
 async def upsert_contact(lead: Dict[str, Any]) -> Dict[str, Any]:
-    base = os.getenv("CRMX_BASE_URL", "https://services.leadconnectorhq.com").rstrip("/")
-    location_id = os.getenv("CRMX_LOCATION_ID", "")
+    base = (KeyVault.get("crmx_base_url") or "https://services.leadconnectorhq.com").rstrip("/")
+    location_id = KeyVault.get("crmx_location_id") or ""
     url = f"{base}/contacts/"  # placeholder; replace with your tenant's endpoint
 
     payload = {

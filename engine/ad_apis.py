@@ -8,11 +8,12 @@ preview/sandbox response so local development and tests continue to work.
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import httpx
+
+from engine.key_vault import KeyVault
 
 logger = logging.getLogger(__name__)
 
@@ -34,18 +35,18 @@ class AdCampaignPlan:
 
 
 class GoogleAdsAPI:
-    """Google Ads API client (credential-gated)."""
+    """Google Ads API client (credential-gated via KeyVault)."""
 
     SCOPES = ["https://www.googleapis.com/auth/adwords"]
     BASE_URL = "https://googleads.googleapis.com/v16"
 
     def __init__(self) -> None:
-        self.developer_token = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "")
-        self.customer_id = os.getenv("GOOGLE_ADS_CUSTOMER_ID", "")
-        self.login_customer_id = os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "")
-        self.client_id = os.getenv("GOOGLE_ADS_CLIENT_ID", "")
-        self.client_secret = os.getenv("GOOGLE_ADS_CLIENT_SECRET", "")
-        self.refresh_token = os.getenv("GOOGLE_ADS_REFRESH_TOKEN", "")
+        self.developer_token = KeyVault.get("google_ads_dev_token") or ""
+        self.customer_id = KeyVault.get("google_ads_customer_id") or ""
+        self.login_customer_id = KeyVault.get("google_ads_login_customer_id") or ""
+        self.client_id = KeyVault.get("google_ads_client_id") or ""
+        self.client_secret = KeyVault.get("google_ads_client_secret") or ""
+        self.refresh_token = KeyVault.get("google_ads_refresh_token") or ""
 
     @property
     def is_configured(self) -> bool:
@@ -139,14 +140,14 @@ class GoogleAdsAPI:
 
 
 class MetaMarketingAPI:
-    """Meta Marketing API client (credential-gated)."""
+    """Meta Marketing API client (credential-gated via KeyVault)."""
 
     BASE_URL = "https://graph.facebook.com/v18.0"
 
     def __init__(self) -> None:
-        self.access_token = os.getenv("META_ACCESS_TOKEN", "")
-        self.ad_account_id = os.getenv("META_AD_ACCOUNT_ID", "")
-        self.page_id = os.getenv("META_PAGE_ID", "")
+        self.access_token = KeyVault.get("meta_access_token") or ""
+        self.ad_account_id = KeyVault.get("meta_ad_account_id") or ""
+        self.page_id = KeyVault.get("meta_page_id") or ""
 
     @property
     def is_configured(self) -> bool:
@@ -223,7 +224,7 @@ class AdPlatformManager:
 
     @staticmethod
     def _missing_env(prefix: str, keys: List[str]) -> List[str]:
-        return [k for k in keys if not os.getenv(k)]
+        return [k for k in keys if not KeyVault.get(k)]
 
     async def launch(self, plan: AdCampaignPlan) -> Dict[str, Any]:
         results: Dict[str, Any] = {"plan": plan.__dict__}

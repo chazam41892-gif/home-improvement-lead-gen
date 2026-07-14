@@ -1,0 +1,99 @@
+title = "Leviathan Talon Secret Detection"
+[allowlist]
+  description = "Allowlist for test files and examples"
+  paths = [
+    "(?i)test.*\\.py$",
+    "(?i)example.*\\.py$",
+    "(?i)fixture.*\\.py$",
+    "(?i)mock.*\\.py$",
+    "\\.env\\.example$",
+    "SECURITY_PROTOCOL\\.md$",
+  ]
+  regexes = [
+    """(?i)test[_-]?key\s*[:=]\s*["'][a-zA-Z0-9]{10,}""",
+    """(?i)example[_-]?secret\s*[:=]\s*["'][a-zA-Z0-9]{10,}""",
+  ]
+
+[rules]
+  [[rules]]
+    description = "Generic API Key"
+    regex = """(?i)(api[_-]?key|apikey)\s*[:=]\s*["']?[a-zA-Z0-9\-_]{20,}["']?"""
+    tags = ["key", "api"]
+
+  [[rules]]
+    description = "Generic Secret"
+    regex = """(?i)(secret[_-]?key|secretkey)\s*[:=]\s*["']?[a-zA-Z0-9\-_]{20,}["']?"""
+    tags = ["key", "secret"]
+
+  [[rules]]
+    description = "Access Token"
+    regex = """(?i)(access[_-]?token|accesstoken)\s*[:=]\s*["']?[a-zA-Z0-9\-_]{20,}["']?"""
+    tags = ["token", "access"]
+
+  [[rules]]
+    description = "Stripe Secret Key"
+    regex = """sk_live_[a-zA-Z0-9]{24,}"""
+    tags = ["stripe", "key"]
+
+  [[rules]]
+    description = "Stripe Webhook Secret"
+    regex = """whsec_[a-zA-Z0-9]{32,}"""
+    tags = ["stripe", "webhook"]
+
+  [[rules]]
+    description = "Anthropic API Key"
+    regex = """sk-ant-[a-zA-Z0-9\-_]{50,}"""
+    tags = ["anthropic", "key"]
+
+  [[rules]]
+    description = "OpenAI API Key"
+    regex = """sk-[a-zA-Z0-9]{48,}"""
+    tags = ["openai", "key"]
+
+  [[rules]]
+    description = "Exa API Key"
+    regex = """(?i)exa[_-]?key\s*[:=]\s*["']?[a-zA-Z0-9]{20,}["']?"""
+    tags = ["exa", "key"]
+
+  [[rules]]
+    description = "Perplexity API Key"
+    regex = """pplx-[a-zA-Z0-9]{30,}"""
+    tags = ["perplexity", "key"]
+
+  [[rules]]
+    description = "Google Ads Credentials"
+    regex = """(?i)google[_-]?ads[_-]?(developer[_-]?token|customer[_-]?id|refresh[_-]?token)\s*[:=]\s*["']?[a-zA-Z0-9\-_]{20,}["']?"""
+    tags = ["google", "ads"]
+
+  [[rules]]
+    description = "Meta Access Token"
+    regex = """EA[a-zA-Z0-9]{50,}"""
+    tags = ["meta", "token"]
+
+  [[rules]]
+    description = "Twilio Credentials"
+    regex = """(?i)twilio[_-]?(account[_-]?sid|auth[_-]?token|from[_-]?number)\s*[:=]\s*["']?[a-zA-Z0-9\+\-]{20,}["']?"""
+    tags = ["twilio"]
+
+  [[rules]]
+    description = "SendGrid API Key"
+    regex = """SG\.[a-zA-Z0-9\-_]{22}\.[a-zA-Z0-9\-_]{43}"""
+    tags = ["sendgrid", "key"]
+
+  [[rules]]
+    description = "JWT Secret"
+    regex = """(?i)jwt[_-]?secret\s*[:=]\s*["']?[a-zA-Z0-9\-_]{32,}["']?"""
+    tags = ["jwt", "secret"]
+
+  [[rules]]
+    description = "Generic Bearer Token"
+    regex = """Bearer\s+[a-zA-Z0-9\-_\.]{30,}"""
+    tags = ["token", "bearer"]
+
+  [[rules]]
+    description = "Private Key"
+    regex = """-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"""
+    tags = ["private-key"]
+
+[report]
+  format = "json"

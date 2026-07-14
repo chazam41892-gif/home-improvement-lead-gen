@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 
 import stripe
 
+from engine.key_vault import KeyVault
+
 logger = logging.getLogger(__name__)
 
 _DATA_DIR = "data"
@@ -22,11 +24,11 @@ PLANS = {
 
 class StripeIntegration:
     def __init__(self):
-        self.secret_key = os.getenv("STRIPE_SECRET_KEY", "")
-        self.webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+        self.secret_key = KeyVault.get("stripe_secret") or ""
+        self.webhook_secret = KeyVault.get("stripe_webhook") or ""
         stripe.api_key = self.secret_key
         self._price_ids = {
-            plan: os.getenv(f"STRIPE_PRICE_{plan.upper()}", "")
+            plan: KeyVault.get(f"stripe_price_{plan}") or ""
             for plan in PLANS
         }
 

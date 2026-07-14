@@ -22,6 +22,7 @@ import html as _html
 from ..auth import auth_manager
 from ..stripe_integration import StripeIntegration
 from ..database import Database
+from ..key_vault import KeyVault
 from .modules import list_modules, get_module, can_access_module
 from .tracking import _record_event
 
@@ -586,7 +587,7 @@ async def _push_to_crm(lead: Dict[str, Any]):
         logger.warning("CRM push failed for lead %s: %s", lead.get("lead_id"), e)
 
     # Internal webhook notification (n8n-ready)
-    webhook_url = os.getenv("LEAD_WEBHOOK_URL", "")
+    webhook_url = KeyVault.get("lead_webhook_url") or ""
     if webhook_url:
         import httpx
         try:

@@ -7,10 +7,11 @@ simulated result so the nurture engine keeps working in local/dev mode.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any, Dict, Optional
 
 import httpx
+
+from engine.key_vault import KeyVault
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,9 @@ class SMSProvider:
     name = "twilio"
 
     def __init__(self):
-        self.account_sid = os.getenv("TWILIO_ACCOUNT_SID", "")
-        self.auth_token = os.getenv("TWILIO_AUTH_TOKEN", "")
-        self.from_number = os.getenv("TWILIO_FROM_NUMBER", "")
+        self.account_sid = KeyVault.get("twilio_sid") or ""
+        self.auth_token = KeyVault.get("twilio_auth") or ""
+        self.from_number = KeyVault.get("twilio_from") or ""
         self.base_url = "https://api.twilio.com/2010-04-01"
 
     @property
@@ -55,8 +56,8 @@ class EmailProvider:
     name = "sendgrid"
 
     def __init__(self):
-        self.api_key = os.getenv("SENDGRID_API_KEY", "")
-        self.from_email = os.getenv("SENDGRID_FROM_EMAIL", os.getenv("BUSINESS_EMAIL", ""))
+        self.api_key = KeyVault.get("sendgrid") or ""
+        self.from_email = KeyVault.get("sendgrid_from") or KeyVault.get("business_email") or ""
         self.base_url = "https://api.sendgrid.com/v3"
 
     @property
@@ -99,9 +100,9 @@ class CallProvider:
     name = "twilio_call"
 
     def __init__(self):
-        self.account_sid = os.getenv("TWILIO_ACCOUNT_SID", "")
-        self.auth_token = os.getenv("TWILIO_AUTH_TOKEN", "")
-        self.from_number = os.getenv("TWILIO_FROM_NUMBER", "")
+        self.account_sid = KeyVault.get("twilio_sid") or ""
+        self.auth_token = KeyVault.get("twilio_auth") or ""
+        self.from_number = KeyVault.get("twilio_from") or ""
         self.base_url = "https://api.twilio.com/2010-04-01"
 
     @property
