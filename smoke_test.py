@@ -3,6 +3,7 @@ import os
 os.environ["API_KEY"] = "test-key-123"
 os.environ["EXA_API_KEY"] = ""
 os.environ["PERPLEXITY_API_KEY"] = ""
+os.environ["JWT_SECRET"] = "ci-test-secret-do-not-use-in-production"
 
 import main
 from fastapi.testclient import TestClient
@@ -26,7 +27,7 @@ check("Health endpoint", r.status_code == 200 and r.json()["status"] == "ok")
 
 # 2. Trades count
 r = client.get("/api/trades")
-check("44 trades returned", len(r.json()["trades"]) == 44)
+check("45 trades returned", len(r.json()["trades"]) == 45)
 
 # 3. Auth blocks unauthenticated
 r = client.get("/api/leads")
@@ -47,8 +48,8 @@ check("Pagination has total", "total" in data)
 check("Pagination has offset", data["offset"] == 0)
 check("Pagination has limit", data["limit"] == 10)
 
-# 7. Settings
-r = client.get("/api/settings")
+# 7. Settings (requires auth)
+r = client.get("/api/settings", headers={"Authorization": "Bearer test-key-123"})
 s = r.json()
 check("Settings endpoint", r.status_code == 200)
 check("Exa not configured", s["exa_key_configured"] is False)
@@ -91,7 +92,7 @@ check("Lead conversion pipeline", r.status_code == 200 and r.json().get("ok"))
 
 # 14. All trades in every trade endpoint
 r = client.get("/api/trades", headers={"Authorization": "Bearer test-key-123"})
-check("Trades endpoint returns all 44", len(r.json()["trades"]) == 44)
+check("Trades endpoint returns all 45", len(r.json()["trades"]) == 45)
 
 print(f"\n{'='*40}")
 print(f"RESULTS: {passed} passed, {failed} failed out of {passed+failed}")

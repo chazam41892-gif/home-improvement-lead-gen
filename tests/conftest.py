@@ -2,6 +2,7 @@ import os
 os.environ["EXA_API_KEY"] = ""
 os.environ["PERPLEXITY_API_KEY"] = ""
 os.environ["API_KEY"] = "test-api-key-for-ci-only"
+os.environ["JWT_SECRET"] = "ci-test-secret-do-not-use-in-production"
 
 import sys
 from pathlib import Path
