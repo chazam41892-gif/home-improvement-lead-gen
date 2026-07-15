@@ -9,3 +9,4 @@ stripe==11.0.0
 bcrypt==4.2.0
 PyJWT==2.8.0
 cryptography==42.0.8
+email-validator==2.2.0

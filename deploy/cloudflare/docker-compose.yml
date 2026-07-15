@@ -21,9 +21,12 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel run --token ${TUNNEL_TOKEN}
+    command: tunnel --config /etc/cloudflared/config.yml run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml:ro
+      - ~/.cloudflared:/home/nonroot/.cloudflared:ro
     depends_on:
       - leadgen
     restart: always

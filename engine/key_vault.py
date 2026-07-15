@@ -8,6 +8,7 @@ Legacy fallback to ~/.lvtn/unified_vault.py for backward compatibility.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import logging

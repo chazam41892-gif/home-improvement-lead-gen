@@ -1,0 +1,6 @@
+credentials-file: /home/nonroot/.cloudflared/ac5dc813-9f23-4d2a-9fa8-9ff9e2c0b845.json
+ingress:
+- hostname: growth.leviathansi.xyz
+  service: http://leadgen:8080
+- service: http_status:404
+tunnel: ac5dc813-9f23-4d2a-9fa8-9ff9e2c0b845
