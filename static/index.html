@@ -765,6 +765,7 @@ body {
         <button id="tabRevenue" class="tab-btn" onclick="switchTab('revenue')">Revenue</button>
         <button id="tabBilling" class="tab-btn" onclick="switchTab('billing')">Billing</button>
         <button id="tabEnrichment" class="tab-btn" onclick="switchTab('enrichment')">Enrichment</button>
+        <button id="tabVault" class="tab-btn" onclick="switchTab('vault')">Vault</button>
         <button id="tabSettings" class="tab-btn" onclick="switchTab('settings')">Settings</button>
       </div>
       <div class="header-actions">
@@ -1216,16 +1217,31 @@ body {
 
        <div class="settings-section" style="grid-column:1/-1;">
          <h4 style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:16px;font-weight:600;">Smart Routing Pipeline</h4>
-         <div id="routingStepsSettings"></div>
+          <div id="routingStepsSettings"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ <!-- ─── Vault Tab ─── -->
+ <div id="tabVaultContent" class="tab-content" style="display:none;">
+   <div class="chat-area">
+     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+       <h3 style="font-size:1rem;">Key Vault — Credential Status</h3>
+       <div style="display:flex;gap:8px;">
+         <a href="/vault" target="_blank" class="btn btn-primary btn-sm">Manage Keys</a>
+         <button class="btn btn-ghost btn-sm" onclick="loadVaultTab()">&#8635; Refresh</button>
        </div>
      </div>
+     <div id="vaultTabServices" class="card-grid" style="margin-bottom:20px;"></div>
+     <div id="vaultTabProviders" class="card-grid"></div>
    </div>
  </div>
 
  <!-- ─── Leads Tab ─── -->
  <div id="tabLeadsContent" class="tab-content" style="display:none;">
-   <div class="chat-area">
-     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <div class="chat-area">
+      <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
        <h3 style="font-size:1rem;">Lead Inbox</h3>
        <div style="display:flex;gap:8px;flex-wrap:wrap;">
          <button class="btn btn-primary btn-sm" onclick="refreshLeads()">&#8635; Refresh</button>
@@ -1877,6 +1893,7 @@ function switchTab(tab) {
   document.getElementById('tabRevenueContent').style.display = tab === 'revenue' ? '' : 'none';
   document.getElementById('tabBillingContent').style.display = tab === 'billing' ? '' : 'none';
   document.getElementById('tabEnrichmentContent').style.display = tab === 'enrichment' ? '' : 'none';
+  document.getElementById('tabVaultContent').style.display = tab === 'vault' ? '' : 'none';
   document.getElementById('tabLeadsContent').style.display = tab === 'leads' ? '' : 'none';
   document.getElementById('tabNurtureContent').style.display = tab === 'nurture' ? '' : 'none';
   document.getElementById('tabCampaignsContent').style.display = tab === 'campaigns' ? '' : 'none';
@@ -1890,6 +1907,7 @@ function switchTab(tab) {
   document.getElementById('tabRevenue').className = tab === 'revenue' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabBilling').className = tab === 'billing' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabEnrichment').className = tab === 'enrichment' ? 'tab-btn tab-active' : 'tab-btn';
+  document.getElementById('tabVault').className = tab === 'vault' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabLeads').className = tab === 'leads' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabNurture').className = tab === 'nurture' ? 'tab-btn tab-active' : 'tab-btn';
   document.getElementById('tabCampaigns').className = tab === 'campaigns' ? 'tab-btn tab-active' : 'tab-btn';
@@ -1902,6 +1920,9 @@ function switchTab(tab) {
   }
   if (tab === 'landing') {
     loadLandingPages();
+  }
+  if (tab === 'vault') {
+    loadVaultTab();
   }
   if (tab === 'trades') {
     loadTrades();
@@ -2034,6 +2055,92 @@ async function createSchedule() {
     await refreshSchedulerStats();
   } catch(e) {
     alert('Error creating schedule: ' + e.message);
+  }
+}
+
+// ─── Vault Tab ───
+const VAULT_SERVICE_META = {
+  exa: { name: 'Exa AI', desc: 'Web search for lead discovery' },
+  perplexity: { name: 'Perplexity AI', desc: 'AI-powered search' },
+  anthropic: { name: 'Anthropic', desc: 'LLM scoring' },
+  openai: { name: 'OpenAI', desc: 'LLM scoring' },
+  stripe_secret: { name: 'Stripe', desc: 'Payment processing' },
+  apollo: { name: 'Apollo.io', desc: 'B2B enrichment' },
+  clearbit: { name: 'Clearbit', desc: 'Company enrichment' },
+  hunter: { name: 'Hunter.io', desc: 'Email discovery' },
+  twilio_sid: { name: 'Twilio (SID)', desc: 'SMS/calls' },
+  twilio_auth: { name: 'Twilio (Auth)', desc: 'SMS/calls auth' },
+  sendgrid: { name: 'SendGrid', desc: 'Email provider' },
+  google_ads_dev: { name: 'Google Ads', desc: 'Ad campaigns' },
+  meta_token: { name: 'Meta Marketing', desc: 'Ad campaigns' },
+};
+const VAULT_ORDER = Object.keys(VAULT_SERVICE_META);
+
+async function loadVaultTab() {
+  const servicesEl = document.getElementById('vaultTabServices');
+  const providersEl = document.getElementById('vaultTabProviders');
+  servicesEl.innerHTML = '<div class="loading"><div class="spinner"></div>Loading vault status...</div>';
+  providersEl.innerHTML = '<div class="loading"><div class="spinner"></div>Loading providers...</div>';
+  try {
+    const [keysResp, provResp] = await Promise.all([
+      fetch(BASE + '/api/vault/keys', { headers: getAuthHeaders() }),
+      fetch(BASE + '/api/enrich/providers', { headers: getAuthHeaders() }),
+    ]);
+    const keys = keysResp.ok ? await keysResp.json() : {};
+    const provData = provResp.ok ? await provResp.json() : { providers: {} };
+    const providers = provData.providers || {};
+    let configuredCount = 0;
+    servicesEl.innerHTML = '<div class="section-title">Service Keys <span style="font-size:0.8rem;color:var(--text3);font-weight:400;">' +
+      Object.values(keys).filter(k => k.configured).length + '/' + VAULT_ORDER.length + ' configured</span></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">' +
+      VAULT_ORDER.map(svc => {
+        const k = keys[svc] || {};
+        const configured = k.configured || false;
+        if (configured) configuredCount++;
+        const meta = VAULT_SERVICE_META[svc];
+        const maskedKey = k.keys && k.keys.length > 0 ? k.keys[0].masked || '' : '';
+        return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">' +
+          '<div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">' + (meta ? meta.name : svc) + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--text3);margin-bottom:8px;">' + (meta ? meta.desc : '') + '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;"><span class="dot ' + (configured ? 'dot-green' : 'dot-red') + '"></span>' +
+          '<span style="font-size:0.8rem;' + (configured ? 'color:var(--green)' : 'color:var(--text3)') + ';">' + (configured ? 'Configured' : 'Missing') + '</span></div>' +
+          '<div style="font-family:monospace;font-size:0.7rem;color:var(--text3);background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+          (maskedKey ? escapeHtml(maskedKey) : '\u2014') + '</div></div>';
+      }).join('') + '</div>';
+    if (providers.length > 0) {
+      providersEl.innerHTML = '<div class="section-title">Enrichment Providers <span style="font-size:0.8rem;color:var(--text3);font-weight:400;">' +
+        providers.filter(p => p.available).length + '/' + providers.length + ' ready</span></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">' +
+        providers.map(p => {
+          const ready = p.available || false;
+          const id = p.name;
+          return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+            '<span style="font-weight:600;font-size:0.85rem;">' + escapeHtml(p.name || id) + '</span>' +
+            '<button class="toggle ' + (p.enabled ? 'on' : '') + '" onclick="toggleEnrichProvider(\'' + id + '\', ' + (!p.enabled) + ')"></button></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;"><span class="dot ' + (ready ? 'dot-green' : 'dot-red') + '"></span>' +
+            '<span style="font-size:0.75rem;' + (ready ? 'color:var(--green)' : 'color:var(--text3)') + ';">' + (ready ? 'Ready' : 'Missing keys') + '</span></div></div>';
+        }).join('') + '</div>';
+    } else {
+      providersEl.innerHTML = '<div style="color:var(--text3);padding:12px;text-align:center;">No enrichment providers available</div>';
+    }
+  } catch(e) {
+    servicesEl.innerHTML = '<div class="error-box">Error: ' + escapeHtml(e.message) + '</div>';
+    providersEl.innerHTML = '';
+  }
+}
+
+async function toggleEnrichProvider(id, newState) {
+  try {
+    const r = await fetch(BASE + '/api/enrich/providers/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: newState }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    await loadVaultTab();
+  } catch(e) {
+    alert('Error: ' + e.message);
   }
 }
 

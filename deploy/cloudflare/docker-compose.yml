@@ -9,6 +9,7 @@ services:
       - RELOAD=0
       - PORT=8080
       - HOST=0.0.0.0
+      - AUTH_DISABLED=1
     volumes:
       - leadgen_data:/app/data
     restart: always
