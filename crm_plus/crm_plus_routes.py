@@ -279,3 +279,42 @@ async def sync_lead_to_pipeline(req: LeadSyncRequest):
 
 
 import json
+
+
+class CrmPushRequest(BaseModel):
+    lead_ids: List[str]
+    provider: str = "hubspot"
+    config: Optional[dict] = None
+
+
+@router.post("/push")
+async def push_leads_to_crm(req: CrmPushRequest):
+    engine = _engine_ref
+    if not engine:
+        raise HTTPException(503, "Engine not initialized")
+    provider = req.provider.lower()
+    if provider not in ("hubspot", "gohighlevel", "pipedrive"):
+        raise HTTPException(400, f"Unsupported CRM provider: {provider}")
+    leads = [engine._leads.get(lid) for lid in req.lead_ids]
+    leads = [l for l in leads if l is not None]
+    if not leads:
+        raise HTTPException(404, "No valid leads found for given IDs")
+    lead_dicts = []
+    for l in leads:
+        d = {
+            "id": l.id,
+            "title": getattr(l, "title", ""),
+            "name": getattr(l, "name", ""),
+            "email": getattr(l, "email", ""),
+            "phone": getattr(l, "phone", ""),
+            "source": getattr(l, "source", ""),
+            "score": float(getattr(l, "score", LeadScore(50)).total),
+            "notes": getattr(l, "notes", ""),
+            "company": getattr(l, "company", getattr(l, "business_name", "")),
+        }
+        lead_dicts.append(d)
+
+    from engine.crm_push import CrmPush
+    crm = CrmPush()
+    results = await crm.push_leads(lead_dicts, provider=provider, config=req.config or {})
+    return {"ok": True, "results": results}
