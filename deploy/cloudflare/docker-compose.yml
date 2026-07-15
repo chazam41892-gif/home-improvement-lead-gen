@@ -10,6 +10,8 @@ services:
       - PORT=8080
       - HOST=0.0.0.0
       - AUTH_DISABLED=1
+      - API_KEY=mOy894iysZ38GGal2uHaBuSvN6LnPA02o1Iw8cKAQGU
+      - JWT_SECRET=cIpKhW-7XxooT2TtKVcrJHSYNbJLymYsQTWAHQzmLm2zH42CYeritEcLf_Nx1i8d
     volumes:
       - leadgen_data:/app/data
     restart: always

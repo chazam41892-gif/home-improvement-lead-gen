@@ -1238,261 +1238,7 @@ body {
    </div>
  </div>
 
- <!-- ─── Leads Tab ─── -->
- <div id="tabLeadsContent" class="tab-content" style="display:none;">
-    <div class="chat-area">
-      <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-       <h3 style="font-size:1rem;">Lead Inbox</h3>
-       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-         <button class="btn btn-primary btn-sm" onclick="refreshLeads()">&#8635; Refresh</button>
-         <button class="btn btn-success btn-sm" onclick="exportLeadsCSV()">&#8595; Export CSV</button>
-         <button class="btn btn-ghost btn-sm" onclick="clearAllLeads()">&#128465; Clear All</button>
-       </div>
-     </div>
-     <div class="filter-bar">
-       <div class="form-group">
-         <input type="text" id="leadSearchInput" class="form-input" placeholder="Search by name, business, phone, email..." onkeydown="if(event.key==='Enter')filterLeads()">
-       </div>
-       <div class="form-group small">
-         <select id="leadStatusFilter" class="form-input" onchange="filterLeads()">
-           <option value="">All Statuses</option>
-           <option value="new">New</option>
-           <option value="contacted">Contacted</option>
-           <option value="qualified">Qualified</option>
-           <option value="disqualified">Disqualified</option>
-           <option value="nurturing">Nurturing</option>
-         </select>
-       </div>
-       <div class="form-group small">
-         <select id="leadSourceFilter" class="form-input" onchange="filterLeads()">
-           <option value="">All Sources</option>
-         </select>
-       </div>
-       <div class="form-group small">
-         <select id="leadSortSelect" class="form-input" onchange="filterLeads()">
-           <option value="score_desc">Score: High to Low</option>
-           <option value="score_asc">Score: Low to High</option>
-           <option value="date_desc">Newest First</option>
-           <option value="date_asc">Oldest First</option>
-         </select>
-       </div>
-     </div>
-     <div id="leadsTableContainer">
-       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading leads...</div>
-     </div>
-   </div>
- </div>
-
- <!-- ─── Nurture Tab ─── -->
- <div id="tabNurtureContent" class="tab-content" style="display:none;">
-   <div class="chat-area">
-     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-       <h3 style="font-size:1rem;">Nurture Sequences</h3>
-       <button class="btn btn-primary btn-sm" onclick="showCreateSequenceModal()">+ Create Sequence</button>
-     </div>
-     <div id="sequencesList">
-       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading sequences...</div>
-     </div>
-   </div>
- </div>
-
- <!-- ─── Campaigns Tab ─── -->
- <div id="tabCampaignsContent" class="tab-content" style="display:none;">
-   <div class="chat-area">
-     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-       <h3 style="font-size:1rem;">Ad Campaigns</h3>
-       <button class="btn btn-primary btn-sm" onclick="showCreateCampaignModal()">+ Create Campaign</button>
-     </div>
-     <div id="campaignsList">
-       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading campaigns...</div>
-     </div>
-   </div>
- </div>
-
- <!-- ─── CRM Tab ─── -->
- <div id="tabCRMContent" class="tab-content" style="display:none;">
-   <div class="chat-area">
-     <div style="padding:0 0 16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-       <h3 style="font-size:1rem;">CRM Push History</h3>
-       <div style="display:flex;gap:8px;">
-         <button class="btn btn-primary btn-sm" onclick="showPushToCRMModal()">&#8594; Push Leads to CRM</button>
-         <button class="btn btn-ghost btn-sm" onclick="loadCRMHistory()">&#8635; Refresh</button>
-       </div>
-     </div>
-     <div id="crmHistoryList">
-       <div style="text-align:center;padding:40px 0;color:var(--text3);">Loading CRM history...</div>
-     </div>
-   </div>
- </div>
-
- <!-- ─── Analytics Tab ─── -->
- <div id="tabAnalyticsContent" class="tab-content" style="display:none;">
-   <div class="chat-area">
-     <h3 style="font-size:1rem;margin-bottom:16px;">Analytics Dashboard</h3>
-     <div class="metric-grid" id="analyticsMetrics">
-       <div class="metric-card"><div class="label">Total Leads</div><div class="value" id="anTotalLeads">0</div></div>
-       <div class="metric-card"><div class="label">Avg Score</div><div class="value" id="anAvgScore">0</div></div>
-       <div class="metric-card"><div class="label">Searches Run</div><div class="value" id="anSearches">0</div></div>
-       <div class="metric-card"><div class="label">Pipeline Runs</div><div class="value" id="anRuns">0</div></div>
-       <div class="metric-card"><div class="label">Nurture Active</div><div class="value" id="anNurtureActive">0</div></div>
-       <div class="metric-card"><div class="label">CRM Pushes</div><div class="value" id="anCRMPushes">0</div></div>
-     </div>
-     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;">
-       <div class="chart-placeholder" id="sourceChart">Lead Sources Chart (coming soon)</div>
-       <div class="chart-placeholder" id="scoreChart">Score Distribution Chart (coming soon)</div>
-     </div>
-     <div style="margin-top:24px;">
-       <h4 style="font-size:0.9rem;margin-bottom:12px;color:var(--text2);">Recent Pipeline Runs</h4>
-       <div id="recentRunsList"></div>
-     </div>
-   </div>
- </div>
-
- <!-- ─── Settings Tab ─── -->
- <div id="tabSettingsContent" class="tab-content" style="display:none;">
-   <div class="chat-area">
-     <h3 style="font-size:1rem;margin-bottom:16px;">Settings</h3>
-     
-     <div class="settings-section">
-       <h4>&#128272; Business Configuration</h4>
-       <div class="form-row">
-         <div class="form-group">
-           <label>Business Name</label>
-           <input type="text" id="bizName" class="form-input" placeholder="Your Business Name">
-         </div>
-         <div class="form-group">
-           <label>Business Phone</label>
-           <input type="tel" id="bizPhone" class="form-input" placeholder="+1 (555) 123-4567">
-         </div>
-         <div class="form-group">
-           <label>Business Email</label>
-           <input type="email" id="bizEmail" class="form-input" placeholder="hello@yourbiz.com">
-         </div>
-       </div>
-       <div class="form-row">
-         <div class="form-group">
-           <label>Avg Job Size ($)</label>
-           <input type="number" id="bizAvgJob" class="form-input" placeholder="8500" step="100">
-         </div>
-         <div class="form-group">
-           <label>Gross Margin (%)</label>
-           <input type="number" id="bizMargin" class="form-input" placeholder="35" step="1" min="0" max="100">
-         </div>
-         <div class="form-group">
-           <label>Lead Cost Ceiling ($)</label>
-           <input type="number" id="bizCPL" class="form-input" placeholder="85" step="1">
-         </div>
-       </div>
-       <div class="form-row">
-         <div class="form-group">
-           <label>Monthly Ad Budget ($)</label>
-           <input type="number" id="bizBudget" class="form-input" placeholder="2000" step="100">
-         </div>
-         <div class="form-group">
-           <label>Target ROAS</label>
-           <input type="number" id="bizROAS" class="form-input" placeholder="4" step="0.1">
-         </div>
-       </div>
-       <button class="btn btn-primary" onclick="saveBusinessConfig()">Save Business Config</button>
-       <span id="bizConfigSaved" style="margin-left:12px;color:var(--green);font-size:0.8rem;display:none;">Saved!</span>
-     </div>
-
-     <div class="settings-section">
-       <h4>&#128273; API Keys</h4>
-       <div class="key-input-row">
-         <label>Exa AI (Search)</label>
-         <input type="password" id="settingsExaKey" class="form-input" placeholder="Exa API key...">
-         <span class="key-status" id="settingsExaStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Perplexity AI (Search)</label>
-         <input type="password" id="settingsPerplexityKey" class="form-input" placeholder="Perplexity API key...">
-         <span class="key-status" id="settingsPerplexityStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Anthropic (LLM Scoring)</label>
-         <input type="password" id="settingsAnthropicKey" class="form-input" placeholder="Anthropic API key...">
-         <span class="key-status" id="settingsAnthropicStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>OpenAI (LLM Scoring)</label>
-         <input type="password" id="settingsOpenAIKey" class="form-input" placeholder="OpenAI API key...">
-         <span class="key-status" id="settingsOpenAIStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Stripe (Billing)</label>
-         <input type="password" id="settingsStripeKey" class="form-input" placeholder="Stripe Secret Key...">
-         <span class="key-status" id="settingsStripeStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Twilio SID (SMS/Calls)</label>
-         <input type="password" id="settingsTwilioSID" class="form-input" placeholder="Twilio Account SID...">
-         <span class="key-status" id="settingsTwilioSIDStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Twilio Auth Token</label>
-         <input type="password" id="settingsTwilioAuth" class="form-input" placeholder="Twilio Auth Token...">
-         <span class="key-status" id="settingsTwilioAuthStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Twilio From Number</label>
-         <input type="tel" id="settingsTwilioFrom" class="form-input" placeholder="+15551234567">
-         <span class="key-status" id="settingsTwilioFromStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>SendGrid API Key (Email)</label>
-         <input type="password" id="settingsSendGridKey" class="form-input" placeholder="SendGrid API Key...">
-         <span class="key-status" id="settingsSendGridStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>SendGrid From Email</label>
-         <input type="email" id="settingsSendGridFrom" class="form-input" placeholder="noreply@yourdomain.com">
-         <span class="key-status" id="settingsSendGridFromStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Google Ads Developer Token</label>
-         <input type="password" id="settingsGoogleAdsDev" class="form-input" placeholder="Google Ads Developer Token...">
-         <span class="key-status" id="settingsGoogleAdsDevStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Google Ads Customer ID</label>
-         <input type="text" id="settingsGoogleAdsCust" class="form-input" placeholder="123-456-7890">
-         <span class="key-status" id="settingsGoogleAdsCustStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Google Ads Refresh Token</label>
-         <input type="password" id="settingsGoogleAdsRefresh" class="form-input" placeholder="OAuth Refresh Token...">
-         <span class="key-status" id="settingsGoogleAdsRefreshStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Meta Access Token</label>
-         <input type="password" id="settingsMetaToken" class="form-input" placeholder="Meta Marketing API Access Token...">
-         <span class="key-status" id="settingsMetaTokenStatus"></span>
-       </div>
-       <div class="key-input-row">
-         <label>Meta Ad Account ID</label>
-         <input type="text" id="settingsMetaAccount" class="form-input" placeholder="act_123456789">
-         <span class="key-status" id="settingsMetaAccountStatus"></span>
-       </div>
-       <button class="btn btn-primary" onclick="saveAllKeys()">Save All Keys to Vault</button>
-     </div>
-
-     <div class="settings-section">
-       <h4>&#9881; Routing Pipeline</h4>
-       <div id="settingsRoutingSteps"></div>
-     </div>
-
-     <div class="settings-section">
-       <h4>&#128465; Danger Zone</h4>
-       <div style="display:flex;gap:12px;flex-wrap:wrap;">
-         <button class="btn btn-danger" onclick="if(confirm('Clear ALL leads? This cannot be undone.')) clearAllLeads()">Clear All Leads</button>
-         <button class="btn btn-danger" onclick="if(confirm('Reset ALL settings? This cannot be undone.')) resetAllSettings()">Reset All Settings</button>
-       </div>
-     </div>
-   </div>
- </div>
-
- <!-- ─── Lead Detail Modal ─── -->
+  <!-- ─── Lead Detail Modal ─── -->
 <div id="leadModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -2890,35 +2636,36 @@ async function loadCampaigns() {
   const container = $('campaignsList');
   container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3);"><div class="spinner" style="margin:0 auto 8px;"></div>Loading campaigns...</div>';
   try {
-    const r = await fetch(BASE + '/api/ads/platforms/status');
-    const data = await r.json();
-    renderCampaigns(data);
+    const [statusResp, listResp] = await Promise.all([
+      fetch(BASE + '/api/ads/platforms/status'),
+      fetch(BASE + '/api/ads/campaigns'),
+    ]);
+    const statusData = statusResp.ok ? await statusResp.json() : {};
+    const listData = listResp.ok ? await listResp.json() : { campaigns: [] };
+    renderCampaigns(statusData, listData.campaigns || []);
   } catch(e) {
     container.innerHTML = '<div class="error-box">Error: ' + escapeHtml(e.message) + '</div>';
   }
 }
 
-function renderCampaigns(data) {
+function renderCampaigns(statusData, campaigns) {
   const container = $('campaignsList');
-  const platforms = data.platforms || {};
-  const hasConfig = platforms.google?.configured || platforms.meta?.configured;
-  
+  const google = statusData.google_ads || {};
+  const meta = statusData.meta || {};
+  const hasConfig = google.configured || meta.configured;
+
   if (!hasConfig) {
     container.innerHTML = '<div class="empty-state"><div class="icon">&#128240;</div><h3>No Ad Platforms Configured</h3><p>Add Google Ads and/or Meta API keys in Settings to create campaigns.</p></div>';
     return;
   }
-  
+
   let html = '<div style="margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">';
   html += '<h4 style="margin-bottom:8px;">Platform Status</h4>';
   html += '<div style="display:flex;gap:16px;flex-wrap:wrap;">';
-  if (platforms.google) {
-    html += '<span class="key-status ' + (platforms.google.configured ? '' : 'dot-red') + '"><span class="dot ' + (platforms.google.configured ? 'dot-green' : 'dot-red') + '"></span><span>Google Ads: ' + (platforms.google.configured ? 'Connected' : 'Not Configured') + '</span></span>';
-  }
-  if (platforms.meta) {
-    html += '<span class="key-status ' + (platforms.meta.configured ? '' : 'dot-red') + '"><span class="dot ' + (platforms.meta.configured ? 'dot-green' : 'dot-red') + '"></span><span>Meta Ads: ' + (platforms.meta.configured ? 'Connected' : 'Not Configured') + '</span></span>';
-  }
+  html += '<span class="key-status"><span class="dot ' + (google.configured ? 'dot-green' : 'dot-red') + '"></span><span>Google Ads: ' + (google.configured ? 'Connected' : 'Not Configured') + '</span></span>';
+  html += '<span class="key-status"><span class="dot ' + (meta.configured ? 'dot-green' : 'dot-red') + '"></span><span>Meta Ads: ' + (meta.configured ? 'Connected' : 'Not Configured') + '</span></span>';
   html += '</div></div>';
-  
+
   // Campaign creation form
   html += '<div style="padding:16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);margin-bottom:16px;">';
   html += '<h4 style="margin-bottom:12px;">Create New Campaign</h4>';
@@ -2934,7 +2681,21 @@ function renderCampaigns(data) {
   html += '</div>';
   html += '<button class="btn btn-primary" onclick="createAdCampaign()">Create Campaign</button>';
   html += '</div>';
-  
+
+  // Past campaigns list
+  if (campaigns && campaigns.length > 0) {
+    html += '<div style="padding:16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">';
+    html += '<h4 style="margin-bottom:12px;">Past Campaigns (' + campaigns.length + ')</h4>';
+    html += campaigns.map(c => {
+      const statusColor = c.status === 'created' ? 'var(--green)' : 'var(--text3)';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
+        '<div><div style="font-weight:600;font-size:0.85rem;">' + escapeHtml(c.name) + '</div>' +
+        '<div style="font-size:0.75rem;color:var(--text3);">' + escapeHtml(c.platform || '') + ' &middot; $' + (c.daily_budget_dollars || 0) + '/day &middot; ' + escapeHtml(c.industry || '') + '</div></div>' +
+        '<span style="font-size:0.75rem;color:' + statusColor + ';">' + escapeHtml(c.status) + '</span></div>';
+    }).join('');
+    html += '</div>';
+  }
+
   container.innerHTML = html;
 }
 

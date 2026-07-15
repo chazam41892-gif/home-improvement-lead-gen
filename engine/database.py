@@ -181,6 +181,26 @@ class Database:
                     html TEXT
                 )
             """)
+            # Create ad_campaigns table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS ad_campaigns (
+                    campaign_id TEXT PRIMARY KEY,
+                    name TEXT,
+                    platform TEXT,
+                    industry TEXT,
+                    location TEXT,
+                    daily_budget_dollars REAL,
+                    objective TEXT,
+                    status TEXT DEFAULT 'created',
+                    headline TEXT,
+                    description TEXT,
+                    cta TEXT,
+                    keywords TEXT,
+                    landing_page_url TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    platform_response TEXT
+                )
+            """)
             # Create utm_events table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS utm_events (

@@ -737,43 +737,79 @@ async def ads_platform_status(request: Request):
     return ad_platforms.status()
 
 
+@app.get("/api/ads/campaigns")
+async def ads_list_campaigns(request: Request):
+    verify_api_key(request)
+    from engine.database import Database
+    with Database.get_connection() as conn:
+        rows = conn.execute("SELECT * FROM ad_campaigns ORDER BY created_at DESC").fetchall()
+    return {"campaigns": [dict(r) for r in rows]}
+
+
 @app.post("/api/ads/platforms/launch")
 async def ads_platform_launch(data: Dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request, tokens=3)
-    required = ["platform", "name", "industry", "landing_page_url"]
-    missing = [f for f in required if not data.get(f)]
-    if missing:
-        raise HTTPException(400, f"Missing required fields: {', '.join(missing)}")
+    # Accept frontend field names (campaign_name, trade, daily_budget) or backend names (name, industry, budget_cents)
+    name = data.get("campaign_name") or data.get("name") or ""
+    industry = data.get("trade") or data.get("industry") or ""
+    platform = data.get("platform", "google")
+    location = data.get("location", "")
+    daily_budget = data.get("daily_budget") or data.get("budget_cents", 50)
+    objective = data.get("objective", "leads")
+    landing_page = data.get("landing_page_url") or data.get("landing_page", "")
+
+    if not name or not industry:
+        raise HTTPException(400, "name/campaign_name and trade/industry are required")
+
+    budget_cents = int(float(daily_budget) * 100) if isinstance(daily_budget, (int, float, str)) and float(daily_budget) < 10000 else int(daily_budget)
 
     copy = ads_gen.generate_ad_copy(
-        industry=data["industry"],
-        location=data.get("location", ""),
+        industry=industry,
+        location=location,
         usp=data.get("usp", ""),
-        platform="google" if data["platform"] in ("google", "google_ads", "both") else "facebook",
+        platform="google" if platform in ("google", "google_ads", "both") else "facebook",
         count=1,
     )[0]
 
-    keywords = ads_gen.generate_keywords(
-        industry=data["industry"],
-        location=data.get("location", ""),
-    )
+    keywords = ads_gen.generate_keywords(industry=industry, location=location)
 
     plan = AdCampaignPlan(
-        platform=data["platform"],
-        name=data["name"],
-        budget_cents=int(data.get("budget_cents", 5000)),
-        industry=data["industry"],
-        location=data.get("location", ""),
+        platform=platform,
+        name=name,
+        budget_cents=budget_cents,
+        industry=industry,
+        location=location,
         headline=copy["headline"],
         description=copy["description"],
         cta=copy["cta"],
         keywords=keywords.get("broad", []),
-        landing_page_url=data["landing_page_url"],
+        landing_page_url=landing_page,
         start_date=data.get("start_date"),
         end_date=data.get("end_date"),
     )
-    return await ad_platforms.launch(plan)
+
+    result = await ad_platforms.launch(plan)
+    campaign_id = f"camp_{uuid.uuid4().hex[:12]}"
+
+    # Persist to database
+    from engine.database import Database
+    with Database.get_connection() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO ad_campaigns
+                (campaign_id, name, platform, industry, location, daily_budget_dollars, objective,
+                 status, headline, description, cta, keywords, landing_page_url, platform_response)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            campaign_id, name, platform, industry, location, float(daily_budget),
+            objective, "created", copy["headline"], copy["description"], copy["cta"],
+            json.dumps(keywords.get("broad", [])), landing_page,
+            json.dumps({k: v for k, v in result.items() if k != "plan"})
+        ))
+        conn.commit()
+
+    result["campaign_id"] = campaign_id
+    return result
 
 # ─── Nurture Engine ────────────────────────────────────────────────
 
