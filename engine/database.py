@@ -56,6 +56,34 @@ class Database:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            # Migration: add missing columns for schema drift
+            existing = {r[1] for r in conn.execute("PRAGMA table_info(leads)").fetchall()}
+            cols = {
+                "project_description": "TEXT",
+                "sms_consent": "INTEGER DEFAULT 0",
+                "email_consent": "INTEGER DEFAULT 0",
+                "call_consent": "INTEGER DEFAULT 0",
+                "consent_source": "TEXT",
+                "website": "TEXT",
+                "employee_count": "TEXT",
+                "revenue": "TEXT",
+                "confidence_score": "REAL",
+                "enriched_at": "TEXT",
+                "opt_out_sms_at": "TEXT",
+                "opt_out_email_at": "TEXT",
+                "contact_name": "TEXT",
+                "utm_content": "TEXT",
+                "utm_term": "TEXT",
+            }
+            for col, dtype in cols.items():
+                if col not in existing:
+                    conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {dtype}")
+            # Ensure first_name/last_name/address exist before UPDATE that references them
+            for col, dtype in [("first_name", "TEXT"), ("last_name", "TEXT"), ("address", "TEXT")]:
+                if col not in existing:
+                    conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {dtype}")
+            if "contact_name" in existing:
+                conn.execute("UPDATE leads SET first_name = contact_name WHERE first_name IS NULL OR first_name = ''")
             # Create trade_accounts table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS trade_accounts (
