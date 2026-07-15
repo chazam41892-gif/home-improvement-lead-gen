@@ -7,8 +7,24 @@ on:
     branches: [main, leadgen-agents]
 
 jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gitleaks — detect hardcoded secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: TruffleHog — deep entropy scan
+        run: |
+          docker run --rm -v "$PWD:/repo" trufflesecurity/trufflehog:latest \
+            filesystem /repo --no-update
+
   test:
     runs-on: ubuntu-latest
+    needs: secrets-scan
 
     steps:
       - uses: actions/checkout@v4
