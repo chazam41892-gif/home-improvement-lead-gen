@@ -70,6 +70,13 @@ SERVICE_KEYS = {
     "loox": {"env_var": "LOOX_API_KEY", "doc": "Loox — reverse phone & address lookup", "url": "https://www.loox.com"},
     "cometapi": {"env_var": "COMETAPI_API_KEY", "doc": "CometAPI — alternate LLM provider (OpenAI-compatible, 500+ models)", "url": "https://www.cometapi.com"},
     "enrichment_key": {"env_var": "ENRICHMENT_API_KEY", "doc": "Generic enrichment fallback key", "url": ""},
+    "crmx_api_key": {"env_var": "CRMX_API_KEY", "doc": "GoHighLevel/CRM+ Access Token", "url": "https://services.leadconnectorhq.com"},
+    "crmx_location_id": {"env_var": "CRMX_LOCATION_ID", "doc": "GoHighLevel/CRM+ Location ID", "url": ""},
+    "crmx_base_url": {"env_var": "CRMX_BASE_URL", "doc": "GoHighLevel/CRM+ Base API URL", "url": ""},
+    "salesforce_access_token": {"env_var": "SALESFORCE_ACCESS_TOKEN", "doc": "Salesforce Access Bearer Token", "url": "https://login.salesforce.com"},
+    "salesforce_instance_url": {"env_var": "SALESFORCE_INSTANCE_URL", "doc": "Salesforce Instance Domain URL", "url": ""},
+    "zoho_access_token": {"env_var": "ZOHO_ACCESS_TOKEN", "doc": "Zoho CRM OAuth Access Token", "url": "https://www.zoho.com/crm/developer/docs/"},
+    "zoho_api_domain": {"env_var": "ZOHO_API_DOMAIN", "doc": "Zoho CRM API Domain URL", "url": ""},
 }
 
 @dataclass

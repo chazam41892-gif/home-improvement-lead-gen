@@ -9,6 +9,7 @@ from .base import EnrichmentProvider, EnrichmentResult
 from .apollo_enricher import ApolloEnricher
 from .exa_enricher import ExaEnricher
 from .llm_enricher import LLMEnricher
+from .browser_enricher import BrowserEnricher
 from ..key_vault import KeyVault
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,12 @@ class EnrichOrchestrator:
 
     def _init_providers(self):
         self.providers = []
-        for cls, name in [(ApolloEnricher, "apollo_enricher"), (ExaEnricher, "exa_enricher"), (LLMEnricher, "llm_enricher")]:
+        for cls, name in [
+            (ApolloEnricher, "apollo_enricher"),
+            (ExaEnricher, "exa_enricher"),
+            (LLMEnricher, "llm_enricher"),
+            (BrowserEnricher, "browser_enricher"),
+        ]:
             if not self._provider_enabled.get(name, True):
                 continue
             instance = cls()
@@ -89,11 +95,11 @@ class EnrichOrchestrator:
                 "input_preferences": p.input_preferences,
                 "input_required": p.input_required,
             }
-            for p in [ApolloEnricher(), ExaEnricher(), LLMEnricher()]
+            for p in [ApolloEnricher(), ExaEnricher(), LLMEnricher(), BrowserEnricher()]
         ]
 
     def set_provider_enabled(self, service: str, enabled: bool) -> bool:
-        valid = {"apollo_enricher", "exa_enricher", "llm_enricher"}
+        valid = {"apollo_enricher", "exa_enricher", "llm_enricher", "browser_enricher"}
         if service not in valid:
             return False
         self._provider_enabled[service] = enabled

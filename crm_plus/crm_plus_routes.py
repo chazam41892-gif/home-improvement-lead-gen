@@ -293,7 +293,7 @@ async def push_leads_to_crm(req: CrmPushRequest):
     if not engine:
         raise HTTPException(503, "Engine not initialized")
     provider = req.provider.lower()
-    if provider not in ("hubspot", "gohighlevel", "pipedrive"):
+    if provider not in ("hubspot", "gohighlevel", "pipedrive", "salesforce", "zoho"):
         raise HTTPException(400, f"Unsupported CRM provider: {provider}")
     leads = [engine._leads.get(lid) for lid in req.lead_ids]
     leads = [l for l in leads if l is not None]

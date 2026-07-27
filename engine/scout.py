@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 from .search.base import SearchProvider, SearchResult
 from .search.exa import ExaSearchProvider
 from .search.perplexity import PerplexitySearchProvider
+from .search.browser_agent import BrowserSearchProvider
 from .utils.scoring import score_lead, LeadScore
 from .utils.export import export_to_csv, export_to_json
 from .router import SmartRouter, DEFAULT_ROUTING_CONFIG
@@ -116,6 +117,7 @@ class LeadScoutEngine:
                  perplexity_api_key: Optional[str] = None):
         self._exa: Optional[ExaSearchProvider] = None
         self._perplexity: Optional[PerplexitySearchProvider] = None
+        self._browser = BrowserSearchProvider()
         if exa_api_key:
             self._exa = ExaSearchProvider(api_key=exa_api_key)
         if perplexity_api_key:
@@ -173,6 +175,9 @@ class LeadScoutEngine:
                 return {"ok": False, "error": "Perplexity API key not configured. Add it in Settings.", "leads": [], "count": 0}
             search_fn = self._perplexity.search
             logger.info(f"Searching (Perplexity): {config.build_search_query()}")
+        elif provider_name == "browser":
+            search_fn = self._browser.search
+            logger.info(f"Searching (Browser): {config.build_search_query()}")
         else:
             if not self.has_exa_key:
                 return {"ok": False, "error": "Exa API key not configured. Add it in Settings.", "leads": [], "count": 0}

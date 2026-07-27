@@ -75,7 +75,11 @@ class CrmPush:
                     res = await upsert_contact(lead)
                     if res.get("ok"):
                         result["ok"] = True
-                        result["remote_id"] = res.get("id")
+                        body = res.get("body") or {}
+                        remote_id = None
+                        if isinstance(body, dict):
+                            remote_id = body.get("id") or body.get("contact", {}).get("id")
+                        result["remote_id"] = remote_id
                         logger.info("GoHighLevel push succeeded for lead %s", lead_id)
                     else:
                         result["error"] = res.get("body", "GoHighLevel error")
@@ -83,6 +87,91 @@ class CrmPush:
                 except Exception as e:
                     result["error"] = str(e)
                     logger.error("GoHighLevel request failed: %s", e)
+
+            elif provider == "salesforce":
+                access_token = self._get_key("salesforce_access_token", "SALESFORCE_ACCESS_TOKEN")
+                instance_url = self._get_key("salesforce_instance_url", "SALESFORCE_INSTANCE_URL")
+                if not access_token or not instance_url:
+                    result["error"] = "SALESFORCE_ACCESS_TOKEN or SALESFORCE_INSTANCE_URL not configured"
+                    logger.warning(result["error"])
+                    results.append(result)
+                    continue
+                url = f"{instance_url.rstrip('/')}/services/data/v59.0/sobjects/Lead"
+                title = lead.get("title") or lead.get("name") or "Contact"
+                parts = title.split(" ", 1)
+                payload = {
+                    "FirstName": lead.get("first_name") or parts[0],
+                    "LastName": lead.get("last_name") or (parts[1] if len(parts) > 1 else "Contact"),
+                    "Company": lead.get("company", lead.get("business_name", "")) or "Unknown Company",
+                    "Email": lead.get("email", ""),
+                    "Phone": lead.get("phone", ""),
+                    "Description": lead.get("notes", ""),
+                }
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(
+                            url,
+                            json=payload,
+                            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+                        )
+                    if resp.status_code >= 400:
+                        result["error"] = resp.text[:300]
+                        logger.error("Salesforce push failed: %s", resp.text)
+                    else:
+                        data = resp.json()
+                        result["ok"] = True
+                        result["remote_id"] = data.get("id")
+                        logger.info("Salesforce push succeeded for lead %s", lead_id)
+                except Exception as e:
+                    result["error"] = str(e)
+                    logger.error("Salesforce request failed: %s", e)
+
+            elif provider == "zoho":
+                access_token = self._get_key("zoho_access_token", "ZOHO_ACCESS_TOKEN")
+                api_domain = self._get_key("zoho_api_domain", "ZOHO_API_DOMAIN") or "https://www.zohoapis.com"
+                if not access_token:
+                    result["error"] = "ZOHO_ACCESS_TOKEN not configured"
+                    logger.warning(result["error"])
+                    results.append(result)
+                    continue
+                url = f"{api_domain.rstrip('/')}/crm/v5/Leads"
+                title = lead.get("title") or lead.get("name") or "Contact"
+                parts = title.split(" ", 1)
+                payload = {
+                    "data": [
+                        {
+                            "First_Name": lead.get("first_name") or parts[0],
+                            "Last_Name": lead.get("last_name") or (parts[1] if len(parts) > 1 else "Contact"),
+                            "Company": lead.get("company", lead.get("business_name", "")) or "Unknown Company",
+                            "Email": lead.get("email", ""),
+                            "Phone": lead.get("phone", ""),
+                            "Description": lead.get("notes", ""),
+                        }
+                    ]
+                }
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(
+                            url,
+                            json=payload,
+                            headers={"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"},
+                        )
+                    if resp.status_code >= 400:
+                        result["error"] = resp.text[:300]
+                        logger.error("Zoho CRM push failed: %s", resp.text)
+                    else:
+                        data = resp.json()
+                        result_data = data.get("data", [{}])[0]
+                        if result_data.get("status") == "success":
+                            result["ok"] = True
+                            result["remote_id"] = result_data.get("details", {}).get("id")
+                            logger.info("Zoho CRM push succeeded for lead %s", lead_id)
+                        else:
+                            result["error"] = result_data.get("message", "Zoho CRM error")
+                            logger.error("Zoho CRM push failed: %s", result["error"])
+                except Exception as e:
+                    result["error"] = str(e)
+                    logger.error("Zoho CRM request failed: %s", e)
 
             elif provider == "pipedrive":
                 api_key = self._get_key("pipedrive", "PIPEDRIVE_API_KEY")

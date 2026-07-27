@@ -677,6 +677,7 @@ body {
         <select id="searchProvider" class="form-input">
           <option value="exa">Exa AI</option>
           <option value="perplexity">Perplexity</option>
+          <option value="browser">Browser Agent (Key-less)</option>
         </select>
       </div>
       <div class="row2">
@@ -858,6 +859,7 @@ body {
               <select id="schedProvider" class="form-input">
                 <option value="exa">Exa AI</option>
                 <option value="perplexity">Perplexity</option>
+                <option value="browser">Browser Agent (Key-less)</option>
               </select>
             </div>
             <div class="form-group">
@@ -1042,6 +1044,8 @@ body {
              <option value="hubspot">HubSpot</option>
              <option value="gohighlevel">GoHighLevel</option>
              <option value="pipedrive">Pipedrive</option>
+             <option value="salesforce">Salesforce</option>
+             <option value="zoho">Zoho CRM</option>
            </select>
          </div>
          <div class="form-group" style="flex:1;min-width:200px;">
@@ -2446,7 +2450,7 @@ async function deleteLead(id) {
 }
 
 async function pushLeadToCRM(id) {
-  const provider = prompt('CRM Provider (hubspot, gohighlevel, pipedrive):', 'hubspot');
+  const provider = prompt('CRM Provider (hubspot, gohighlevel, pipedrive, salesforce, zoho):', 'hubspot');
   if (!provider) return;
   try {
     const r = await fetch(BASE + '/api/crm/push', {
