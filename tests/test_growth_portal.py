@@ -9,7 +9,10 @@ import main
 
 @pytest.fixture
 def client():
-    return TestClient(main.app)
+    from engine.auth import auth_manager
+    auth_manager._ensure_tables()
+    with TestClient(main.app) as c:
+        yield c
 
 
 def test_growth_portal_home(client):

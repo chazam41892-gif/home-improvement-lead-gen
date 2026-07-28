@@ -457,7 +457,7 @@ async def google_login(request: Request):
         "prompt": "select_account"
     }
     google_auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
-    return RedirectResponse(google_auth_url)
+    return RedirectResponse(google_auth_url, status_code=302)
 
 
 @router.get("/auth/google/callback")
