@@ -77,6 +77,8 @@ SERVICE_KEYS = {
     "salesforce_instance_url": {"env_var": "SALESFORCE_INSTANCE_URL", "doc": "Salesforce Instance Domain URL", "url": ""},
     "zoho_access_token": {"env_var": "ZOHO_ACCESS_TOKEN", "doc": "Zoho CRM OAuth Access Token", "url": "https://www.zoho.com/crm/developer/docs/"},
     "zoho_api_domain": {"env_var": "ZOHO_API_DOMAIN", "doc": "Zoho CRM API Domain URL", "url": ""},
+    "google_oauth_client_id": {"env_var": "GOOGLE_OAUTH_CLIENT_ID", "doc": "Google OAuth Client ID for sign-in", "url": "https://console.cloud.google.com"},
+    "google_oauth_client_secret": {"env_var": "GOOGLE_OAUTH_CLIENT_SECRET", "doc": "Google OAuth Client Secret", "url": "https://console.cloud.google.com"},
 }
 
 @dataclass

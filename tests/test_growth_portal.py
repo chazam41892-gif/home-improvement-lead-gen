@@ -83,3 +83,41 @@ def test_business_evaluate_lead(client):
     # The route requires API key auth; without it we get 401, which proves it's wired.
     resp = client.post("/api/business/evaluate-lead", json={"trade": "plumbing", "lead_score": 75})
     assert resp.status_code in (200, 401)
+
+
+from unittest.mock import AsyncMock, patch
+
+def test_google_login_redirect(client):
+    with patch("engine.key_vault.KeyVault.get", return_value="test-client-id"):
+        resp = client.get("/growth/auth/google/login", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "accounts.google.com" in resp.headers["location"]
+        assert "client_id=test-client-id" in resp.headers["location"]
+
+@pytest.mark.asyncio
+async def test_google_callback_flow(client):
+    with patch("engine.key_vault.KeyVault.get") as mock_get, \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, \
+         patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get_info:
+         
+        mock_get.side_effect = lambda key: "test-client-id" if "client_id" in key else "test-secret"
+        
+        mock_resp = AsyncMock()
+        mock_resp.status_code = 200
+        mock_resp.json = lambda: {"access_token": "google-test-access-token"}
+        mock_post.return_value = mock_resp
+        
+        mock_info_resp = AsyncMock()
+        mock_info_resp.status_code = 200
+        mock_info_resp.json = lambda: {
+            "email": "oauth-test-user@example.com",
+            "name": "OAuth Test User",
+            "sub": "google-sub-id-12345"
+        }
+        mock_get_info.return_value = mock_info_resp
+        
+        resp = client.get("/growth/auth/google/callback?code=test-auth-code&state=/growth/profile", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "/growth/profile"
+        assert "growth_token" in resp.cookies
+

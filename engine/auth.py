@@ -70,6 +70,7 @@ class AuthManager:
                     name TEXT NOT NULL,
                     org_id TEXT NOT NULL,
                     role TEXT DEFAULT 'member',
+                    google_id TEXT,
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (org_id) REFERENCES orgs(id)
                 );
@@ -96,6 +97,15 @@ class AuthManager:
                     UNIQUE(org_id, slug)
                 );
             """)
+            # Migration: add google_id to users if not present
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN google_id TEXT;")
+            except Exception:
+                pass
+            try:
+                conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);")
+            except Exception:
+                pass
             conn.commit()
 
     def register(self, email: str, password: str, name: str, org_name: str) -> Dict[str, Any]:
@@ -337,6 +347,86 @@ class AuthManager:
             cursor = conn.execute("DELETE FROM org_verticals WHERE id = ? AND org_id = ?", (vertical_id, org_id))
             conn.commit()
             return cursor.rowcount > 0
+
+    def get_user_by_google_id(self, google_id: str) -> Optional[Dict[str, Any]]:
+        with Database.get_connection() as conn:
+            row = conn.execute(
+                "SELECT id, email, name, org_id, role, google_id, created_at FROM users WHERE google_id = ?",
+                (google_id,)
+            ).fetchone()
+            if row:
+                return dict(row)
+            return None
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        email = email.strip().lower()
+        with Database.get_connection() as conn:
+            row = conn.execute(
+                "SELECT id, email, name, org_id, role, google_id, created_at FROM users WHERE email = ?",
+                (email,)
+            ).fetchone()
+            if row:
+                return dict(row)
+            return None
+
+    def link_google_id(self, user_id: str, google_id: str):
+        with Database.get_connection() as conn:
+            conn.execute("UPDATE users SET google_id = ? WHERE id = ?", (google_id, user_id))
+            conn.commit()
+
+    def register_google_user(self, email: str, name: str, google_id: str) -> Dict[str, Any]:
+        email = email.strip().lower()
+        with Database.get_connection() as conn:
+            existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+            if existing:
+                raise ValueError("Email already registered")
+
+            org_id = uuid.uuid4().hex[:16]
+            org_name = f"{name}'s Team"
+            slug = org_name.lower()
+            slug = __import__("re").sub(r"[^a-z0-9]+", "-", slug).strip("-")[:50]
+            slug = slug or f"org-{org_id[:8]}"
+            suffix = 0
+            base_slug = slug
+            while True:
+                existing_slug = conn.execute("SELECT id FROM orgs WHERE slug = ?", (slug,)).fetchone()
+                if not existing_slug:
+                    break
+                suffix += 1
+                slug = f"{base_slug}-{suffix}"[:50]
+            now = datetime.now(timezone.utc).isoformat()
+            conn.execute(
+                "INSERT INTO orgs (id, name, slug, created_at) VALUES (?, ?, ?, ?)",
+                (org_id, org_name, slug, now),
+            )
+
+            user_id = uuid.uuid4().hex[:16]
+            # Use random password hash for google users to satisfy database constraint
+            dummy_password = secrets.token_hex(32)
+            pw_hash = _hash_password(dummy_password)
+            conn.execute(
+                "INSERT INTO users (id, email, password_hash, name, org_id, role, google_id, created_at) VALUES (?, ?, ?, ?, ?, 'owner', ?, ?)",
+                (user_id, email, pw_hash, name, org_id, google_id, now),
+            )
+
+            api_key = _generate_api_key()
+            key_hash = _hash_api_key(api_key)
+            key_id = uuid.uuid4().hex[:16]
+            conn.execute(
+                "INSERT INTO api_keys (id, user_id, org_id, key_hash, name, created_at) VALUES (?, ?, ?, ?, 'default', ?)",
+                (key_id, user_id, org_id, key_hash, now),
+            )
+
+            self._seed_default_verticals(conn, org_id, now)
+            conn.commit()
+
+            token = self._create_jwt(user_id, org_id, email, "owner")
+            return {
+                "user": {"id": user_id, "email": email, "name": name, "org_id": org_id, "role": "owner", "google_id": google_id},
+                "org": {"id": org_id, "name": org_name, "slug": slug, "plan": "free"},
+                "api_key": api_key,
+                "token": token,
+            }
 
     def get_user_by_api_key(self, api_key: str) -> Optional[Dict[str, Any]]:
         info = self.verify_api_key(api_key)

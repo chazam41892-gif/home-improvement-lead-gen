@@ -9,9 +9,11 @@ import json
 import logging
 import os
 import uuid
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
+import httpx
 
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -181,7 +183,8 @@ async def portal_home(request: Request):
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
-    body = """
+    next_param = urllib.parse.quote(request.query_params.get("next", "/growth/"))
+    body = f"""
     <div class="min-h-screen flex items-center justify-center px-4">
       <div class="bg-gray-800 p-8 rounded-xl max-w-md w-full">
         <h1 class="text-2xl font-bold mb-6">Create your account</h1>
@@ -192,6 +195,23 @@ async def register_page(request: Request):
           <input type="text" name="org_name" placeholder="Company name" required class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2">
           <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded">Create account</button>
         </form>
+        <div class="relative my-6">
+          <div class="absolute inset-0 flex items-center" aria-hidden="true">
+            <div class="w-full border-t border-gray-600"></div>
+          </div>
+          <div class="relative flex justify-center text-sm">
+            <span class="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+          </div>
+        </div>
+        <a href="/growth/auth/google/login?next={next_param}" class="w-full flex justify-center items-center gap-2 bg-white hover:bg-gray-100 text-gray-900 font-bold py-2 px-4 rounded border border-gray-300 transition">
+          <svg class="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.6 15.01 1 12 1 7.24 1 3.2 3.73 1.24 7.72l3.87 3a7.02 7.02 0 0 1 6.89-5.68z"/>
+            <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.86c2.26-2.08 3.58-5.15 3.58-8.71z"/>
+            <path fill="#FBBC05" d="M5.11 14.72a7 7 0 0 1 0-5.44l-3.87-3a11.96 11.96 0 0 0 0 11.44l3.87-3z"/>
+            <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.86-3a7.01 7.01 0 0 1-11.06-4.37l-3.87 3A11.96 11.96 0 0 0 12 23z"/>
+          </svg>
+          Sign in with Google
+        </a>
         <p class="mt-4 text-sm text-gray-400">Already have an account? <a href="/growth/login" class="text-emerald-400 hover:underline">Login</a></p>
       </div>
     </div>
@@ -201,16 +221,34 @@ async def register_page(request: Request):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    body = """
+    next_param = urllib.parse.quote(request.query_params.get("next", "/growth/"))
+    body = f"""
     <div class="min-h-screen flex items-center justify-center px-4">
       <div class="bg-gray-800 p-8 rounded-xl max-w-md w-full">
         <h1 class="text-2xl font-bold mb-6">Log in to Leviathan Growth</h1>
-        <form action="/growth/api/login" method="POST" class="space-y-4">
+        <form action="/growth/api/login?next={next_param}" method="POST" class="space-y-4">
           <input type="email" name="email" placeholder="Email" required class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2">
           <input type="password" name="password" placeholder="Password" required class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2">
           <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded">Log in</button>
         </form>
-        <p class="mt-4 text-sm text-gray-400">No account? <a href="/growth/register" class="text-emerald-400 hover:underline">Create one</a></p>
+        <div class="relative my-6">
+          <div class="absolute inset-0 flex items-center" aria-hidden="true">
+            <div class="w-full border-t border-gray-600"></div>
+          </div>
+          <div class="relative flex justify-center text-sm">
+            <span class="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+          </div>
+        </div>
+        <a href="/growth/auth/google/login?next={next_param}" class="w-full flex justify-center items-center gap-2 bg-white hover:bg-gray-100 text-gray-900 font-bold py-2 px-4 rounded border border-gray-300 transition">
+          <svg class="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.6 15.01 1 12 1 7.24 1 3.2 3.73 1.24 7.72l3.87 3a7.02 7.02 0 0 1 6.89-5.68z"/>
+            <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.86c2.26-2.08 3.58-5.15 3.58-8.71z"/>
+            <path fill="#FBBC05" d="M5.11 14.72a7 7 0 0 1 0-5.44l-3.87-3a11.96 11.96 0 0 0 0 11.44l3.87-3z"/>
+            <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.86-3a7.01 7.01 0 0 1-11.06-4.37l-3.87 3A11.96 11.96 0 0 0 12 23z"/>
+          </svg>
+          Sign in with Google
+        </a>
+        <p class="mt-4 text-sm text-gray-400">No account? <a href="/growth/register?next={next_param}" class="text-emerald-400 hover:underline">Create one</a></p>
       </div>
     </div>
     """
@@ -398,6 +436,102 @@ def _leadgen_module_html(user: Dict[str, Any]) -> str:
 
 
 # ───────────────────────────── API endpoints
+
+@router.get("/auth/google/login")
+async def google_login(request: Request):
+    client_id = KeyVault.get("google_oauth_client_id")
+    if not client_id:
+        raise HTTPException(status_code=503, detail="Google OAuth client ID is not configured in KeyVault.")
+    
+    base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/growth/auth/google/callback"
+    state = request.query_params.get("next", "/growth/")
+    
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account"
+    }
+    google_auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
+    return RedirectResponse(google_auth_url)
+
+
+@router.get("/auth/google/callback")
+async def google_callback(request: Request):
+    code = request.query_params.get("code")
+    state = request.query_params.get("state", "/growth/")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code from Google.")
+    
+    client_id = KeyVault.get("google_oauth_client_id")
+    client_secret = KeyVault.get("google_oauth_client_secret")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=503, detail="Google OAuth credentials are not fully configured in KeyVault.")
+    
+    base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/growth/auth/google/callback"
+    
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code"
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(token_url, data=data)
+            if resp.status_code != 200:
+                logger.error("Failed to exchange Google OAuth code: %s", resp.text)
+                raise HTTPException(status_code=400, detail=f"Google token exchange failed: {resp.text[:200]}")
+            token_data = resp.json()
+            access_token = token_data.get("access_token")
+            
+            userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+            userinfo_resp = await client.get(userinfo_url, headers={"Authorization": f"Bearer {access_token}"})
+            if userinfo_resp.status_code != 200:
+                logger.error("Failed to fetch Google userinfo: %s", userinfo_resp.text)
+                raise HTTPException(status_code=400, detail="Google userinfo request failed.")
+            
+            user_info = userinfo_resp.json()
+    except Exception as e:
+        logger.exception("Google OAuth callback exception occurred: %s", e)
+        raise HTTPException(status_code=500, detail=f"OAuth login failed: {str(e)}")
+        
+    email = user_info.get("email")
+    name = user_info.get("name") or user_info.get("given_name") or "Google User"
+    google_id = user_info.get("sub")
+    
+    if not email or not google_id:
+        raise HTTPException(status_code=400, detail="OAuth response did not include email and google ID.")
+    
+    user = auth_manager.get_user_by_google_id(google_id)
+    
+    if not user:
+        user = auth_manager.get_user_by_email(email)
+        if user:
+            auth_manager.link_google_id(user["id"], google_id)
+        else:
+            reg_result = auth_manager.register_google_user(email=email, name=name, google_id=google_id)
+            user = reg_result["user"]
+            token = reg_result["token"]
+            
+    if "token" not in locals():
+        token = auth_manager._create_jwt(user["id"], user["org_id"], user["email"], user.get("role", "member"))
+        
+    if not state.startswith("/growth/"):
+        state = "/growth/"
+    
+    resp = RedirectResponse(state, status_code=302)
+    resp.set_cookie("growth_token", token, httponly=True, max_age=604800, samesite="lax")
+    return resp
+
 
 @router.post("/api/register")
 async def api_register(request: Request):
