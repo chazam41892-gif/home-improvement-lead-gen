@@ -12,6 +12,7 @@ def client():
     from engine.auth import auth_manager
     auth_manager._ensure_tables()
     with TestClient(main.app) as c:
+        c.headers.update({"Authorization": "Bearer test-api-key-for-ci-only"})
         yield c
 
 
@@ -123,4 +124,128 @@ async def test_google_callback_flow(client):
         assert resp.status_code == 302
         assert resp.headers["location"] == "/growth/profile"
         assert "growth_token" in resp.cookies
+
+
+def test_campaign_roi_simulator(client):
+    resp = client.post(
+        "/api/simulator/project-roi",
+        json={"trade": "plumbing", "location": "Dallas, TX", "daily_budget": 100.0}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["monthly_spend"] == 3000.0
+    assert "projected_cpl" in data
+    assert "roi_percentage" in data
+    assert len(data["daily_log"]) == 30
+
+
+@pytest.mark.asyncio
+async def test_conversational_responder_opt_out(client):
+    from main import nurture
+    from engine.nurture import Sequence
+    
+    # Pre-populate a test sequence in-memory
+    test_seq = Sequence(
+        id="test_seq_opt_out",
+        lead_name="OptOut Lead",
+        lead_id="opt_out_id",
+        lead_email="opt@example.com",
+        lead_phone="555-111-2222",
+        industry="plumbing",
+        created_at="2026-07-27T19:00:00",
+        actions=[],
+    )
+    nurture._sequences[test_seq.id] = test_seq
+    
+    resp = client.post(
+        "/api/nurture/incoming-reply",
+        json={"sequence_id": "test_seq_opt_out", "reply_text": "Please STOP sending me messages"}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["action"] == "opt_out"
+    assert "unsubscribed" in data["response"]
+
+
+@pytest.mark.asyncio
+async def test_conversational_responder_booking(client):
+    from main import nurture
+    from engine.nurture import Sequence
+    
+    test_seq = Sequence(
+        id="test_seq_booking",
+        lead_name="Booking Lead",
+        lead_id="booking_id",
+        lead_email="book@example.com",
+        lead_phone="555-222-3333",
+        industry="roofing",
+        created_at="2026-07-27T19:00:00",
+        actions=[],
+    )
+    nurture._sequences[test_seq.id] = test_seq
+    
+    resp = client.post(
+        "/api/nurture/incoming-reply",
+        json={"sequence_id": "test_seq_booking", "reply_text": "I'd like to book an appointment slot"}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["action"] == "booking_prompt"
+    assert "scheduling page" in data["response"]
+
+
+@pytest.mark.asyncio
+async def test_conversational_responder_qa(client):
+    from main import nurture
+    from engine.nurture import Sequence
+    
+    test_seq = Sequence(
+        id="test_seq_qa",
+        lead_name="QA Lead",
+        lead_id="qa_id",
+        lead_email="qa@example.com",
+        lead_phone="555-333-4444",
+        industry="hvac",
+        created_at="2026-07-27T19:00:00",
+        actions=[],
+    )
+    nurture._sequences[test_seq.id] = test_seq
+    
+    resp = client.post(
+        "/api/nurture/incoming-reply",
+        json={"sequence_id": "test_seq_qa", "reply_text": "How much does a new system cost?"}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["action"] == "ai_response"
+    assert "schedule a call" in data["response"]
+
+
+def test_intent_based_sourcing_triggers():
+    from engine.search.browser_agent import BrowserSearchProvider
+    from bs4 import BeautifulSoup
+    
+    provider = BrowserSearchProvider()
+    # Mock DuckDuckGo HTML result parsing with intent query match
+    mock_html = """
+    <div class="result">
+        <a class="result__url" href="http://localhost/l/?uddg=https://localcontractor.com">Looking for local Plumber recommendations</a>
+        <a class="result__snippet" href="http://localhost/l/?uddg=https://localcontractor.com">We need to hire an installer to help fix our broken HVAC system immediately.</a>
+    </div>
+    """
+    soup = BeautifulSoup(mock_html, "html.parser")
+    results = soup.find_all("div", class_="result")
+    
+    r = results[0]
+    a = r.find("a", class_="result__url")
+    snippet_el = r.find("a", class_="result__snippet")
+    title = a.get_text(strip=True)
+    snippet = snippet_el.get_text(strip=True)
+    
+    intent_triggers = ["recommendation", "recommend", "looking for", "hire", "need", "estimate", "quote", "repair", "install", "help"]
+    has_intent = any(trigger in title.lower() or trigger in snippet.lower() for trigger in intent_triggers)
+    
+    assert has_intent is True
+
 

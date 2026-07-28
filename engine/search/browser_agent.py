@@ -130,11 +130,15 @@ class BrowserSearchProvider(SearchProvider):
             if "duckduckgo.com/y.js" in clean_url:
                 continue
 
+            intent_triggers = ["recommendation", "recommend", "looking for", "hire", "need", "estimate", "quote", "repair", "install", "help"]
+            has_intent = any(trigger in title.lower() or trigger in snippet.lower() for trigger in intent_triggers)
+
             hits.append(SearchHit(
                 title=title,
                 url=href,
                 snippet=snippet,
-                score=0.8,  # Default starting confidence
+                score=0.95 if has_intent else 0.8,
+                extras={"high_intent": 1 if has_intent else 0}
             ))
             
         return hits

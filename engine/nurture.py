@@ -750,3 +750,118 @@ class NurtureEngine:
             key=lambda a: a.get("created_at", ""),
             reverse=True,
         )[:limit]
+
+    async def handle_incoming_reply(self, sequence_id: str, reply_text: str) -> dict:
+        import os
+        import urllib.parse
+        
+        seq = self._load_sequence_by_id(sequence_id)
+        if not seq:
+            return {"ok": False, "error": "Sequence not found"}
+            
+        reply_clean = reply_text.strip().lower()
+        
+        # 1. Opt-out check
+        opt_out_triggers = {"stop", "unsubscribe", "cancel", "opt out", "quit", "remove"}
+        if any(trigger in reply_clean for trigger in opt_out_triggers):
+            seq.completed = True
+            self._save_sequence_to_db(seq)
+            
+            try:
+                with Database.get_connection() as conn:
+                    conn.execute(
+                        "UPDATE leads SET sms_consent = 0, email_consent = 0, opt_out_sms_at = ?, opt_out_email_at = ? WHERE id = ?",
+                        (datetime.now().isoformat(), datetime.now().isoformat(), seq.lead_id)
+                    )
+                    conn.commit()
+            except Exception as e:
+                logger.error("Failed to update lead consent status: %s", e)
+                
+            return {
+                "ok": True,
+                "action": "opt_out",
+                "response": "You have been successfully unsubscribed. No further messages will be sent."
+            }
+            
+        # 2. Booking intent check
+        booking_triggers = {"book", "schedule", "appointment", "slot", "meet", "time", "calendar", "call"}
+        if any(trigger in reply_clean for trigger in booking_triggers):
+            response = (
+                f"Hi {seq.lead_name}, we would love to schedule a quick call! "
+                f"You can choose a convenient slot on our scheduling page: "
+                f"/api/nurture/schedule/widget?business_name={urllib.parse.quote(seq.industry.capitalize())} "
+                f"or let us know if 10:00 AM, 11:00 AM, or 2:00 PM tomorrow works for you!"
+            )
+            
+            seq.actions.append({
+                "type": "incoming_reply",
+                "message": reply_text,
+                "sent_at": datetime.now().isoformat(),
+            })
+            seq.actions.append({
+                "type": "ai_response",
+                "message": response,
+                "sent_at": datetime.now().isoformat(),
+            })
+            self._save_sequence_to_db(seq)
+            
+            return {
+                "ok": True,
+                "action": "booking_prompt",
+                "response": response
+            }
+            
+        # 3. Question / Objection check
+        perplexity_key = os.environ.get("PERPLEXITY_API_KEY")
+        response = ""
+        if perplexity_key:
+            try:
+                import httpx
+                prompt = (
+                    f"You are an AI lead nurturing assistant. A lead named {seq.lead_name} "
+                    f"in the '{seq.industry}' industry replied to our automated outreach: '{reply_text}'. "
+                    f"Draft a polite, professional, and very brief B2B response (under 3 sentences) answering their inquiry, "
+                    f"and steering them to schedule a meeting using: /api/nurture/schedule/widget."
+                )
+                headers = {
+                    "Authorization": f"Bearer {perplexity_key}",
+                    "Content-Type": "application/json"
+                }
+                body = {
+                    "model": "sonar-pro",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 200
+                }
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.post("https://api.perplexity.ai/chat/completions", json=body, headers=headers)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        response = data["choices"][0]["message"]["content"].strip()
+            except Exception as e:
+                logger.warning("Perplexity AI request failed, falling back: %s", e)
+                
+        if not response:
+            response = (
+                f"Hi {seq.lead_name}, thank you for reaching out! We received your message: '{reply_text}'. "
+                f"Our team is looking into this and will follow up with details shortly. "
+                f"If you'd like to connect sooner, you can schedule a call here: "
+                f"/api/nurture/schedule/widget?business_name={urllib.parse.quote(seq.industry.capitalize())}"
+            )
+            
+        seq.actions.append({
+            "type": "incoming_reply",
+            "message": reply_text,
+            "sent_at": datetime.now().isoformat(),
+        })
+        seq.actions.append({
+            "type": "ai_response",
+            "message": response,
+            "sent_at": datetime.now().isoformat(),
+        })
+        self._save_sequence_to_db(seq)
+        
+        return {
+            "ok": True,
+            "action": "ai_response",
+            "response": response
+        }

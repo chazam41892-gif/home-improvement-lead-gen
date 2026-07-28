@@ -40,6 +40,7 @@ from engine.key_vault import KeyVault, SERVICE_KEYS
 from engine.enrichment import enrich_lead, EnrichOrchestrator
 from engine.enrichment.base import EnrichmentResult
 from engine.auth import auth_manager
+from engine.simulator import CampaignSimulator
 from crm_plus.crm_plus_routes import router as crm_plus_router, set_engine as set_crm_engine, set_conversion as set_crm_conversion
 from engine.growth_portal import growth_router, tracking_router
 
@@ -200,6 +201,7 @@ capture_processor = LeadCaptureProcessor(engine, landing_pages=landing_gen._page
 ads_gen = AdCopyGenerator()
 ad_platforms = AdPlatformManager()
 nurture = NurtureEngine()
+campaign_simulator = CampaignSimulator()
 business_config = BusinessConfig()
 crm_push = CrmPush()
 crm_push.set_env(env_map)
@@ -821,6 +823,20 @@ async def create_nurture_sequence(data: Dict[str, Any], request: Request):
     result = nurture.create_sequence(lead_data)
     return {"ok": True, "sequence": result}
 
+
+@app.post("/api/nurture/incoming-reply")
+async def nurture_incoming_reply(data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    rate_limit(request)
+    sequence_id = data.get("sequence_id", "").strip()
+    reply_text = data.get("reply_text", "").strip()
+    if not sequence_id or not reply_text:
+        raise HTTPException(400, "sequence_id and reply_text are required")
+    result = await nurture.handle_incoming_reply(sequence_id, reply_text)
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error", "Failed to process reply"))
+    return result
+
 @app.get("/api/nurture/sequences")
 async def list_nurture_sequences(limit: int = Query(50, le=200)):
     return {"sequences": nurture.get_sequences(limit=limit), "stats": nurture.get_stats()}
@@ -909,6 +925,22 @@ async def evaluate_lead_economics(request: Request):
         trade_cpl_ceiling=trade.get("lead_cpl_ceiling", 0),
         lead_score=lead_score,
     )
+
+
+@app.post("/api/simulator/project-roi")
+async def simulator_project_roi(data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    rate_limit(request)
+    trade = data.get("trade", "").strip()
+    location = data.get("location", "").strip()
+    daily_budget = float(data.get("daily_budget", 50.0))
+    if not trade or not location:
+        raise HTTPException(400, "trade and location are required")
+    try:
+        result = campaign_simulator.project_roi(trade, location, daily_budget)
+        return result
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.get("/api/business/plans")
