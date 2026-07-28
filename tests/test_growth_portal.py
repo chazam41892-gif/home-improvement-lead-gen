@@ -145,7 +145,7 @@ async def test_conversational_responder_opt_out(client):
     from main import nurture
     from engine.nurture import Sequence
     
-    # Pre-populate a test sequence in-memory
+    # Pre-populate a test sequence in-memory and database
     test_seq = Sequence(
         id="test_seq_opt_out",
         lead_name="OptOut Lead",
@@ -157,6 +157,7 @@ async def test_conversational_responder_opt_out(client):
         actions=[],
     )
     nurture._sequences[test_seq.id] = test_seq
+    nurture._save_sequence_to_db(test_seq)
     
     resp = client.post(
         "/api/nurture/incoming-reply",
@@ -184,6 +185,7 @@ async def test_conversational_responder_booking(client):
         actions=[],
     )
     nurture._sequences[test_seq.id] = test_seq
+    nurture._save_sequence_to_db(test_seq)
     
     resp = client.post(
         "/api/nurture/incoming-reply",
@@ -211,6 +213,7 @@ async def test_conversational_responder_qa(client):
         actions=[],
     )
     nurture._sequences[test_seq.id] = test_seq
+    nurture._save_sequence_to_db(test_seq)
     
     resp = client.post(
         "/api/nurture/incoming-reply",
