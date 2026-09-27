@@ -60,10 +60,39 @@ class _StripeAccessor:
         return val
 
 
+#: Credential placeholders that must never be treated as live config.
+#: Audit 2026-09-27: the unified vault holds an 18-char `FAKE…` value under
+#: `stripe_secret`. `is_configured` was `bool(self.secret_key)`, so that
+#: placeholder read as CONFIGURED and a real Stripe API call was attempted with a
+#: bogus key, raising a confusing AuthenticationError instead of "not configured".
+PLACEHOLDER_PREFIXES = ("FAKE", "XXX", "CHANGEME", "CHANGE_ME", "PLACEHOLDER",
+                         "YOUR_", "REPLACE_", "TODO", "DUMMY", "TESTKEY")
+_MIN_SECRET_LEN = 20  # real Stripe secret keys are far longer than a placeholder
+
+
+def _is_live_secret(value) -> bool:
+    """True only for something that could plausibly be a real credential."""
+    if not value:
+        return False
+    v = value.strip()
+    if len(v) < _MIN_SECRET_LEN:
+        return False
+    return not v.upper().startswith(PLACEHOLDER_PREFIXES)
+
+
 class StripeIntegration:
     def __init__(self):
-        self.secret_key = KeyVault.get("stripe_secret") or ""
-        self.webhook_secret = KeyVault.get("stripe_webhook") or ""
+        raw_secret = KeyVault.get("stripe_secret") or ""
+        raw_webhook = KeyVault.get("stripe_webhook") or ""
+        # Do not propagate a placeholder into the SDK: doing so causes a real
+        # network call that fails with a confusing AuthenticationError instead of
+        # a clean "not configured".
+        self.secret_key = raw_secret if _is_live_secret(raw_secret) else ""
+        self.webhook_secret = raw_webhook if _is_live_secret(raw_webhook) else ""
+        if raw_secret and not self.secret_key:
+            logger.warning(
+                "stripe_secret is a placeholder, not a live key — billing disabled "
+                "until a real STRIPE secret key is configured")
         stripe.api_key = self.secret_key
         self._price_ids = {
             plan: KeyVault.get(f"stripe_price_{plan}") or ""
@@ -72,7 +101,7 @@ class StripeIntegration:
 
     @property
     def is_configured(self) -> bool:
-        return bool(self.secret_key)
+        return _is_live_secret(self.secret_key)
 
     def _read_mappings(self) -> list[dict]:
         from engine.database import Database
@@ -137,6 +166,14 @@ class StripeIntegration:
     async def create_checkout_session(
         self, plan: str, account_id: str, success_url: str, cancel_url: str
     ) -> dict:
+        # Audit 2026-09-27: no guard here meant an unconfigured client still called
+        # Stripe and surfaced a confusing AuthenticationError (or, before the
+        # placeholder fix, an actual network round-trip with a FAKE key).
+        if not self.is_configured:
+            raise RuntimeError(
+                "Stripe is not configured — set a real stripe_secret before "
+                "creating a checkout session.")
+
         amount = PLANS.get(plan)
         if not amount:
             raise ValueError(f"Unknown plan: {plan}")
