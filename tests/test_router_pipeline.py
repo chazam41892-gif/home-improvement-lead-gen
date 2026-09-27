@@ -134,28 +134,27 @@ def test_update_step_on_unknown_name_returns_none(router):
     assert router.update_step("does_not_exist", {"enabled": True}) is None
 
 
-def test_update_step_mutates_the_module_level_default(router):
-    """KNOWN BUG (audit 2026-09-27): load_config() stores the SAME dict objects
-    that DEFAULT_ROUTING_CONFIG holds, so update_step() rewrites process-global
-    default state. The first SmartRouter() constructed after this call — in the
-    same process, e.g. a fresh TradeLeadDiscovery — inherits the mutation.
+def test_update_step_does_not_mutate_the_module_level_default(router):
+    """load_config() deepcopies each step's config, so editing the routing
+    config through the API cannot rewrite process-global DEFAULT_ROUTING_CONFIG.
 
-    This test pins current behaviour so the day the aliasing is fixed (load_config
-    should deepcopy) it fails loudly and the fix can be confirmed.
+    Before the fix, RoutingStep stored step_data["config"] BY REFERENCE and
+    update_step() mutated it in place, so the first SmartRouter built after an
+    API edit inherited the change.
     """
     before = DEFAULT_ROUTING_CONFIG["steps"][1]["config"]["min_score"]
     router.update_step("score", {"config": {"min_score": 99}})
     after = DEFAULT_ROUTING_CONFIG["steps"][1]["config"]["min_score"]
-    assert after == 99, "if this now fails, load_config() was fixed to copy — good"
+    assert after == before, "update_step() leaked into the module-level default"
     assert before == 30, "the pristine default threshold is 30"
 
 
-def test_a_second_router_inherits_the_mutation(router):
-    """The user-visible consequence: a new router picks up another router's tweak."""
+def test_a_second_router_does_not_inherit_the_mutation(router):
+    """The user-visible consequence of the fix: a new router starts pristine."""
     router.update_step("score", {"config": {"min_score": 99}})
     fresh = SmartRouter()
     score_cfg = next(s["config"] for s in fresh.get_config()["steps"] if s["name"] == "score")
-    assert score_cfg["min_score"] == 99, "config leaks across SmartRouter instances"
+    assert score_cfg["min_score"] == 30, "config leaked across SmartRouter instances"
 
 
 # ── key gating ─────────────────────────────────────────────────────────────

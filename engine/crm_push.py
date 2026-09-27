@@ -166,7 +166,12 @@ class CrmPush:
                         logger.error("Zoho CRM push failed: %s", resp.text)
                     else:
                         data = resp.json()
-                        result_data = data.get("data", [{}])[0]
+                        # `or [{}]`, not `, [{}]`: the default only applies when
+                        # the key is ABSENT. Zoho returns {"data": []} when a
+                        # push produces no result record, and the old form
+                        # raised IndexError, so the operator saw "list index out
+                        # of range" instead of a Zoho error.
+                        result_data = (data.get("data") or [{}])[0]
                         if result_data.get("status") == "success":
                             result["ok"] = True
                             result["remote_id"] = result_data.get("details", {}).get("id")

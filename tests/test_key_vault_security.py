@@ -95,22 +95,22 @@ def test_masked_hides_the_middle_of_a_long_key():
     assert "34567890abcde" not in e.masked()
 
 
-def test_masked_on_a_very_short_key_leaks_the_entire_secret():
-    """KNOWN VULNERABILITY (engine/key_vault.py:91-95, VaultEntry.masked).
+def test_masked_never_discloses_a_short_secret():
+    """A mask that can reveal the whole secret is worse than no mask.
 
-    For any key of length <= 8 the function returns k[:2] + "***" — and for a
-    2-character key the returned string IS the whole key, with the "***" glued
-    on. Callers treat `masked()` as safe to hand to a UI or an HTTP response
-    (KeyVault.list() does exactly that), so short secrets are fully disclosed.
-    This test documents the current behaviour; it will start failing the day
-    somebody fixes masked() so the bug cannot be quietly forgotten.
+    VaultEntry.masked used `k[:2] + "***"` for len(k) <= 8, so a 2-character
+    key rendered as the entire secret, and KeyVault.list() hands this straight
+    to the API surface. Anything too short to mask is now dropped entirely.
     """
-    assert kv.VaultEntry("svc", "ab").masked() == "ab***"
-    assert "ab" in kv.VaultEntry("svc", "ab").masked()
-    # a 1-char key keeps 50% of the secret
-    assert kv.VaultEntry("svc", "z").masked() == "z***"
-    # documented boundary: 9 chars is the first length that masks anything
+    # 2-char and 1-char keys must not appear anywhere in the output.
+    for secret in ("ab", "z", "abcdefgh"):
+        masked = kv.VaultEntry("svc", secret).masked()
+        assert secret not in masked, f"masked() leaked the secret {secret!r}: {masked!r}"
+        assert "***" in masked
+    # 9 chars is the first length that masks with a visible prefix/suffix.
     assert kv.VaultEntry("svc", "abcdefghi").masked() == "abcd***fghi"
+    # Empty is reported as empty, not as a mask of "".
+    assert kv.VaultEntry("svc", "").masked() == "(empty)"
 
 
 def test_vault_entry_defaults():
@@ -235,9 +235,10 @@ def test_list_masks_short_keys_too(monkeypatch):
     monkeypatch.setenv("EXA_API_KEY", "ex_short")
     out = kv.KeyVault.list()
     assert out["exa"]["configured"] is True
-    # 8-char key: masked() returns k[:2] + "***" and discards the tail
-    assert out["exa"]["keys"][0]["masked"] == "ex***"
-    assert "short" not in out["exa"]["keys"][0]["masked"]
+    # 8-char key is too short to mask, so neither the head nor the tail shows.
+    masked = out["exa"]["keys"][0]["masked"]
+    assert "short" not in masked and "ex_s" not in masked, masked
+    assert "***" in masked
 
 
 # ── set_key / delete_key ───────────────────────────────────────────────────

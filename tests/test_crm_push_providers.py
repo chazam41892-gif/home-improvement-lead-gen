@@ -396,21 +396,20 @@ async def test_zoho_failure_record_with_no_message_gets_a_default(push, hx, monk
     assert out[0]["error"] == "Zoho CRM error", out
 
 
-async def test_zoho_empty_data_list_is_reported_as_an_index_error(push, hx, monkeypatch):
-    """KNOWN BUG (audit 2026-09-27): `data.get("data", [{}])[0]` — when Zoho
-    returns an EMPTY data list the default `[{}]` is never used, so `[0]`
-    raises IndexError. The except turns it into a generic error string instead
-    of the intended "Zoho CRM error".
+async def test_zoho_empty_data_list_is_reported_as_a_zoho_error(push, hx, monkeypatch):
+    """`data.get("data") or [{}]` -- an empty Zoho data list now yields the
+    actionable "Zoho CRM error" instead of "list index out of range".
 
-    Reported as a failure (ok=False), so no lead is silently marked pushed, but
-    the operator gets "list index out of range" instead of anything actionable.
-    Pins the bug; the fix is `data.get("data") or [{}]`.
+    The old `data.get("data", [{}])[0]` only applied its default when the key
+    was ABSENT, so Zoho's `{"data": []}` raised IndexError. The push still
+    failed safe (ok=False, nothing marked pushed), but the operator got a
+    useless message.
     """
     _keyed(monkeypatch, {"zoho_access_token": "zk", "zoho_api_domain": None})
     hx.routes["/crm/v5/Leads"] = _Resp(201, "", {"data": []})
     out = await push.push_leads([_lead()], provider="zoho")
     assert out[0]["ok"] is False
-    assert out[0]["error"] == "list index out of range", out
+    assert out[0]["error"] == "Zoho CRM error", out
 
 
 async def test_zoho_missing_data_key_falls_back_to_the_default_record(push, hx, monkeypatch):

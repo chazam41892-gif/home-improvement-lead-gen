@@ -90,9 +90,21 @@ class VaultEntry:
     source: str = "env"
 
     def masked(self) -> str:
+        """Render a key for display. Must never disclose the secret.
+
+        The old `k[:2] + "***"` for len(k) <= 8 meant a 2-character key
+        rendered as its own full value, and this string is handed straight to
+        the API surface by KeyVault.list(). A mask that can reveal the whole
+        secret is worse than no mask, so anything too short to hide is dropped
+        entirely rather than partially revealed.
+        """
         k = self.key
+        if not k:
+            return "(empty)"
         if len(k) <= 8:
-            return k[:2] + "***"
+            # Too short to mask without exposing the secret. Show only the
+            # length so an operator can tell "set but tiny" from "unset".
+            return f"***({len(k)} chars)"
         return k[:4] + "***" + k[-4:]
 
 

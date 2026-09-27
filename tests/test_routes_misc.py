@@ -343,26 +343,30 @@ def test_guarded_mutations_reject_anonymous_callers(anon, method, path):
         f"{method} {path} returned {r.status_code} unauthenticated -- expected 401")
 
 
-def test_routing_config_put_is_unauthenticated(anon):
-    """FINDING: PUT /api/routing/config takes no `request: Request`, so unlike
-    every other mutating route it calls verify_api_key() ZERO times. Anyone who
-    can reach the port can rewrite the routing pipeline -- flip crm_push or
-    llm_score on, repoint enrichment, change the scoring floor. The GET is in the
-    read-only list below for the same reason.
+def test_routing_config_put_requires_auth(anon, client):
+    """PUT /api/routing/config must authenticate.
 
-    This is asserted, not endorsed. Fixing it means adding `request: Request` and
-    a verify_api_key(request) call, then moving /api/routing/config out of
-    test_read_only_routes_are_reachable_without_auth. This test will then fail
-    with a clear message, which is the point."""
-    assert "request" not in main.update_routing_config.__annotations__, (
-        "PUT /api/routing/config now takes a Request -- the auth hole looks "
-        "fixed. Move /api/routing/config out of "
-        "test_read_only_routes_are_reachable_without_auth and drop this test.")
+    It took no `request: Request`, so it was the only mutating route of 50 that
+    called verify_api_key() zero times: an anonymous caller could rewrite the
+    routing pipeline -- flip crm_push or llm_score on, repoint enrichment,
+    change the scoring floor -- and the response confirmed the write.
+    """
+    assert "request" in main.update_routing_config.__annotations__, (
+        "PUT /api/routing/config lost its Request parameter -- auth may be gone.")
+
+    before = [s["name"] for s in anon.get("/api/routing/config").json()["steps"]]
+
+    # Anonymous write is refused, and the pipeline is left intact.
     r = anon.put("/api/routing/config",
                  json={"config": {"steps": [
                      {"name": "crm_push", "enabled": True, "config": {}}]}})
-    assert r.status_code == 200, "an anonymous caller really can rewrite the pipeline"
-    assert [s["name"] for s in r.json()["config"]["steps"]] == ["crm_push"]
+    assert r.status_code in (401, 403), f"anonymous PUT was accepted: {r.status_code}"
+    after = [s["name"] for s in anon.get("/api/routing/config").json()["steps"]]
+    assert after == before, "an anonymous write replaced the routing pipeline"
+
+    # Authenticated write still works.
+    r2 = client.put("/api/routing/config", json={"step": "crm_push", "enabled": False})
+    assert r2.status_code in (200, 404), r2.text[:200]
 
 
 @pytest.mark.parametrize("path", [

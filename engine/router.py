@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import logging
 import time
 from dataclasses import dataclass, field
@@ -94,6 +95,10 @@ class SmartRouter:
         self.load_config(config or DEFAULT_ROUTING_CONFIG)
 
     def load_config(self, config: dict[str, Any]):
+        # deepcopy: RoutingStep stored step_data.get("config", {}) BY REFERENCE.
+        # update_step() then mutates that dict in place, so without the copy a
+        # caller editing the routing config corrupted DEFAULT_ROUTING_CONFIG
+        # and every SmartRouter built afterwards inherited the change.
         self._steps.clear()
         for step_data in config.get("steps", []):
             step = RoutingStep(
@@ -101,7 +106,7 @@ class SmartRouter:
                 label=step_data.get("label", step_data["name"]),
                 description=step_data.get("description", ""),
                 enabled=step_data.get("enabled", True),
-                config=step_data.get("config", {}),
+                config=copy.deepcopy(step_data.get("config", {})),
                 keys_required=step_data.get("keys_required", []),
             )
             self._steps[step.name] = step

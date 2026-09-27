@@ -398,7 +398,16 @@ async def get_routing_config():
     return engine.get_routing_config()
 
 @app.put("/api/routing/config")
-async def update_routing_config(data: dict[str, Any]):
+async def update_routing_config(data: dict[str, Any], request: Request):
+    # This route was the only MUTATING endpoint of 50 that never called
+    # verify_api_key. Anyone who could reach the port could rewrite the routing
+    # pipeline -- enabling crm_push / llm_score, or moving the scoring floors --
+    # which changes what data is pushed to the CRM. It now authenticates like
+    # its sibling PUT /api/business/config. (The 4 other unguarded mutating
+    # routes are public by design: /api/auth/register, /api/auth/login,
+    # /api/billing/webhook, /api/capture/lead.)
+    verify_api_key(request)
+    rate_limit(request)
     config = data.get("config")
     if config:
         engine.set_routing_config(config)
