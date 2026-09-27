@@ -75,7 +75,11 @@ class LLMEnricher(EnrichmentProvider):
                     )
                     resp.raise_for_status()
                     data = resp.json()
-                    return data.get("content", [{}])[0].get("text", "")
+                    # `or [{}]` not `, [{}]`: the default only applies when the
+                    # key is ABSENT. Anthropic returns content:[] when a content
+                    # filter trips, and the old form raised IndexError, which
+                    # _call_llm does not catch -- so it escaped enrich().
+                    return (data.get("content") or [{}])[0].get("text", "")
                 except httpx.HTTPStatusError as e:
                     logger.warning("Anthropic API error: %s", e.response.text[:200])
                     return None
@@ -99,7 +103,10 @@ class LLMEnricher(EnrichmentProvider):
                     )
                     resp.raise_for_status()
                     data = resp.json()
-                    return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    # Same `or [{}]` reasoning as the Anthropic branch above:
+                    # an empty choices list is a real API response, not a
+                    # missing key.
+                    return (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
                 except httpx.HTTPStatusError as e:
                     logger.warning("OpenAI API error: %s", e.response.text[:200])
                     return None

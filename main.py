@@ -1104,7 +1104,14 @@ async def get_business_config():
 async def update_business_config(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
-    return business_config.update_config(data)
+    # update_config raises a bare ValueError for a bad or negative value. Left
+    # uncaught that became an unhandled 500, so a client sending "abc" for a
+    # float field got a server error instead of a 400 -- and the response body
+    # leaked a traceback.
+    try:
+        return business_config.update_config(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 @app.get("/api/business/metrics")
 async def get_business_metrics():

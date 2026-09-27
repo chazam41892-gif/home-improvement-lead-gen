@@ -408,18 +408,6 @@ def test_smart_routing_falls_through_when_the_first_provider_finds_nothing():
     assert r.error == "No results found in Apollo", "the upstream error is preserved"
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "REAL BUG (semantic inversion) engine/enrichment/orchestrator.py:193 - "
-    "`if self.router.fallthrough and merged.confidence >= min_confidence: break`. "
-    "The early-stop break is gated on `fallthrough`, so fallthrough=False makes "
-    "the loop run EVERY selected provider (maximum fall-through) and "
-    "fallthrough=True is what actually stops early. The flag therefore behaves as "
-    "`early_stop`, the opposite of its name and of EnrichmentRouter's intent. The "
-    "default (True) yields the sensible behaviour, so this is a latent footgun "
-    "for anyone who sets fallthrough=False expecting it to stop at the first hit. "
-    "Fix: `if not self.router.fallthrough or merged.confidence >= "
-    "self.router.min_confidence: break`."
-))
 def test_smart_routing_does_not_fall_through_when_fallthrough_is_off():
     first = Fake("first", res(error="nothing"), priority=0,
                  preferences=["business_name"])

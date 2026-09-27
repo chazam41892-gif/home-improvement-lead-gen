@@ -195,7 +195,13 @@ class EnrichOrchestrator:
                 location=location, website=website, phone=phone, **kwargs,
             )
             merged = self._merge(merged, result)
-            if self.router.fallthrough and merged.confidence >= self.router.min_confidence:
+            # `or`, not `and`. This flag was inverted: gating the early-stop break
+            # on `fallthrough` meant fallthrough=False ran EVERY selected
+            # provider (maximum fall-through) while fallthrough=True was what
+            # actually stopped early. Anyone setting fallthrough=False expecting
+            # "stop at the first good hit" got the exact opposite. fallthrough
+            # means "try all providers and merge", so it must SUPPRESS the break.
+            if not self.router.fallthrough or merged.confidence >= self.router.min_confidence:
                 logger.info("Smart routing: %s reached confidence %.2f (>=%.2f), stopping",
                             route.provider.name, merged.confidence, self.router.min_confidence)
                 break

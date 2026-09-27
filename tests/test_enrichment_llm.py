@@ -307,15 +307,6 @@ def test_whitespace_only_reply_is_reported_as_unparsable_not_invented(vault, bot
     assert r.sources == []
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "REAL BUG engine/enrichment/llm_enricher.py:74 - data.get('content', [{}])[0] "
-    "raises IndexError when Anthropic returns content:[] (e.g. content filter). "
-    "The default [{}] only applies when the key is ABSENT, not when it is an empty "
-    "list, so the response shape guard does not hold. Same at line 98 for OpenAI "
-    "choices:[]. _call_llm only catches httpx.HTTPStatusError, so this propagates "
-    "out of enrich() and crashes the caller instead of returning error='LLM "
-    "returned no response'. Fix: guard with (data.get('content') or [{}])[0]."
-))
 def test_anthropic_empty_content_block_does_not_crash(vault, both_urls):
     vault["anthropic"] = "k"
     both_urls.add("POST", "/v1/messages", {"content": []})
@@ -324,11 +315,6 @@ def test_anthropic_empty_content_block_does_not_crash(vault, both_urls):
     assert r.email is None
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "REAL BUG engine/enrichment/llm_enricher.py:98 - data.get('choices', [{}])[0] "
-    "raises IndexError on an empty choices list, same root cause as the Anthropic "
-    "path above. Documented in test_anthropic_empty_content_block_does_not_crash."
-))
 def test_openai_empty_choices_does_not_crash(vault, both_urls):
     vault["openai"] = "k"
     both_urls.add("POST", "/v1/chat/completions", {"choices": []})

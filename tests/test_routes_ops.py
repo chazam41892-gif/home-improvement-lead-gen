@@ -524,19 +524,15 @@ def test_business_config_put_rejects_a_non_numeric_value(client):
     caller sending {"avg_job_size": "abc"} is a client error and must be a 400.
     Pinned as a known defect until the route is fixed."""
     r = client.put("/api/business/config", json={"avg_job_size": "abc"})
-    assert r.status_code in (400, 500)
-    if r.status_code == 500:
-        pytest.xfail("PUT /api/business/config 500s on a bad value instead of 400 "
-                     "(unhandled ValueError in the route)")
+    assert r.status_code == 400, f"expected 400 for a non-numeric value, got {r.status_code}"
     assert r.json()["error"]
 
 
 def test_business_config_put_rejects_a_negative_value(client):
-    """Same unhandled-ValueError defect as the non-numeric case above."""
+    """Same defect as the non-numeric case above: the route now maps the
+    ValueError to 400 rather than leaking an unhandled 500."""
     r = client.put("/api/business/config", json={"avg_job_size": -5})
-    assert r.status_code in (400, 500)
-    if r.status_code == 500:
-        pytest.xfail("PUT /api/business/config 500s on a negative value instead of 400")
+    assert r.status_code == 400, f"expected 400 for a negative value, got {r.status_code}"
 
 
 def test_business_metrics_derive_from_the_config(client):
