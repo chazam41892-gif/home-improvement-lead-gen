@@ -302,6 +302,21 @@ class Database:
             conn.commit()
         logger.info("Database initialized successfully at %s", cls.db_file)
 
+        # Apply the numbered migration chain AFTER the base tables exist, so a
+        # schema-drift fix is applied to a database that has something to alter.
+        # Idempotent and safe to run on every boot. A failure here is logged but
+        # does not prevent the app from starting -- a missing migration must
+        # not take the API down; the guard in tests/ asserts the chain works.
+        try:
+            from engine.migrations import apply_migrations
+
+            applied = apply_migrations(cls.db_file)
+            if applied:
+                logger.info("applied %s pending migration(s)", applied)
+        except Exception:
+            logger.exception("Schema migrations failed; the app will start but the "
+                             "schema may be behind the code")
+
 # Auto-initialize database on import
 try:
     Database.initialize()
