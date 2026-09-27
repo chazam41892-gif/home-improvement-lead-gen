@@ -372,9 +372,21 @@ def test_billing_endpoints_require_auth(anon):
     assert anon.post("/api/billing/cancel", json={}).status_code == 401
 
 
-def test_stripe_webhook_rejects_an_unsigned_payload(client):
-    """The webhook is the one public route here; it must refuse unsigned bodies."""
+def test_stripe_webhook_rejects_an_unsigned_payload(client, monkeypatch):
+    """The webhook is the one public route here; it must refuse unsigned bodies.
+
+    This test set no webhook secret, so it silently depended on a real
+    STRIPE_WEBHOOK_SECRET being present in the developer's .env. It passed
+    locally and failed on a clean CI runner with "webhook secret not
+    configured" -- the assertion was never actually exercising signature
+    verification. Pin the secret here so the test is hermetic.
+    """
     import json as _json
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_only_not_a_real_secret")
+    import importlib
+    import engine.stripe_integration as si
+    importlib.reload(si)  # the module reads the secret at import time
+
     payload = _json.dumps({"id": "evt_x", "type": "checkout.session.completed",
                            "data": {"object": {"id": "cs_x"}}})
     r = client.post("/api/billing/webhook", content=payload,
