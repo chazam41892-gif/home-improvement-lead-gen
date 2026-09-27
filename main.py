@@ -36,6 +36,29 @@ if os.environ.get("LEADGEN_TESTING"):
 else:
     load_dotenv()
 
+
+def _read_version() -> str:
+    """Read the version from pyproject.toml so it is stated exactly once.
+
+    The /health endpoint used to hardcode "3.2.0" while pyproject.toml said
+    3.1.3, so the version the product reported did not match the version it
+    was built from. Falls back to "0.0.0+unknown" only if pyproject is
+    unreadable (e.g. installed without the source tree), and never guesses.
+    """
+    try:
+        import tomllib
+        from pathlib import Path
+
+        pyproject = Path(__file__).parent / "pyproject.toml"
+        with pyproject.open("rb") as fh:
+            return str(tomllib.load(fh)["project"]["version"])
+    except Exception:
+        return "0.0.0+unknown"
+
+
+_VERSION = _read_version()
+
+
 from crm_plus.crm_plus_routes import router as crm_plus_router
 from crm_plus.crm_plus_routes import set_conversion as set_crm_conversion
 from crm_plus.crm_plus_routes import set_engine as set_crm_engine
@@ -327,7 +350,9 @@ if STATIC_DIR.exists():
 async def health():
     return {
         "status": "ok",
-        "version": "3.2.0",
+        # Single-sourced from pyproject.toml. This was hardcoded as "3.2.0"
+        # while pyproject said 3.1.3, so the reported version was fiction.
+        "version": _VERSION,
         "timestamp": datetime.now(UTC).isoformat(),
         "uptime_sec": round(time.time() - _start_time),
         "auth_enabled": _AUTH_ENABLED,
