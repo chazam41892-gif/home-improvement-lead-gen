@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from html import escape
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 _COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$|^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$|^hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$")
 _URL_SCHEME_RE = re.compile(r"^https?://", re.IGNORECASE)
@@ -388,7 +391,11 @@ class LandingPageGenerator:
                 for r in cursor.fetchall():
                     self._pages[r["page_id"]] = r["html"]
         except Exception:
-            pass
+            # Best-effort warm cache: a cold or locked DB must not stop the
+            # generator serving pages. Logged, because a silent failure here
+            # looks exactly like "we have no landing pages".
+            logger.warning("Could not warm landing-page cache from the database",
+                           exc_info=True)
 
     def _save_page_to_db(self, page_id: str, html: str) -> None:
         from engine.database import Database
@@ -397,7 +404,10 @@ class LandingPageGenerator:
                 conn.execute("INSERT OR REPLACE INTO landing_pages (page_id, html) VALUES (?, ?)", (page_id, html))
                 conn.commit()
         except Exception:
-            pass
+            # The page is still returned to the caller; a failed persist means
+            # it will be lost on restart, so it must not pass unlogged.
+            logger.error("Landing page %s was served but not persisted", page_id,
+                         exc_info=True)
 
     @staticmethod
     def _default_form_fields() -> list[dict[str, Any]]:

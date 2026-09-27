@@ -244,8 +244,8 @@ class ScanScheduler:
 
             if leads:
                 existing = self._results.get(sched.id, [])
-                existing_ids = {l.get("id") for l in existing}
-                new_leads = [l for l in leads if l.get("id") not in existing_ids]
+                existing_ids = {lead.get("id") for lead in existing}
+                new_leads = [lead for lead in leads if lead.get("id") not in existing_ids]
                 existing.extend(new_leads)
                 self._results[sched.id] = existing
                 self._save_results(sched.id, existing)

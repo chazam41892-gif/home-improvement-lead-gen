@@ -93,8 +93,10 @@ def score_business_presence(title: str, snippet: str) -> float:
     if years_match:
         try:
             years = int(years_match.group(1))
-            if years >= 5: score += 20
-            if years >= 10: score += 20
+            if years >= 5:
+                score += 20
+            if years >= 10:
+                score += 20
         except ValueError:
             pass
 

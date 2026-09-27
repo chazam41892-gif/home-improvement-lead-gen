@@ -94,7 +94,7 @@ _PHONE_DIGITS_RE = re.compile(r"\d")
 def _extract_location(address: str) -> str:
     if not address:
         return ""
-    lines = [l.strip() for l in address.strip().split("\n") if l.strip()]
+    lines = [part.strip() for part in address.strip().split("\n") if part.strip()]
     if len(lines) >= 2:
         return lines[-1]
     parts = address.split(",")
@@ -204,14 +204,14 @@ class LeadCaptureProcessor:
         }
 
     def _resolve_industry(self, source_page_id: str) -> str:
-        if not source_page_id:
-            return "home improvement"
-        try:
-            pages = getattr(self, "_landing_pages", {})
-            if pages and source_page_id in pages:
-                return "home improvement"
-        except Exception:
-            pass
+        """Resolve the industry for a captured lead.
+
+        Every branch of the previous implementation returned the same constant,
+        wrapped in a try/except that could never fire -- dead code that read as
+        if page-specific routing existed. Landing pages are home-improvement
+        offers, so the answer is uniform; the parameter is retained because
+        callers pass it and the signature is part of the capture contract.
+        """
         return "home improvement"
 
     def _persist_capture(self, lead_obj: _CaptureLead) -> None:

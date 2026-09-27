@@ -47,4 +47,4 @@ def score_trade_lead(lead: TradeLead, trade: str) -> float:
 def score_trade_leads(leads: list[TradeLead], trade: str) -> list[TradeLead]:
     for lead in leads:
         lead.score = score_trade_lead(lead, trade)
-    return sorted(leads, key=lambda l: l.score, reverse=True)
+    return sorted(leads, key=lambda lead: lead.score, reverse=True)

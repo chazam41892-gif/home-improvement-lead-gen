@@ -222,7 +222,7 @@ class SmartRouter:
     async def _run_score(self, leads: list[dict[str, Any]], step: RoutingStep,
                          search_config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         min_score = step.config.get("min_score", 0)
-        filtered = [l for l in leads if (l.get("score") or 0) >= min_score]
+        filtered = [lead for lead in leads if (lead.get("score") or 0) >= min_score]
         return filtered
 
     async def _run_enrich(self, leads: list[dict[str, Any]], step: RoutingStep) -> list[dict[str, Any]]:
@@ -254,8 +254,8 @@ class SmartRouter:
         provider = step.config.get("provider", "anthropic")
         model = step.config.get("model")
 
-        candidates = [l for l in leads if (l.get("score") or 0) >= min_rule_score]
-        candidates.sort(key=lambda l: l.get("score", 0), reverse=True)
+        candidates = [lead for lead in leads if (lead.get("score") or 0) >= min_rule_score]
+        candidates.sort(key=lambda lead: lead.get("score", 0), reverse=True)
         to_score = candidates[:max_leads]
 
         if not to_score:
@@ -276,7 +276,7 @@ class SmartRouter:
         max_per = step.config.get("max_per_batch", 25)
         provider = step.config.get("provider", "hubspot")
 
-        to_push = [l for l in leads if (l.get("score") or 0) >= min_score][:max_per]
+        to_push = [lead for lead in leads if (lead.get("score") or 0) >= min_score][:max_per]
         if to_push:
             logger.info("CRM push (%s): %d leads ready", provider, len(to_push))
             fn = getattr(self, "_crm_push_fn", None)

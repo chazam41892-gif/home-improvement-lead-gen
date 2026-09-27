@@ -68,14 +68,20 @@ class ExaSearchProvider(SearchProvider):
             "numResults": num_results,
             "type": search_type,
         }
-        if category: body["category"] = category
-        if start_published_date: body["startPublishedDate"] = start_published_date
-        if end_published_date: body["endPublishedDate"] = end_published_date
-        if include_domains: body["includeDomains"] = include_domains
-        if exclude_domains: body["excludeDomains"] = exclude_domains
+        if category:
+            body["category"] = category
+        if start_published_date:
+            body["startPublishedDate"] = start_published_date
+        if end_published_date:
+            body["endPublishedDate"] = end_published_date
+        if include_domains:
+            body["includeDomains"] = include_domains
+        if exclude_domains:
+            body["excludeDomains"] = exclude_domains
         if text or highlights:
             body["contents"] = {}
-            if text: body["contents"]["text"] = True
+            if text:
+                body["contents"]["text"] = True
             if highlights:
                 body["contents"]["highlights"] = {"numSentences": 3}
 
@@ -110,9 +116,12 @@ class ExaSearchProvider(SearchProvider):
         if not self.api_key:
             return {"ok": False, "error": "EXA_API_KEY not set"}
         body: dict[str, Any] = {"ids": urls, "livecrawl": livecrawl}
-        if text: body["text"] = True
-        if highlights: body["highlights"] = {"numSentences": 3}
-        if summary: body["summary"] = {"query": "summarize"}
+        if text:
+            body["text"] = True
+        if highlights:
+            body["highlights"] = {"numSentences": 3}
+        if summary:
+            body["summary"] = {"query": "summarize"}
         return await asyncio.to_thread(self._post, "/contents", body)
 
     async def answer(self, query: str, *, text: bool = True) -> dict[str, Any]:

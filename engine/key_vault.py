@@ -97,7 +97,7 @@ class VaultEntry:
 
 class KeyVault:
     """Compatibility shim — delegates to UnifiedVault at ~/.lvtn/unified_vault.py.
-    
+
     All existing code that calls KeyVault.get(), KeyVault.set_key(), etc.
     continues to work. Keys are stored in the unified vault, shared across
     all projects (lvtn CLI, Lead Gen Pro, Gambot IDE).

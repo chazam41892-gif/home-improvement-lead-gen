@@ -607,16 +607,19 @@ async def search_multi(data: dict[str, Any], request: Request):
 
     for provider in providers:
         try:
+            # The caller's min_score was being read and then discarded: a hardcoded
+            # 0 was passed instead, so /api/search/natural returned everything
+            # regardless of the requested threshold. Honour it now.
             result = await engine.search_natural(
                 natural_query=query,
                 num_results=num_results,
-                min_score=0,
+                min_score=min_score,
                 provider=provider,
             )
             if result.get("ok") and result.get("leads"):
                 leads = result["leads"]
-                for l in leads:
-                    l["source"] = l.get("source", provider)
+                for lead in leads:
+                    lead["source"] = lead.get("source", provider)
                 all_leads.extend(leads)
                 sources_used.append(provider)
         except Exception as e:
@@ -1393,7 +1396,7 @@ async def discover_trade_leads(data: dict[str, Any], request: Request):
     platforms = data.get("platforms")
     max_results = data.get("max_results", 20)
     leads = await trade_discovery.discover(trade, location, platforms=platforms, max_per_platform=max_results)
-    scored = [dict(l.to_dict(), score=round(l.score, 1)) for l in leads]
+    scored = [dict(lead.to_dict(), score=round(lead.score, 1)) for lead in leads]
     return {"ok": True, "trade": trade, "location": location, "leads": scored, "count": len(scored)}
 
 @app.post("/api/trades/discover-all")
@@ -1407,7 +1410,7 @@ async def discover_all_trades(data: dict[str, Any], request: Request):
     results = await trade_discovery.discover_all(trades=trades, location=location)
     flattened = {}
     for trade, leads in results.items():
-        flattened[trade] = [dict(l.to_dict(), score=round(l.score, 1)) for l in leads]
+        flattened[trade] = [dict(lead.to_dict(), score=round(lead.score, 1)) for lead in leads]
     return {"ok": True, "location": location, "trades": flattened}
 
 # ─── Lead → Account → Payment Pipeline ────────────────────────────

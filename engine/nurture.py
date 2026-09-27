@@ -587,10 +587,10 @@ class NurtureEngine:
   }}
 }}
 </style>
- 
+
 <div class="nsw-header">{business_name}</div>
 <div class="nsw-title">Schedule Your Consultation</div>
- 
+
 <form id="nsw-form" onsubmit="return false;">
   <div class="nsw-field">
     <label for="nsw-date">Date</label>
@@ -618,13 +618,13 @@ class NurtureEngine:
   <button type="submit" class="nsw-submit" id="nsw-submit-btn">Confirm Appointment</button>
   <div class="nsw-error" id="nsw-error"></div>
 </form>
- 
+
 <div class="nsw-confirmation" id="nsw-confirmation">
   <div class="nsw-confirmation-icon">&#10003;</div>
   <h3>Appointment Confirmed!</h3>
   <p id="nsw-confirmation-details"></p>
 </div>
- 
+
 <script>
 (function () {{
   var form = document.getElementById('nsw-form');
@@ -632,18 +632,18 @@ class NurtureEngine:
   var errEl = document.getElementById('nsw-error');
   var confirmEl = document.getElementById('nsw-confirmation');
   var detailsEl = document.getElementById('nsw-confirmation-details');
- 
+
   var minDate = new Date();
   minDate.setDate(minDate.getDate() + 1);
   document.getElementById('nsw-date').setAttribute('min', minDate.toISOString().split('T')[0]);
- 
+
   form.addEventListener('submit', function (e) {{
     e.preventDefault();
     errEl.classList.remove('show');
     confirmEl.classList.remove('show');
     btn.disabled = true;
     btn.textContent = 'Confirming...';
- 
+
     var data = {{
       name: document.getElementById('nsw-name').value.trim(),
       phone: document.getElementById('nsw-phone').value.trim(),
@@ -651,7 +651,7 @@ class NurtureEngine:
       date: document.getElementById('nsw-date').value,
       time_slot: document.getElementById('nsw-time').value,
     }};
- 
+
     fetch('/api/nurture/schedule', {{
       method: 'POST',
       headers: {{ 'Content-Type': 'application/json' }},

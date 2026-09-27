@@ -260,7 +260,7 @@ class LeadScoutEngine:
             )
             leads.append(lead)
 
-        leads.sort(key=lambda l: l.score.total, reverse=True)
+        leads.sort(key=lambda lead: lead.score.total, reverse=True)
 
         for lead in leads:
             self._leads[lead.id] = lead
@@ -276,7 +276,7 @@ class LeadScoutEngine:
 
         logger.info(f"Found {len(leads)} qualified leads in {elapsed:.1f}s")
 
-        lead_dicts = [l.as_dict() for l in leads]
+        lead_dicts = [lead.as_dict() for lead in leads]
 
         route_result = await self._router.route_leads(
             lead_dicts,
@@ -414,11 +414,11 @@ class LeadScoutEngine:
     def get_leads(self, limit: int = 100, min_score: float = 0) -> list[dict[str, Any]]:
         sorted_leads = sorted(
             self._leads.values(),
-            key=lambda l: l.score.total,
+        key=lambda lead: lead.score.total,
             reverse=True,
         )
-        filtered = [l for l in sorted_leads if l.score.total >= min_score]
-        return [l.as_dict() for l in filtered[:limit]]
+        filtered = [lead for lead in sorted_leads if lead.score.total >= min_score]
+        return [lead.as_dict() for lead in filtered[:limit]]
 
     def get_lead_by_id(self, lead_id: str) -> dict[str, Any] | None:
         lead = self._leads.get(lead_id)
@@ -478,7 +478,7 @@ class LeadScoutEngine:
         if not self._leads:
             return {"total": 0, "avg_score": 0, "by_industry": {}, "searches_run": len(self._search_history)}
 
-        scores = [l.score.total for l in self._leads.values()]
+        scores = [lead.score.total for lead in self._leads.values()]
         by_industry: dict[str, int] = {}
         for lead in self._leads.values():
             ind = lead.industry or "unknown"
