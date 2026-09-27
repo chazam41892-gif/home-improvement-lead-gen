@@ -376,16 +376,26 @@ def test_stripe_webhook_rejects_an_unsigned_payload(client, monkeypatch):
     """The webhook is the one public route here; it must refuse unsigned bodies.
 
     This test set no webhook secret, so it silently depended on a real
-    STRIPE_WEBHOOK_SECRET being present in the developer's .env. It passed
-    locally and failed on a clean CI runner with "webhook secret not
-    configured" -- the assertion was never actually exercising signature
-    verification. Pin the secret here so the test is hermetic.
+    STRIPE_WEBHOOK_SECRET sitting in the developer's .env. It passed locally
+    for months and failed on a clean CI runner with "webhook secret not
+    configured" -- the route short-circuits before signature verification, so
+    the assertion was never exercising the thing it claimed to.
+
+    Two details make this non-obvious:
+      * StripeIntegration reads the secret through KeyVault in __init__, and
+        main.py binds a module-level `stripe_integration` at import. Setting the
+        env var and reloading engine.stripe_integration does NOT rebind that
+        instance, so this has to patch the instance's attribute directly.
+      * _is_live_secret() rejects values starting with TESTKEY/FAKE/XXX/etc and
+        anything under 20 chars, so a dummy secret must look plausible or the
+        integration reports itself as unconfigured.
     """
     import json as _json
-    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_only_not_a_real_secret")
-    import importlib
-    import engine.stripe_integration as si
-    importlib.reload(si)  # the module reads the secret at import time
+
+    # Must be >= 20 chars and not start with a placeholder prefix, or
+    # _is_live_secret() discards it and the route 400s on "not configured".
+    monkeypatch.setattr(main.stripe_integration, "webhook_secret",
+                        "whsec_0000000000000000000000testfixture", raising=False)
 
     payload = _json.dumps({"id": "evt_x", "type": "checkout.session.completed",
                            "data": {"object": {"id": "cs_x"}}})

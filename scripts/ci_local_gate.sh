@@ -33,6 +33,15 @@ echo "== 2. install exactly what CI installs =="
 "$VPY" -m pip install --quiet pytest pytest-cov pytest-asyncio ruff mypy starlette
 
 echo "== 3. no .env on a runner: export only what the suite needs =="
+# Physically hide .env, not just decline to read it. A previous version of this
+# script exported the vars but left .env in place, and load_dotenv() picked it
+# up -- which is exactly why a test that depends on a real secret kept passing
+# here while failing on CI. The .env is restored on exit.
+ENVFILE="$REPO/.env"
+STASH="$LOCALAPPDATA/Temp/lgg-env-stash"
+restore_env() { [ -f "$STASH" ] && mv "$STASH" "$ENVFILE" && echo "   (.env restored)"; }
+trap restore_env EXIT
+[ -f "$ENVFILE" ] && mv "$ENVFILE" "$STASH" && echo "   (.env hidden for this run)"
 export LEADGEN_TESTING=1
 export JWT_SECRET="ci-only-not-a-real-secret"
 
