@@ -248,3 +248,76 @@ def test_enrich_batch_smart_routing(client):
     data = resp.json()
     assert "results" in data
     assert len(data["results"]) == 2
+
+
+def test_chat_collaborate_fallback_responses(client):
+    # 1. ROI/simulate trigger
+    resp = client.post("/api/chat/collaborate", json={"message": "Please run a simulate and ROI check"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert "simulate a specific trade" in data["response"]
+
+    # 2. Search/find trigger
+    resp = client.post("/api/chat/collaborate", json={"message": "Can you search for leads?"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert "Search Page" in data["response"]
+
+    # 3. Vertical/industry trigger
+    resp = client.post("/api/chat/collaborate", json={"message": "Show me the industry configuration"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert "Verticals Page" in data["response"]
+
+    # 4. Vault/key trigger
+    resp = client.post("/api/chat/collaborate", json={"message": "Where are keys stored?"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert "Key Vault" in data["response"]
+
+    # 5. Default greeting trigger
+    resp = client.post("/api/chat/collaborate", json={"message": "Hello there"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert "LeadForge AI Copilot" in data["response"]
+
+    # 6. Missing message validation
+    resp = client.post("/api/chat/collaborate", json={})
+    assert resp.status_code == 400
+
+
+def test_chat_collaborate_perplexity_mocked(client):
+    from unittest.mock import patch, MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": "This is a mocked response from Perplexity AI."
+                }
+            }
+        ]
+    }
+
+    async def mock_post(*args, **kwargs):
+        return mock_resp
+
+    with patch("engine.key_vault.KeyVault.get", return_value="mock-perplexity-key"), \
+         patch("httpx.AsyncClient.post", side_effect=mock_post) as mock_http_post:
+        
+        resp = client.post("/api/chat/collaborate", json={"message": "How is the weather?"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["response"] == "This is a mocked response from Perplexity AI."
+        
+        # Verify KeyVault lookup was performed
+        mock_http_post.assert_called_once()
+

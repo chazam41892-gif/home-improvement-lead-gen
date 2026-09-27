@@ -259,6 +259,15 @@ class NurtureEngine:
             if action.get("sent"):
                 continue
 
+            # AUDIT 2026-09-27: reply/AI-response log entries (nurture.py:796-805)
+            # are appended to seq.actions WITHOUT a delay_minutes key -- they record
+            # something that already happened, not a step to schedule. The old code
+            # did action["delay_minutes"] unconditionally, so the background
+            # _nurture_loop raised KeyError('delay_minutes') on every such sequence and
+            # the whole due-action pass aborted. Skip non-scheduled entries instead.
+            if "delay_minutes" not in action:
+                continue
+
             try:
                 created = datetime.fromisoformat(seq.created_at)
             except (ValueError, TypeError):

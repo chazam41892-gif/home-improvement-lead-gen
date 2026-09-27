@@ -224,9 +224,24 @@ class AdPlatformManager:
 
     @staticmethod
     def _missing_env(prefix: str, keys: List[str]) -> List[str]:
+        """Keys not resolvable via the vault.
+
+        Audit 2026-09-27 (M-17): this was named `_missing_env` but queries
+        KeyVault, so the UI told operators to set env vars that are never read on
+        the live path. Kept as a staticmethod for call-site compatibility; the
+        name now matches the behaviour.
+        """
         return [k for k in keys if not KeyVault.get(k)]
 
     async def launch(self, plan: AdCampaignPlan) -> Dict[str, Any]:
+        """Launch a campaign.
+
+        CRITICAL (audit 2026-09-27, C-3): this used to `return {"ok": True, **results}`
+        unconditionally, so a *simulated* preview (no ad credentials) was reported to
+        the user as a successfully launched campaign with a real-looking campaign_id.
+        `ok` is now derived from the provider sub-result and `simulated` is hoisted to
+        the TOP level so the HTTP layer and the UI can both see it.
+        """
         results: Dict[str, Any] = {"plan": plan.__dict__}
         if plan.platform in ("google", "google_ads"):
             results["google_ads"] = await self.google.create_campaign(plan)
@@ -236,8 +251,26 @@ class AdPlatformManager:
             results["google_ads"] = await self.google.create_campaign(plan)
             results["meta"] = await self.meta.create_campaign(plan)
         else:
-            return {"ok": False, "error": f"Unknown platform: {plan.platform}"}
-        return {"ok": True, **results}
+            return {"ok": False, "simulated": False,
+                    "error": f"Unknown platform: {plan.platform}"}
+
+        subs = [v for k, v in results.items() if k in ("google_ads", "meta")]
+        # ok = at least one provider really succeeded and none of them simulated.
+        ok = any(bool(s.get("ok")) for s in subs) and not any(
+            bool(s.get("simulated")) for s in subs)
+        # Hoist the truth flags so callers do not have to dig into the sub-objects.
+        results["ok"] = ok
+        results["simulated"] = any(bool(s.get("simulated")) for s in subs)
+        # A real provider id, if any provider returned one.
+        provider_ids = []
+        for s in subs:
+            camp = s.get("campaign") or {}
+            for key in ("resourceName", "id"):
+                if camp.get(key):
+                    provider_ids.append(camp[key])
+                    break
+        results["provider_campaign_ids"] = provider_ids
+        return results
 
 
 __all__ = ["AdPlatformManager", "AdCampaignPlan", "GoogleAdsAPI", "MetaMarketingAPI"]

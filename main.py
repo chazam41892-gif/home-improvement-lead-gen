@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import time as _time_module
+from dataclasses import asdict
 _start_time: float = _time_module.time()
 
 from dotenv import load_dotenv
@@ -19,6 +20,13 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+# CRITICAL (audit 2026-09-27, C-6): the .env file MUST be loaded before ANY engine
+# import. engine/auth.py reads JWT_SECRET from os.environ at *import* time and raises
+# RuntimeError if it is missing, so importing it before load_dotenv() made the whole
+# app un-bootable on a clean checkout (`uvicorn main:app` -> RuntimeError, exit 1)
+# even though .env contained a valid JWT_SECRET.
+load_dotenv()
 
 from engine.scout import LeadScoutEngine, SearchConfig, LeadResult
 from engine.utils.scoring import score_lead, LeadScore
@@ -43,8 +51,10 @@ from engine.auth import auth_manager
 from engine.simulator import CampaignSimulator
 from crm_plus.crm_plus_routes import router as crm_plus_router, set_engine as set_crm_engine, set_conversion as set_crm_conversion
 from engine.growth_portal import growth_router, tracking_router
+from engine.discovery import DiscoveryEngine, TargetProfile, FREE_SOURCES, KEYED_SOURCES
 
-load_dotenv()
+# NOTE: load_dotenv() is called above the engine imports (see the CRITICAL comment
+# there). Do not call it again here.
 
 # ─── Structured JSON Logging ────────────────────────────────────────
 
@@ -176,6 +186,11 @@ async def _scheduler_search(query, num_results, min_score, provider):
     )
 
 scheduler.register_search_fn(_scheduler_search)
+
+# Live multi-source discovery (Google Maps / Reddit / Craigslist / GitHub / Exa /
+# Tavily) — ported from sios.leadgen.engine, audit 2026-09-27 parity gap B.
+# The LLM extraction hook is the same one scout uses, so both paths enrich alike.
+discovery_engine = DiscoveryEngine(llm_func=None)
 
 env_keys = ("EXA_", "PERPLEXITY_", "ANTHROPIC_", "OPENAI_", "COMETAPI_", "CLEARBIT_", "HUNTER_", "APOLLO_", "PEOPLE_DATA_LABS_", "LOOX_", "ENRICHMENT_", "STRIPE_")
 env_map = {k: v for k, v in os.environ.items() if k.startswith(env_keys)}
@@ -392,6 +407,81 @@ async def search_natural(data: Dict[str, Any], request: Request):
     if not result.get("ok"):
         raise HTTPException(400, result.get("error", "Search failed"))
     return result
+
+# ─── Live Multi-Source Discovery (parity gap B, audit 2026-09-27) ─────
+# Ported from sios.leadgen.engine so the standalone can harvest Google Maps /
+# Reddit / Craigslist / GitHub directly instead of only paying Exa + Perplexity.
+
+@app.get("/api/discovery/sources")
+async def discovery_sources(request: Request):
+    """List the live sources discovery can use, and which need a credential."""
+    verify_api_key(request)
+    return {
+        "free_sources": list(FREE_SOURCES),
+        "keyed_sources": list(KEYED_SOURCES),
+        "available": {
+            "exa": bool(os.environ.get("EXA_API_KEY")),
+            "tavily": bool(os.environ.get("TAVILY_API_KEY")),
+            "github": bool(os.environ.get("GITHUB_TOKEN")),
+        },
+    }
+
+@app.post("/api/discovery/run")
+async def discovery_run(data: Dict[str, Any], request: Request):
+    """Run multi-source discovery for a target profile.
+
+    Returns the job including `raw_results`, `leads`, and `skipped` so a caller can
+    tell the difference between "found nothing" and "source unavailable".
+    """
+    verify_api_key(request)
+    rate_limit(request)
+    sources = data.get("sources") or list(FREE_SOURCES)
+    unknown = [s for s in sources if s not in set(FREE_SOURCES) | set(KEYED_SOURCES) | {"url"}]
+    if unknown:
+        raise HTTPException(400, f"Unknown source(s): {', '.join(unknown)}")
+
+    profile = TargetProfile(
+        customer_description=data.get("customer_description", "") or data.get("query", ""),
+        keywords=data.get("keywords") or [],
+        locations=data.get("locations") or [],
+        industry=data.get("industry", ""),
+        target_count=int(data.get("target_count", 25)),
+    )
+    job = await discovery_engine.run_discovery(profile, sources)
+    if job.status == "failed":
+        raise HTTPException(502, job.error or "Discovery failed")
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "sources_used": job.sources_used,
+        "raw_count": len(job.raw_results),
+        "lead_count": len(job.leads),
+        "skipped": job.skipped,
+        "leads": job.leads,
+        "raw_results": [asdict(r) for r in job.raw_results[:50]],
+    }
+
+@app.get("/api/discovery/jobs")
+async def discovery_jobs(request: Request):
+    verify_api_key(request)
+    return {"jobs": discovery_engine.get_jobs()}
+
+@app.get("/api/discovery/leads")
+async def discovery_leads(request: Request):
+    verify_api_key(request)
+    return {"leads": discovery_engine.get_leads()}
+
+@app.post("/api/discovery/ingest")
+async def discovery_ingest(data: Dict[str, Any], request: Request):
+    """Ingest raw Apollo/Hunter/LinkedIn CSV/JSON lead exports."""
+    verify_api_key(request)
+    rate_limit(request)
+    rows = data.get("leads") or []
+    if not rows:
+        raise HTTPException(400, "leads array is required")
+    out = await discovery_engine.ingest_webhook_leads(
+        rows, source_name=data.get("source", "webhook_apollo"))
+    return {"ingested": len(out), "leads": out}
 
 # ─── Lead Management ───────────────────────────────────────────────
 
@@ -792,7 +882,21 @@ async def ads_platform_launch(data: Dict[str, Any], request: Request):
     )
 
     result = await ad_platforms.launch(plan)
-    campaign_id = f"camp_{uuid.uuid4().hex[:12]}"
+
+    # CRITICAL (audit 2026-09-27, C-3): the campaign_id was previously minted
+    # unconditionally and the row persisted with status='created', so a SIMULATED
+    # preview (no ad credentials) appeared in the campaigns list and the UI alerted
+    # "Campaign created!" -- a fabricated external side effect the user would act on.
+    # Now: a simulation is labelled as such, persisted as 'simulated', and carries NO
+    # fabricated campaign id. A real launch uses the provider's own id.
+    simulated = bool(result.get("simulated"))
+    provider_ids = result.get("provider_campaign_ids") or []
+    if simulated or not provider_ids:
+        campaign_id = f"preview_{uuid.uuid4().hex[:12]}"
+        db_status = "simulated"
+    else:
+        campaign_id = provider_ids[0]
+        db_status = "created"
 
     # Persist to database
     from engine.database import Database
@@ -804,13 +908,19 @@ async def ads_platform_launch(data: Dict[str, Any], request: Request):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             campaign_id, name, platform, industry, location, float(daily_budget),
-            objective, "created", copy["headline"], copy["description"], copy["cta"],
+            objective, db_status, copy["headline"], copy["description"], copy["cta"],
             json.dumps(keywords.get("broad", [])), landing_page,
             json.dumps({k: v for k, v in result.items() if k != "plan"})
         ))
         conn.commit()
 
     result["campaign_id"] = campaign_id
+    result["simulated"] = simulated
+    if simulated:
+        result["message"] = (
+            "Preview only -- no ad platform credentials are configured, so no campaign "
+            "was created. Add credentials in Settings to launch for real."
+        )
     return result
 
 # ─── Nurture Engine ────────────────────────────────────────────────
@@ -941,6 +1051,88 @@ async def simulator_project_roi(data: Dict[str, Any], request: Request):
         return result
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.post("/api/chat/collaborate")
+async def chat_collaborate(data: Dict[str, Any], request: Request):
+    verify_api_key(request)
+    rate_limit(request)
+    user_message = data.get("message", "").strip()
+    history = data.get("history", [])
+    if not user_message:
+        raise HTTPException(400, "message is required")
+        
+    system_prompt = (
+        "You are LeadForge Copilot, a helpful B2B growth and lead generation assistant. "
+        "You help users configure verticals, search for local contractor/trade leads, setup campaigns, "
+        "and run ROI simulations.\n\n"
+        "Key capabilities of LeadForge:\n"
+        "- Verticals page: Setup industries and budget constraints.\n"
+        "- Search page: Find business contacts using Exa/Perplexity.\n"
+        "- Enrichment page: Get phone/email for lead lists.\n"
+        "- Key Vault: Safe storage of API keys.\n"
+        "- ROI Simulator: Simulates B2B campaign margins and customer conversions.\n\n"
+        "You can guide users on these topics. "
+        "Answer in a professional, brief manner (under 4 sentences)."
+    )
+
+    perplexity_key = KeyVault.get("perplexity") or os.environ.get("PERPLEXITY_API_KEY")
+    response_text = ""
+    if perplexity_key:
+        try:
+            import httpx
+            messages = [{"role": "system", "content": system_prompt}]
+            for h in history[-6:]:
+                messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+            messages.append({"role": "user", "content": user_message})
+
+            headers = {
+                "Authorization": f"Bearer {perplexity_key}",
+                "Content-Type": "application/json"
+            }
+            body = {
+                "model": "sonar-pro",
+                "messages": messages,
+                "max_tokens": 300
+            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post("https://api.perplexity.ai/chat/completions", json=body, headers=headers)
+                if resp.status_code == 200:
+                    response_text = resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            logger.warning("Perplexity chat failed: %s", e)
+
+    if not response_text:
+        msg_lower = user_message.lower()
+        if "simulate" in msg_lower or "roi" in msg_lower:
+            response_text = (
+                "I can help you model B2B margins and projected ROI! "
+                "Ask me to simulate a specific trade, location, and daily budget. "
+                "Example: 'simulate plumbing in Dallas TX with a budget of 100'."
+            )
+        elif "search" in msg_lower or "find" in msg_lower or "sourcing" in msg_lower:
+            response_text = (
+                "You can search for new trade lists directly on our [Search Page](#search). "
+                "Just input a trade and a target area to start scraping high-intent leads."
+            )
+        elif "vertical" in msg_lower or "industry" in msg_lower:
+            response_text = (
+                "To configure lead criteria and platform options, head over to the [Verticals Page](#verticals). "
+                "There you can add custom keyword lists and job values."
+            )
+        elif "vault" in msg_lower or "key" in msg_lower or "api" in msg_lower:
+            response_text = (
+                "Need to update your system integrations or LLM keys? "
+                "Please configure them in your [Key Vault](#vault) for safe storage."
+            )
+        else:
+            response_text = (
+                "Hello! I am your LeadForge AI Copilot. I can recommend B2B outreach strategies, "
+                "help you run ROI simulations, search for high-intent leads, or setup your key vault. "
+                "How can I help you grow your business today?"
+            )
+
+    return {"ok": True, "response": response_text}
 
 
 @app.get("/api/business/plans")

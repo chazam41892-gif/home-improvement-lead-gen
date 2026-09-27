@@ -22,6 +22,44 @@ PLANS = {
 }
 
 
+class _StripeAccessor:
+    """Version-agnostic reader for Stripe payloads (audit 2026-09-27, C-2).
+
+    stripe>=12 removed the dict base class from `StripeObject`, so `.get()` raises
+    AttributeError on installed stripe 15.2.0. stripe<=11 payloads are plain dicts.
+    This callable handles BOTH so the webhook path never depends on the SDK major:
+
+        g = _StripeAccessor(event)
+        g("type")            # subscript first, then attribute, then default
+        g("amount_paid", 0)  # explicit default
+        g("metadata") or {}  # returns None when absent
+    """
+
+    __slots__ = ("_obj",)
+
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __call__(self, key, default=None):
+        obj = self._obj
+        if obj is None:
+            return default
+        # dict-like
+        if isinstance(obj, dict):
+            val = obj.get(key, default)
+            return default if val is None else val
+        # stripe.StripeObject: __getitem__ works and raises KeyError when absent
+        try:
+            val = obj[key]
+        except (KeyError, TypeError, IndexError):
+            val = getattr(obj, key, default)
+        except Exception:
+            val = default
+        if val is None:
+            return default
+        return val
+
+
 class StripeIntegration:
     def __init__(self):
         self.secret_key = KeyVault.get("stripe_secret") or ""
@@ -137,12 +175,19 @@ class StripeIntegration:
         except (ValueError, stripe.error.SignatureVerificationError) as e:
             raise ValueError(f"Webhook signature verification failed: {e}")
 
-        event_type = event.get("type")
-        data = event["data"]["object"]
+        # CRITICAL (audit 2026-09-27, C-2): `event` is a stripe.StripeObject, NOT a
+        # dict subclass in stripe>=12 (installed: 15.2.0). Calling .get() on it raised
+        # AttributeError, so EVERY valid webhook returned HTTP 500 and no payment was
+        # ever recorded. Subscribing the underscore-prefixed accessors below makes this
+        # work identically on stripe 11 (dict-like) and stripe 15 (object-like).
+        _g = _StripeAccessor(event)
+        event_type = _g("type")
+        data = _g("data")["object"]
 
         handler = {
             "checkout.session.completed": self._on_checkout_completed,
             "customer.subscription.deleted": self._on_subscription_deleted,
+            "customer.subscription.updated": self._on_subscription_updated,
             "invoice.payment_succeeded": self._on_invoice_paid,
             "invoice.payment_failed": self._on_invoice_failed,
         }.get(event_type)
@@ -152,11 +197,13 @@ class StripeIntegration:
 
         return {"received": True, "type": event_type}
 
-    async def _on_checkout_completed(self, session: dict):
-        account_id = session.get("metadata", {}).get("account_id")
-        plan = session.get("metadata", {}).get("plan", "starter")
-        customer_id = session.get("customer")
-        subscription_id = session.get("subscription")
+    async def _on_checkout_completed(self, session):
+        g = _StripeAccessor(session)
+        metadata = g("metadata") or {}
+        account_id = _StripeAccessor(metadata)("account_id")
+        plan = _StripeAccessor(metadata)("plan", "starter")
+        customer_id = g("customer")
+        subscription_id = g("subscription")
 
         if not account_id or not customer_id:
             logger.warning("Checkout session missing account_id or customer")
@@ -175,34 +222,62 @@ class StripeIntegration:
             account_id, customer_id, subscription_id,
         )
 
-    async def _on_subscription_deleted(self, subscription: dict):
-        sub_id = subscription.get("id")
+    async def _on_subscription_deleted(self, subscription):
+        await self._apply_subscription_state(_StripeAccessor(subscription)("id"), "cancelled",
+                                             reason="subscription deleted")
+
+    async def _on_subscription_updated(self, subscription):
+        """Mirror Stripe's subscription status into our local record (audit H-5).
+
+        Previously nothing observed subscription.status changes, so a customer whose
+        card bounced stayed `active` in our records for weeks.
+        """
+        g = _StripeAccessor(subscription)
+        await self._apply_subscription_state(g("id"), g("status", "active"),
+                                             reason="subscription.updated")
+
+    async def _apply_subscription_state(self, sub_id, status, reason: str = ""):
+        """Single writer for subscription state so paid/failed/deleted/updated all
+        funnel through one code path (audit H-2/H-5)."""
+        if not sub_id:
+            return False
         mappings = self._read_mappings()
         updated = False
         for m in mappings:
             if m.get("stripe_subscription_id") == sub_id:
-                m["status"] = "cancelled"
-                m["cancelled_at"] = datetime.now(timezone.utc).isoformat()
+                m["status"] = status
+                if reason:
+                    m["status_reason"] = reason
+                m["status_updated_at"] = datetime.now(timezone.utc).isoformat()
                 updated = True
-                break
         if updated:
             self._write_mappings(mappings)
-            logger.info("Subscription deleted: %s", sub_id)
+        return updated
 
-    async def _on_invoice_paid(self, invoice: dict):
-        subscription_id = invoice.get("subscription")
-        customer_id = invoice.get("customer")
-        amount_paid = invoice.get("amount_paid", 0)
+    async def _on_invoice_paid(self, invoice):
+        g = _StripeAccessor(invoice)
+        subscription_id = g("subscription")
+        customer_id = g("customer")
+        amount_paid = g("amount_paid", 0)
+        # A successful payment clears any past_due state (audit H-2).
+        if subscription_id:
+            await self._apply_subscription_state(subscription_id, "active", reason="invoice paid")
         logger.info(
-            "Invoice paid: sub=%s customer=%s amount=%d",
+            "Invoice paid: sub=%s customer=%s amount=%s",
             subscription_id, customer_id, amount_paid,
         )
 
-    async def _on_invoice_failed(self, invoice: dict):
-        subscription_id = invoice.get("subscription")
-        customer_id = invoice.get("customer")
+    async def _on_invoice_failed(self, invoice):
+        g = _StripeAccessor(invoice)
+        subscription_id = g("subscription")
+        customer_id = g("customer")
+        # HIGH (audit H-2): this used to be logger-only, leaving the account `active`
+        # after a failed payment -> direct revenue leakage.
+        if subscription_id:
+            await self._apply_subscription_state(subscription_id, "past_due",
+                                                reason="invoice payment failed")
         logger.warning(
-            "Invoice failed: sub=%s customer=%s",
+            "Invoice failed: sub=%s customer=%s -- marked past_due",
             subscription_id, customer_id,
         )
 

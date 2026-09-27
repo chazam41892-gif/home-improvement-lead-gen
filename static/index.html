@@ -2739,7 +2739,17 @@ async function createAdCampaign() {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Failed to create campaign');
-    alert('Campaign created! ' + (data.campaign_id || ''));
+    // Audit 2026-09-27 (C-3): a simulated preview must NEVER be announced as a
+    // created campaign. `simulated` is hoisted to the top level by the backend.
+    if (data.simulated) {
+      alert('PREVIEW ONLY — no campaign was created.\n\n' +
+            (data.message || 'No ad platform credentials are configured. Add them in Settings to launch for real.') +
+            (data.campaign_id ? '\n\nPreview ref: ' + data.campaign_id : ''));
+    } else if (data.ok === false) {
+      alert('Campaign was NOT created.\n\n' + (data.message || data.error || 'The ad platform rejected the request.'));
+    } else {
+      alert('Campaign created! ' + (data.campaign_id || ''));
+    }
     $('campName').value = '';
     $('campTrade').value = '';
     $('campLocation').value = '';

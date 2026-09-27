@@ -100,3 +100,12 @@ legacy/
 node_modules/
 leadgen-workflows/
 *.wrangler/
+
+# ─── SECRETS (added 2026-09-27 audit) ─────────────────────────────────
+# Compose files may carry API_KEY=/JWT_SECRET= literals. Never track them.
+deploy/cloudflare/docker-compose.yml
+deploy/**/docker-compose*.yml
+data/.vault_key
+# Stale duplicate of engine/ that has drifted; preserved, not deleted.
+# Tracked intentionally? -> it is NOT; kept out of the repo to avoid confusion.
+build/
