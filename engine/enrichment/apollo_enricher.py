@@ -34,10 +34,9 @@ class ApolloEnricher(EnrichmentProvider):
     def is_available(self) -> bool:
         return bool(self._get_key())
 
-    async def _mixed_people_search(self, keywords: str,
-                                    organization_name: str | None = None,
-                                    page: int = 1,
-                                    per_page: int = 5) -> list[dict[str, Any]]:
+    async def _mixed_people_search(
+        self, keywords: str, organization_name: str | None = None, page: int = 1, per_page: int = 5
+    ) -> list[dict[str, Any]]:
         api_key = self._get_key()
         if not api_key:
             return []
@@ -92,11 +91,15 @@ class ApolloEnricher(EnrichmentProvider):
             logger.debug("Apollo org enrich error for %s: %s", domain, e)
             return None
 
-    async def enrich(self, business_name: str, trade: str,
-                     location: str | None = None,
-                     website: str | None = None,
-                     phone: str | None = None,
-                     **kwargs) -> EnrichmentResult:
+    async def enrich(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         # `phone` is declared to match EnrichmentProvider.enrich. Without it the
         # subclass signature was incompatible with the supertype and callers
         # passing a phone had it silently absorbed into **kwargs.
@@ -119,10 +122,18 @@ class ApolloEnricher(EnrichmentProvider):
 
         if people:
             person = people[0]
-            result.contact_name = " ".join(filter(None, [
-                person.get("first_name", ""),
-                person.get("last_name", ""),
-            ])) or None
+            result.contact_name = (
+                " ".join(
+                    filter(
+                        None,
+                        [
+                            person.get("first_name", ""),
+                            person.get("last_name", ""),
+                        ],
+                    )
+                )
+                or None
+            )
             result.title = person.get("title") or person.get("subtitle") or None
             result.email = person.get("email") or None
             result.phone = person.get("phone_numbers", [""])[0] if person.get("phone_numbers") else None
@@ -150,7 +161,13 @@ class ApolloEnricher(EnrichmentProvider):
                 if org_name and not result.contact_name:
                     result.contact_name = org_name
 
-            result.confidence = min(1.0, 0.4 + (0.2 if result.email else 0) + (0.2 if result.phone else 0) + (0.2 if result.website else 0))
+            result.confidence = min(
+                1.0,
+                0.4
+                + (0.2 if result.email else 0)
+                + (0.2 if result.phone else 0)
+                + (0.2 if result.website else 0),
+            )
             result.sources.append("apollo:people_search")
             result.raw_data["apollo_person"] = {
                 "id": person.get("id"),
@@ -162,6 +179,7 @@ class ApolloEnricher(EnrichmentProvider):
 
         if website and not result.website:
             from urllib.parse import urlparse
+
             parsed = urlparse(website)
             domain = parsed.netloc.replace("www.", "") if parsed.netloc else website
             org_data = await self._organization_enrich(domain)

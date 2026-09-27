@@ -147,11 +147,17 @@ class SignalStore:
             for column, definition in additions.items():
                 if column not in existing:
                     connection.execute(f"ALTER TABLE signal_leads ADD COLUMN {column} {definition}")
-            content_columns = {row[1] for row in connection.execute("PRAGMA table_info(content_drafts)").fetchall()}
+            content_columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(content_drafts)").fetchall()
+            }
             if "published_post_urn" not in content_columns:
-                connection.execute("ALTER TABLE content_drafts ADD COLUMN published_post_urn TEXT NOT NULL DEFAULT ''")
+                connection.execute(
+                    "ALTER TABLE content_drafts ADD COLUMN published_post_urn TEXT NOT NULL DEFAULT ''"
+                )
 
-    def upsert_source_account(self, name: str, linkedin_urn: str, profile_url: str = "", enabled: bool = True) -> int:
+    def upsert_source_account(
+        self, name: str, linkedin_urn: str, profile_url: str = "", enabled: bool = True
+    ) -> int:
         now = time.time()
         with self._connect() as connection:
             connection.execute(
@@ -161,7 +167,9 @@ class SignalStore:
                     name=excluded.name, profile_url=excluded.profile_url, enabled=excluded.enabled""",
                 (name, linkedin_urn, profile_url, int(enabled), now),
             )
-            row = connection.execute("SELECT id FROM source_accounts WHERE linkedin_urn = ?", (linkedin_urn,)).fetchone()
+            row = connection.execute(
+                "SELECT id FROM source_accounts WHERE linkedin_urn = ?", (linkedin_urn,)
+            ).fetchone()
             return int(row["id"])
 
     def list_sources(self) -> list[dict[str, Any]]:
@@ -171,10 +179,20 @@ class SignalStore:
 
     def mark_source_scanned(self, source_id: int):
         with self._connect() as connection:
-            connection.execute("UPDATE source_accounts SET last_scanned_at = ? WHERE id = ?", (time.time(), source_id))
+            connection.execute(
+                "UPDATE source_accounts SET last_scanned_at = ? WHERE id = ?", (time.time(), source_id)
+            )
 
-    def upsert_post(self, post_urn: str, source_id: int | None, post_url: str, text: str,
-                    weighted_engagement: int, velocity: float, raw: dict[str, Any] | None = None):
+    def upsert_post(
+        self,
+        post_urn: str,
+        source_id: int | None,
+        post_url: str,
+        text: str,
+        weighted_engagement: int,
+        velocity: float,
+        raw: dict[str, Any] | None = None,
+    ):
         with self._connect() as connection:
             connection.execute(
                 """INSERT INTO posts(post_urn, source_id, post_url, text, weighted_engagement, velocity, raw_json, discovered_at)
@@ -183,13 +201,29 @@ class SignalStore:
                     source_id=excluded.source_id, post_url=excluded.post_url, text=excluded.text,
                     weighted_engagement=excluded.weighted_engagement, velocity=excluded.velocity,
                     raw_json=excluded.raw_json""",
-                (post_urn, source_id, post_url, text, weighted_engagement, velocity,
-                 json.dumps(raw or {}, separators=(",", ":")), time.time()),
+                (
+                    post_urn,
+                    source_id,
+                    post_url,
+                    text,
+                    weighted_engagement,
+                    velocity,
+                    json.dumps(raw or {}, separators=(",", ":")),
+                    time.time(),
+                ),
             )
 
-    def upsert_signal_lead(self, identity_key: str, actor_urn: str, profile_url: str,
-                           source_post_urn: str, action: str, name: str = "",
-                           headline: str = "", comment_text: str = "") -> int:
+    def upsert_signal_lead(
+        self,
+        identity_key: str,
+        actor_urn: str,
+        profile_url: str,
+        source_post_urn: str,
+        action: str,
+        name: str = "",
+        headline: str = "",
+        comment_text: str = "",
+    ) -> int:
         now = time.time()
         with self._connect() as connection:
             connection.execute(
@@ -202,7 +236,18 @@ class SignalStore:
                     headline=CASE WHEN excluded.headline != '' THEN excluded.headline ELSE signal_leads.headline END,
                     comment_text=CASE WHEN excluded.comment_text != '' THEN excluded.comment_text ELSE signal_leads.comment_text END,
                     updated_at=excluded.updated_at""",
-                (identity_key, actor_urn, profile_url, source_post_urn, action, name, headline, comment_text, now, now),
+                (
+                    identity_key,
+                    actor_urn,
+                    profile_url,
+                    source_post_urn,
+                    action,
+                    name,
+                    headline,
+                    comment_text,
+                    now,
+                    now,
+                ),
             )
             row = connection.execute(
                 "SELECT id FROM signal_leads WHERE identity_key = ? AND source_post_urn = ?",
@@ -212,10 +257,24 @@ class SignalStore:
 
     def update_lead(self, lead_id: int, **fields):
         allowed = {
-            "name", "email", "phone", "company", "title", "qualification_json",
-            "headline", "comment_text", "offer_json", "outreach_json", "compliance_json",
-            "enrichment_source", "verification_status", "crm_lead_id", "outreach_status",
-            "approved_at", "rejection_reason", "provider_lead_id",
+            "name",
+            "email",
+            "phone",
+            "company",
+            "title",
+            "qualification_json",
+            "headline",
+            "comment_text",
+            "offer_json",
+            "outreach_json",
+            "compliance_json",
+            "enrichment_source",
+            "verification_status",
+            "crm_lead_id",
+            "outreach_status",
+            "approved_at",
+            "rejection_reason",
+            "provider_lead_id",
         }
         updates = {key: value for key, value in fields.items() if key in allowed}
         if not updates:
@@ -297,8 +356,9 @@ class SignalStore:
             connection.execute("DELETE FROM oauth_states WHERE expires_at <= ?", (now,))
             return cursor.rowcount == 1
 
-    def record_event(self, provider: str, provider_event_id: str, event_type: str,
-                     email: str, payload: dict[str, Any]) -> bool:
+    def record_event(
+        self, provider: str, provider_event_id: str, event_type: str, email: str, payload: dict[str, Any]
+    ) -> bool:
         with self._connect() as connection:
             cursor = connection.execute(
                 """INSERT OR IGNORE INTO provider_events(
@@ -315,8 +375,9 @@ class SignalStore:
             )
             return cursor.rowcount == 1
 
-    def create_content_asset(self, source_type: str, source_text: str,
-                             metadata: dict[str, Any], insights: dict[str, Any]) -> int:
+    def create_content_asset(
+        self, source_type: str, source_text: str, metadata: dict[str, Any], insights: dict[str, Any]
+    ) -> int:
         with self._connect() as connection:
             cursor = connection.execute(
                 """INSERT INTO content_assets(source_type, source_text, metadata_json, insights_json, created_at)
@@ -359,9 +420,13 @@ class SignalStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def update_content_draft(self, draft_id: int, status: str | None = None,
-                             metrics: dict[str, Any] | None = None,
-                             published_post_urn: str | None = None) -> dict[str, Any] | None:
+    def update_content_draft(
+        self,
+        draft_id: int,
+        status: str | None = None,
+        metrics: dict[str, Any] | None = None,
+        published_post_urn: str | None = None,
+    ) -> dict[str, Any] | None:
         # values binds heterogeneous SQLite parameters (str, int, float),
         # so it is a list[Any] rather than a list[str].
         fields: list[str] = []

@@ -103,7 +103,9 @@ class TradeLeadDiscovery:
         config = get_trade_config(trade)
         if not config:
             return []
-        return await self.discover(trade, location, platforms=[config["best_platform"]], max_per_platform=max_results)
+        return await self.discover(
+            trade, location, platforms=[config["best_platform"]], max_per_platform=max_results
+        )
 
     def get_results(self, key: str = "") -> dict[str, list[TradeLead]]:
         if key:

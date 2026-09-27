@@ -54,7 +54,5 @@ class SearchProvider:
         self.api_key = api_key
         self.timeout = timeout
 
-    async def search(self, query: str, *,
-                     num_results: int = 10,
-                     **kwargs) -> SearchResult:
+    async def search(self, query: str, *, num_results: int = 10, **kwargs) -> SearchResult:
         raise NotImplementedError

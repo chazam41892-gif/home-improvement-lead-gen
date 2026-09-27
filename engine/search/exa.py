@@ -20,8 +20,7 @@ _search_semaphore = asyncio.Semaphore(5)
 class ExaSearchProvider(SearchProvider):
     name = "exa"
 
-    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0,
-                 base_url: str = EXA_BASE):
+    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0, base_url: str = EXA_BASE):
         super().__init__(
             api_key=api_key or os.environ.get("EXA_API_KEY"),
             timeout=timeout,
@@ -31,12 +30,17 @@ class ExaSearchProvider(SearchProvider):
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode("utf-8")
-        req = urllib.request.Request(url, data=data, method="POST", headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "x-api-key": self.api_key or "",
-            "User-Agent": "LeviathanLeadGen/3.0",
-        })
+        req = urllib.request.Request(
+            url,
+            data=data,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "x-api-key": self.api_key or "",
+                "User-Agent": "LeviathanLeadGen/3.0",
+            },
+        )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
@@ -46,22 +50,30 @@ class ExaSearchProvider(SearchProvider):
         except Exception as e:
             return {"error": f"{type(e).__name__}: {e}"}
 
-    async def search(self, query: str, *,
-                     num_results: int = 10,
-                     search_type: str = "auto",
-                     category: str | None = None,
-                     text: bool = False,
-                     highlights: bool = False,
-                     start_published_date: str | None = None,
-                     end_published_date: str | None = None,
-                     include_domains: list[str] | None = None,
-                     exclude_domains: list[str] | None = None,
-                     **kwargs) -> SearchResult:
+    async def search(
+        self,
+        query: str,
+        *,
+        num_results: int = 10,
+        search_type: str = "auto",
+        category: str | None = None,
+        text: bool = False,
+        highlights: bool = False,
+        start_published_date: str | None = None,
+        end_published_date: str | None = None,
+        include_domains: list[str] | None = None,
+        exclude_domains: list[str] | None = None,
+        **kwargs,
+    ) -> SearchResult:
         t0 = time.time()
         if not self.api_key:
-            return SearchResult(query=query, hits=[], provider=self.name,
-                                elapsed_sec=time.time() - t0,
-                                error="EXA_API_KEY not set. Add your key in Settings.")
+            return SearchResult(
+                query=query,
+                hits=[],
+                provider=self.name,
+                elapsed_sec=time.time() - t0,
+                error="EXA_API_KEY not set. Add your key in Settings.",
+            )
 
         body: dict[str, Any] = {
             "query": query,
@@ -88,31 +100,35 @@ class ExaSearchProvider(SearchProvider):
         async with _search_semaphore:
             resp = await asyncio.to_thread(self._post, "/search", body)
         if "error" in resp:
-            return SearchResult(query=query, hits=[], provider=self.name,
-                                elapsed_sec=time.time() - t0,
-                                error=resp["error"])
+            return SearchResult(
+                query=query, hits=[], provider=self.name, elapsed_sec=time.time() - t0, error=resp["error"]
+            )
 
         hits: list[SearchHit] = []
         for r in resp.get("results", [])[:num_results]:
-            hits.append(SearchHit(
-                title=r.get("title", "") or "",
-                url=r.get("url", "") or "",
-                snippet=(r.get("text") or "")[:500] or (
-                    " ".join(r.get("highlights") or [])[:500]
-                ),
-                published_date=r.get("publishedDate"),
-                score=float(r.get("score", 0.0) or 0.0),
-                extras={"author": r.get("author"), "image": r.get("image")},
-            ))
-        return SearchResult(query=query, hits=hits, provider=self.name,
-                            elapsed_sec=time.time() - t0,
-                            raw=resp)
+            hits.append(
+                SearchHit(
+                    title=r.get("title", "") or "",
+                    url=r.get("url", "") or "",
+                    snippet=(r.get("text") or "")[:500] or (" ".join(r.get("highlights") or [])[:500]),
+                    published_date=r.get("publishedDate"),
+                    score=float(r.get("score", 0.0) or 0.0),
+                    extras={"author": r.get("author"), "image": r.get("image")},
+                )
+            )
+        return SearchResult(
+            query=query, hits=hits, provider=self.name, elapsed_sec=time.time() - t0, raw=resp
+        )
 
-    async def contents(self, urls: list[str], *,
-                       text: bool = True,
-                       highlights: bool = False,
-                       summary: bool = False,
-                       livecrawl: str = "fallback") -> dict[str, Any]:
+    async def contents(
+        self,
+        urls: list[str],
+        *,
+        text: bool = True,
+        highlights: bool = False,
+        summary: bool = False,
+        livecrawl: str = "fallback",
+    ) -> dict[str, Any]:
         if not self.api_key:
             return {"ok": False, "error": "EXA_API_KEY not set"}
         body: dict[str, Any] = {"ids": urls, "livecrawl": livecrawl}

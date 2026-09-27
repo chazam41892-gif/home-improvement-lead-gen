@@ -4,6 +4,7 @@ Each provider returns a result dict and only sends if its credentials are
 configured. If credentials are missing, it logs a warning and returns a
 simulated result so the nurture engine keeps working in local/dev mode.
 """
+
 from __future__ import annotations
 
 import logging

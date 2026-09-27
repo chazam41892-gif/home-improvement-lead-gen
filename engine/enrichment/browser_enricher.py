@@ -18,10 +18,12 @@ EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 PHONE_RE = re.compile(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
 STREET_RE = re.compile(
     r"\d+\s+[A-Za-z0-9\s,]{2,40}\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Circle|Cir|Place|Pl|Suite|Ste|#)\b",
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 FOUNDED_RE = re.compile(r"\b(?:founded|established|since|est\.)\s*(?:in\s+)?(\d{4})\b", re.IGNORECASE)
-EMPLOYEES_RE = re.compile(r"\b(?:team\s+of|employs|has)\s*(\d{1,3})\s*(?:employees|people|staff)\b", re.IGNORECASE)
+EMPLOYEES_RE = re.compile(
+    r"\b(?:team\s+of|employs|has)\s*(\d{1,3})\s*(?:employees|people|staff)\b", re.IGNORECASE
+)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -55,6 +57,7 @@ class BrowserEnricher(EnrichmentProvider):
             # Availability probe, not a use: importing the symbol proves the
             # package is installed. Annotated so the intent survives lint.
             from playwright.async_api import async_playwright as _  # noqa: F401
+
             self.playwright_available = True
         except ImportError:
             pass
@@ -97,7 +100,21 @@ class BrowserEnricher(EnrichmentProvider):
                 domain = parsed_href.netloc.lower()
 
                 # Skip common business directories/aggregators
-                if any(skip in domain for skip in ("yelp.com", "yellowpages.com", "bbb.org", "angi.com", "homeadvisor.com", "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "duckduckgo.com")):
+                if any(
+                    skip in domain
+                    for skip in (
+                        "yelp.com",
+                        "yellowpages.com",
+                        "bbb.org",
+                        "angi.com",
+                        "homeadvisor.com",
+                        "facebook.com",
+                        "instagram.com",
+                        "twitter.com",
+                        "linkedin.com",
+                        "duckduckgo.com",
+                    )
+                ):
                     continue
 
                 if domain:
@@ -106,11 +123,15 @@ class BrowserEnricher(EnrichmentProvider):
             logger.debug("Failed to resolve website via DDG: %s", e)
         return None
 
-    async def enrich(self, business_name: str, trade: str,
-                      location: str | None = None,
-                      website: str | None = None,
-                      phone: str | None = None,
-                      **kwargs) -> EnrichmentResult:
+    async def enrich(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         # `phone` is declared for LSP compliance with EnrichmentProvider.enrich
         # (a keyless scraper has no use for it). It is intentionally unused.
         result = EnrichmentResult(business_name=business_name, trade=trade)
@@ -159,7 +180,9 @@ class BrowserEnricher(EnrichmentProvider):
                 self._populate_from_soup(contact_soup, result, secondary_url)
 
         # Calculate final confidence score
-        fields_filled = sum(1 for f in ("contact_name", "phone", "email", "address", "website") if getattr(result, f))
+        fields_filled = sum(
+            1 for f in ("contact_name", "phone", "email", "address", "website") if getattr(result, f)
+        )
         result.confidence = min(1.0, 0.3 + 0.15 * fields_filled)
         result.sources.append("browser_enricher")
 
@@ -172,7 +195,11 @@ class BrowserEnricher(EnrichmentProvider):
         phones = list(set(PHONE_RE.findall(text)))
 
         # skips wix/boostrap PNGs that look like emails
-        emails = [e for e in emails if not any(skip in e.lower() for skip in ("png", "jpg", "jpeg", "gif", "bootstrap", "wix"))]
+        emails = [
+            e
+            for e in emails
+            if not any(skip in e.lower() for skip in ("png", "jpg", "jpeg", "gif", "bootstrap", "wix"))
+        ]
 
         # Clean phones/emails to avoid overlapping address matches
         temp_text = text
@@ -227,7 +254,9 @@ class BrowserEnricher(EnrichmentProvider):
         if meta_desc and meta_desc.get("content"):
             result.raw_data["about_snippet"] = meta_desc.get("content")
         else:
-            paragraphs = [p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 30]
+            paragraphs = [
+                p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 30
+            ]
             if paragraphs:
                 result.raw_data["about_snippet"] = " ".join(paragraphs[:2])[:400]
 
@@ -238,6 +267,7 @@ class BrowserEnricher(EnrichmentProvider):
         if self.playwright_available:
             try:
                 from playwright.async_api import async_playwright
+
                 async with async_playwright() as p:
                     browser = await p.chromium.launch(headless=True)
                     context = await browser.new_context(user_agent=HEADERS["User-Agent"])

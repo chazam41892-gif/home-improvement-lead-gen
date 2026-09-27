@@ -46,11 +46,21 @@ INDUSTRY_KEYWORDS: dict[str, list[str]] = {
 }
 
 INDUSTRY_WEIGHTS: dict[str, float] = {
-    "roofing": 1.0, "hvac": 1.0, "plumbing": 1.0, "electrical": 1.0,
-    "solar": 0.95, "kitchen_bath": 0.9, "windows": 0.9,
-    "construction": 0.85, "landscaping": 0.8, "painting": 0.8,
-    "fencing": 0.7, "concrete": 0.75, "cleaning": 0.65,
-    "pest_control": 0.7, "moving": 0.6,
+    "roofing": 1.0,
+    "hvac": 1.0,
+    "plumbing": 1.0,
+    "electrical": 1.0,
+    "solar": 0.95,
+    "kitchen_bath": 0.9,
+    "windows": 0.9,
+    "construction": 0.85,
+    "landscaping": 0.8,
+    "painting": 0.8,
+    "fencing": 0.7,
+    "concrete": 0.75,
+    "cleaning": 0.65,
+    "pest_control": 0.7,
+    "moving": 0.6,
 }
 
 
@@ -64,15 +74,15 @@ def score_contact_completeness(title: str, snippet: str, url: str) -> float:
         score += 15
 
     phone_patterns = [
-        r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b',
-        r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}',
+        r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",
+        r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}",
     ]
     for pat in phone_patterns:
         if re.search(pat, combined):
             score += 25
             break
 
-    email_patterns = [r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b']
+    email_patterns = [r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"]
     for pat in email_patterns:
         if re.search(pat, combined):
             score += 20
@@ -88,7 +98,7 @@ def score_business_presence(title: str, snippet: str) -> float:
     score = 0.0
     combined = f"{title} {snippet}".lower()
 
-    years_pattern = r'\b(\d+)\s*(year|yr)s?\b'
+    years_pattern = r"\b(\d+)\s*(year|yr)s?\b"
     years_match = re.search(years_pattern, combined)
     if years_match:
         try:
@@ -101,17 +111,32 @@ def score_business_presence(title: str, snippet: str) -> float:
             pass
 
     trust_signals = [
-        "bbb", "accredited", "licensed", "insured", "bonded",
-        "award", "top rated", "best of", "5-star", "recommended",
-        "family owned", "locally owned", "since",
+        "bbb",
+        "accredited",
+        "licensed",
+        "insured",
+        "bonded",
+        "award",
+        "top rated",
+        "best of",
+        "5-star",
+        "recommended",
+        "family owned",
+        "locally owned",
+        "since",
     ]
     for signal in trust_signals:
         if signal in combined:
             score += 8
 
     presence_signals = [
-        "free estimate", "free quote", "call now", "contact us",
-        "service area", "satisfaction guaranteed", "warranty",
+        "free estimate",
+        "free quote",
+        "call now",
+        "contact us",
+        "service area",
+        "satisfaction guaranteed",
+        "warranty",
     ]
     for signal in presence_signals:
         if signal in combined:
@@ -146,8 +171,12 @@ def score_industry_relevance(title: str, snippet: str, target_industry: str | No
     return best_score
 
 
-def score_location_match(snippet: str, target_city: str | None = None,
-                         target_state: str | None = None, target_zip: str | None = None) -> float:
+def score_location_match(
+    snippet: str,
+    target_city: str | None = None,
+    target_state: str | None = None,
+    target_zip: str | None = None,
+) -> float:
     if not target_city and not target_state and not target_zip:
         return 50.0
 
@@ -171,9 +200,15 @@ def score_enrichment_potential(url: str) -> float:
         score += 30
 
     social_domains = {
-        "linkedin.com": 25, "facebook.com": 15, "instagram.com": 10,
-        "twitter.com": 10, "youtube.com": 10, "yelp.com": 15,
-        "bbb.org": 20, "angi.com": 15, "homeadvisor.com": 15,
+        "linkedin.com": 25,
+        "facebook.com": 15,
+        "instagram.com": 10,
+        "twitter.com": 10,
+        "youtube.com": 10,
+        "yelp.com": 15,
+        "bbb.org": 20,
+        "angi.com": 15,
+        "homeadvisor.com": 15,
     }
     for domain, pts in social_domains.items():
         if domain in url.lower():
@@ -182,11 +217,15 @@ def score_enrichment_potential(url: str) -> float:
     return min(score, 100)
 
 
-def score_lead(title: str, snippet: str, url: str,
-               target_industry: str | None = None,
-               target_city: str | None = None,
-               target_state: str | None = None,
-               target_zip: str | None = None) -> LeadScore:
+def score_lead(
+    title: str,
+    snippet: str,
+    url: str,
+    target_industry: str | None = None,
+    target_city: str | None = None,
+    target_state: str | None = None,
+    target_zip: str | None = None,
+) -> LeadScore:
     contact = score_contact_completeness(title, snippet, url)
     business = score_business_presence(title, snippet)
     industry = score_industry_relevance(title, snippet, target_industry)
@@ -195,11 +234,11 @@ def score_lead(title: str, snippet: str, url: str,
 
     weights = {"contact": 0.25, "business": 0.15, "industry": 0.30, "location": 0.20, "enrichment": 0.10}
     total = (
-        contact * weights["contact"] +
-        business * weights["business"] +
-        industry * weights["industry"] +
-        location * weights["location"] +
-        enrichment * weights["enrichment"]
+        contact * weights["contact"]
+        + business * weights["business"]
+        + industry * weights["industry"]
+        + location * weights["location"]
+        + enrichment * weights["enrichment"]
     )
 
     return LeadScore(

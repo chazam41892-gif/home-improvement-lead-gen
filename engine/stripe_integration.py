@@ -65,8 +65,18 @@ class _StripeAccessor:
 #: `stripe_secret`. `is_configured` was `bool(self.secret_key)`, so that
 #: placeholder read as CONFIGURED and a real Stripe API call was attempted with a
 #: bogus key, raising a confusing AuthenticationError instead of "not configured".
-PLACEHOLDER_PREFIXES = ("FAKE", "XXX", "CHANGEME", "CHANGE_ME", "PLACEHOLDER",
-                         "YOUR_", "REPLACE_", "TODO", "DUMMY", "TESTKEY")
+PLACEHOLDER_PREFIXES = (
+    "FAKE",
+    "XXX",
+    "CHANGEME",
+    "CHANGE_ME",
+    "PLACEHOLDER",
+    "YOUR_",
+    "REPLACE_",
+    "TODO",
+    "DUMMY",
+    "TESTKEY",
+)
 _MIN_SECRET_LEN = 20  # real Stripe secret keys are far longer than a placeholder
 
 
@@ -92,12 +102,10 @@ class StripeIntegration:
         if raw_secret and not self.secret_key:
             logger.warning(
                 "stripe_secret is a placeholder, not a live key — billing disabled "
-                "until a real STRIPE secret key is configured")
+                "until a real STRIPE secret key is configured"
+            )
         stripe.api_key = self.secret_key
-        self._price_ids = {
-            plan: KeyVault.get(f"stripe_price_{plan}") or ""
-            for plan in PLANS
-        }
+        self._price_ids = {plan: KeyVault.get(f"stripe_price_{plan}") or "" for plan in PLANS}
 
     @property
     def is_configured(self) -> bool:
@@ -105,6 +113,7 @@ class StripeIntegration:
 
     def _read_mappings(self) -> list[dict]:
         from engine.database import Database
+
         mappings = []
         try:
             with Database.get_connection() as conn:
@@ -119,46 +128,54 @@ class StripeIntegration:
 
     def _write_mappings(self, mappings: list[dict]):
         from engine.database import Database
+
         try:
             with Database.get_connection() as conn:
                 conn.execute("DELETE FROM stripe_mappings")
                 for m in mappings:
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT INTO stripe_mappings (
                             account_id, stripe_customer_id, stripe_subscription_id, plan, status, created_at, cancelled_at, cancel_at_period_end
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        m.get("account_id"),
-                        m.get("stripe_customer_id"),
-                        m.get("stripe_subscription_id"),
-                        m.get("plan"),
-                        m.get("status"),
-                        m.get("created_at"),
-                        m.get("cancelled_at"),
-                        1 if m.get("cancel_at_period_end") else 0
-                    ))
+                    """,
+                        (
+                            m.get("account_id"),
+                            m.get("stripe_customer_id"),
+                            m.get("stripe_subscription_id"),
+                            m.get("plan"),
+                            m.get("status"),
+                            m.get("created_at"),
+                            m.get("cancelled_at"),
+                            1 if m.get("cancel_at_period_end") else 0,
+                        ),
+                    )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to write Stripe mappings to database: %s", e)
 
     def _append_mapping(self, mapping: dict):
         from engine.database import Database
+
         try:
             with Database.get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO stripe_mappings (
                         account_id, stripe_customer_id, stripe_subscription_id, plan, status, created_at, cancelled_at, cancel_at_period_end
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    mapping.get("account_id"),
-                    mapping.get("stripe_customer_id"),
-                    mapping.get("stripe_subscription_id"),
-                    mapping.get("plan"),
-                    mapping.get("status"),
-                    mapping.get("created_at"),
-                    mapping.get("cancelled_at"),
-                    1 if mapping.get("cancel_at_period_end") else 0
-                ))
+                """,
+                    (
+                        mapping.get("account_id"),
+                        mapping.get("stripe_customer_id"),
+                        mapping.get("stripe_subscription_id"),
+                        mapping.get("plan"),
+                        mapping.get("status"),
+                        mapping.get("created_at"),
+                        mapping.get("cancelled_at"),
+                        1 if mapping.get("cancel_at_period_end") else 0,
+                    ),
+                )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to append Stripe mapping to database: %s", e)
@@ -171,8 +188,8 @@ class StripeIntegration:
         # placeholder fix, an actual network round-trip with a FAKE key).
         if not self.is_configured:
             raise RuntimeError(
-                "Stripe is not configured — set a real stripe_secret before "
-                "creating a checkout session.")
+                "Stripe is not configured — set a real stripe_secret before creating a checkout session."
+            )
 
         amount = PLANS.get(plan)
         if not amount:
@@ -251,22 +268,27 @@ class StripeIntegration:
             logger.warning("Checkout session missing account_id or customer")
             return
 
-        self._append_mapping({
-            "account_id": account_id,
-            "stripe_customer_id": customer_id,
-            "stripe_subscription_id": subscription_id,
-            "plan": plan,
-            "status": "active",
-            "created_at": datetime.now(UTC).isoformat(),
-        })
+        self._append_mapping(
+            {
+                "account_id": account_id,
+                "stripe_customer_id": customer_id,
+                "stripe_subscription_id": subscription_id,
+                "plan": plan,
+                "status": "active",
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        )
         logger.info(
             "Checkout completed: account=%s customer=%s sub=%s",
-            account_id, customer_id, subscription_id,
+            account_id,
+            customer_id,
+            subscription_id,
         )
 
     async def _on_subscription_deleted(self, subscription):
-        await self._apply_subscription_state(_StripeAccessor(subscription)("id"), "cancelled",
-                                             reason="subscription deleted")
+        await self._apply_subscription_state(
+            _StripeAccessor(subscription)("id"), "cancelled", reason="subscription deleted"
+        )
 
     async def _on_subscription_updated(self, subscription):
         """Mirror Stripe's subscription status into our local record (audit H-5).
@@ -275,8 +297,7 @@ class StripeIntegration:
         card bounced stayed `active` in our records for weeks.
         """
         g = _StripeAccessor(subscription)
-        await self._apply_subscription_state(g("id"), g("status", "active"),
-                                             reason="subscription.updated")
+        await self._apply_subscription_state(g("id"), g("status", "active"), reason="subscription.updated")
 
     async def _apply_subscription_state(self, sub_id, status, reason: str = ""):
         """Single writer for subscription state so paid/failed/deleted/updated all
@@ -306,7 +327,9 @@ class StripeIntegration:
             await self._apply_subscription_state(subscription_id, "active", reason="invoice paid")
         logger.info(
             "Invoice paid: sub=%s customer=%s amount=%s",
-            subscription_id, customer_id, amount_paid,
+            subscription_id,
+            customer_id,
+            amount_paid,
         )
 
     async def _on_invoice_failed(self, invoice):
@@ -316,11 +339,11 @@ class StripeIntegration:
         # HIGH (audit H-2): this used to be logger-only, leaving the account `active`
         # after a failed payment -> direct revenue leakage.
         if subscription_id:
-            await self._apply_subscription_state(subscription_id, "past_due",
-                                                reason="invoice payment failed")
+            await self._apply_subscription_state(subscription_id, "past_due", reason="invoice payment failed")
         logger.warning(
             "Invoice failed: sub=%s customer=%s -- marked past_due",
-            subscription_id, customer_id,
+            subscription_id,
+            customer_id,
         )
 
     async def get_subscription(self, account_id: str) -> dict:

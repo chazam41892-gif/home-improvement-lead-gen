@@ -29,14 +29,26 @@ class SearchConfig:
     min_score: float = 30.0
     search_type: str = "auto"
     provider: str = "exa"
-    include_domains: list[str] = field(default_factory=lambda: [
-        "yelp.com", "bbb.org", "angi.com", "homeadvisor.com",
-        "maps.google.com", "linkedin.com", "facebook.com",
-    ])
-    exclude_domains: list[str] = field(default_factory=lambda: [
-        "pinterest.com", "amazon.com", "wikipedia.org",
-        "instagram.com", "tiktok.com",
-    ])
+    include_domains: list[str] = field(
+        default_factory=lambda: [
+            "yelp.com",
+            "bbb.org",
+            "angi.com",
+            "homeadvisor.com",
+            "maps.google.com",
+            "linkedin.com",
+            "facebook.com",
+        ]
+    )
+    exclude_domains: list[str] = field(
+        default_factory=lambda: [
+            "pinterest.com",
+            "amazon.com",
+            "wikipedia.org",
+            "instagram.com",
+            "tiktok.com",
+        ]
+    )
 
     def build_search_query(self) -> str:
         parts = []
@@ -139,8 +151,7 @@ class LeadResult:
 
 
 class LeadScoutEngine:
-    def __init__(self, exa_api_key: str | None = None,
-                 perplexity_api_key: str | None = None):
+    def __init__(self, exa_api_key: str | None = None, perplexity_api_key: str | None = None):
         self._exa: ExaSearchProvider | None = None
         self._perplexity: PerplexitySearchProvider | None = None
         self._browser = BrowserSearchProvider()
@@ -198,7 +209,12 @@ class LeadScoutEngine:
 
         if provider_name == "perplexity":
             if not self._perplexity or not self._perplexity.api_key:
-                return {"ok": False, "error": "Perplexity API key not configured. Add it in Settings.", "leads": [], "count": 0}
+                return {
+                    "ok": False,
+                    "error": "Perplexity API key not configured. Add it in Settings.",
+                    "leads": [],
+                    "count": 0,
+                }
             search_fn = self._perplexity.search
             logger.info(f"Searching (Perplexity): {config.build_search_query()}")
         elif provider_name == "browser":
@@ -206,13 +222,23 @@ class LeadScoutEngine:
             logger.info(f"Searching (Browser): {config.build_search_query()}")
         else:
             if not self.has_exa_key:
-                return {"ok": False, "error": "Exa API key not configured. Add it in Settings.", "leads": [], "count": 0}
+                return {
+                    "ok": False,
+                    "error": "Exa API key not configured. Add it in Settings.",
+                    "leads": [],
+                    "count": 0,
+                }
             # has_exa_key already guarantees _exa is not None, but mypy cannot
             # see that across the method boundary -- bind it locally so the
             # invariant is checked once, at the point that actually needs it.
             exa = self._exa
             if exa is None:  # pragma: no cover - defensive, see has_exa_key
-                return {"ok": False, "error": "Exa API key not configured. Add it in Settings.", "leads": [], "count": 0}
+                return {
+                    "ok": False,
+                    "error": "Exa API key not configured. Add it in Settings.",
+                    "leads": [],
+                    "count": 0,
+                }
             search_fn = exa.search
             logger.info(f"Searching (Exa): {config.build_search_query()}")
 
@@ -308,8 +334,9 @@ class LeadScoutEngine:
             "pipeline": route_result["pipeline"],
         }
 
-    async def search_natural(self, natural_query: str, num_results: int = 25,
-                             min_score: float = 30.0, provider: str = "exa") -> dict[str, Any]:
+    async def search_natural(
+        self, natural_query: str, num_results: int = 25, min_score: float = 30.0, provider: str = "exa"
+    ) -> dict[str, Any]:
         parsed = self._parse_natural_query(natural_query)
 
         config = SearchConfig(
@@ -347,9 +374,19 @@ class LeadScoutEngine:
             "pest control": ["pest", "exterminat", "termite"],
             "moving": ["moving", "mover"],
             "real estate": ["real estate", "realtor", "real estate agent", "property"],
-            "land_developer": ["land developer", "land acquisition", "land buyer", "property developer",
-                               "subdivision", "lot builder", "home builder", "tract home",
-                               "developer buying land", "land investment", "master planned"],
+            "land_developer": [
+                "land developer",
+                "land acquisition",
+                "land buyer",
+                "property developer",
+                "subdivision",
+                "lot builder",
+                "home builder",
+                "tract home",
+                "developer buying land",
+                "land investment",
+                "master planned",
+            ],
             "church": ["church", "ministry", "worship"],
         }
 
@@ -362,11 +399,56 @@ class LeadScoutEngine:
             result["industry"] = found_industries[0]
 
         state_abbrs = [
-            "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga",
-            "hi", "id", "il", "in", "ia", "ks", "ky", "la", "me", "md",
-            "ma", "mi", "mn", "ms", "mo", "mt", "ne", "nv", "nh", "nj",
-            "nm", "ny", "nc", "nd", "oh", "ok", "or", "pa", "ri", "sc",
-            "sd", "tn", "tx", "ut", "vt", "va", "wa", "wv", "wi", "wy",
+            "al",
+            "ak",
+            "az",
+            "ar",
+            "ca",
+            "co",
+            "ct",
+            "de",
+            "fl",
+            "ga",
+            "hi",
+            "id",
+            "il",
+            "in",
+            "ia",
+            "ks",
+            "ky",
+            "la",
+            "me",
+            "md",
+            "ma",
+            "mi",
+            "mn",
+            "ms",
+            "mo",
+            "mt",
+            "ne",
+            "nv",
+            "nh",
+            "nj",
+            "nm",
+            "ny",
+            "nc",
+            "nd",
+            "oh",
+            "ok",
+            "or",
+            "pa",
+            "ri",
+            "sc",
+            "sd",
+            "tn",
+            "tx",
+            "ut",
+            "vt",
+            "va",
+            "wa",
+            "wv",
+            "wi",
+            "wy",
         ]
 
         location = text
@@ -374,7 +456,7 @@ class LeadScoutEngine:
             location = location.replace(ind, "", 1).strip()
         for prefix in ["find me", "find", "search for", "get me", "i need", "look for", "show me"]:
             if location.startswith(prefix):
-                location = location[len(prefix):].strip()
+                location = location[len(prefix) :].strip()
         location = location.replace(" in ", "|").replace(" near ", "|").replace(" around ", "|")
         parts = [p.strip() for p in location.split("|") if p.strip()]
         if parts:
@@ -391,23 +473,64 @@ class LeadScoutEngine:
 
             if not result.get("state"):
                 us_states_full = [
-                    "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
-                    "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
-                    "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
-                    "maine", "maryland", "massachusetts", "michigan", "minnesota",
-                    "mississippi", "missouri", "montana", "nebraska", "nevada",
-                    "new hampshire", "new jersey", "new mexico", "new york",
-                    "north carolina", "north dakota", "ohio", "oklahoma", "oregon",
-                    "pennsylvania", "rhode island", "south carolina", "south dakota",
-                    "tennessee", "texas", "utah", "vermont", "virginia", "washington",
-                    "west virginia", "wisconsin", "wyoming",
+                    "alabama",
+                    "alaska",
+                    "arizona",
+                    "arkansas",
+                    "california",
+                    "colorado",
+                    "connecticut",
+                    "delaware",
+                    "florida",
+                    "georgia",
+                    "hawaii",
+                    "idaho",
+                    "illinois",
+                    "indiana",
+                    "iowa",
+                    "kansas",
+                    "kentucky",
+                    "louisiana",
+                    "maine",
+                    "maryland",
+                    "massachusetts",
+                    "michigan",
+                    "minnesota",
+                    "mississippi",
+                    "missouri",
+                    "montana",
+                    "nebraska",
+                    "nevada",
+                    "new hampshire",
+                    "new jersey",
+                    "new mexico",
+                    "new york",
+                    "north carolina",
+                    "north dakota",
+                    "ohio",
+                    "oklahoma",
+                    "oregon",
+                    "pennsylvania",
+                    "rhode island",
+                    "south carolina",
+                    "south dakota",
+                    "tennessee",
+                    "texas",
+                    "utah",
+                    "vermont",
+                    "virginia",
+                    "washington",
+                    "west virginia",
+                    "wisconsin",
+                    "wyoming",
                 ]
                 for full in us_states_full:
                     if full in loc_lower:
                         result["state"] = full.title()
 
-        zip_pattern = r'\b(\d{5})\b'
+        zip_pattern = r"\b(\d{5})\b"
         import re
+
         zip_match = re.search(zip_pattern, text)
         if zip_match:
             result["zip_code"] = zip_match.group(1)
@@ -420,7 +543,7 @@ class LeadScoutEngine:
     def get_leads(self, limit: int = 100, min_score: float = 0) -> list[dict[str, Any]]:
         sorted_leads = sorted(
             self._leads.values(),
-        key=lambda lead: lead.score.total,
+            key=lambda lead: lead.score.total,
             reverse=True,
         )
         filtered = [lead for lead in sorted_leads if lead.score.total >= min_score]
@@ -435,10 +558,26 @@ class LeadScoutEngine:
         if not lead:
             return None
         allowed = {
-            "title", "snippet", "industry", "location", "source", "email", "phone",
-            "notes", "status", "first_name", "last_name", "address", "project_description",
-            "utm_source", "utm_medium", "utm_campaign",
-            "sms_consent", "email_consent", "call_consent", "consent_source",
+            "title",
+            "snippet",
+            "industry",
+            "location",
+            "source",
+            "email",
+            "phone",
+            "notes",
+            "status",
+            "first_name",
+            "last_name",
+            "address",
+            "project_description",
+            "utm_source",
+            "utm_medium",
+            "utm_campaign",
+            "sms_consent",
+            "email_consent",
+            "call_consent",
+            "consent_source",
         }
         for key, val in updates.items():
             if key in allowed and hasattr(lead, key):
@@ -446,6 +585,7 @@ class LeadScoutEngine:
         # Persist updated lead to DB
         try:
             from engine.persistence import save_leads
+
             save_leads({lead_id: lead})
         except Exception as e:
             logger.error("Failed to persist updated lead: %s", e)
@@ -455,6 +595,7 @@ class LeadScoutEngine:
         ok = self._leads.pop(lead_id, None) is not None
         try:
             from engine.database import Database
+
             with Database.get_connection() as conn:
                 conn.execute("DELETE FROM leads WHERE id = ?", (lead_id,))
                 conn.commit()
@@ -466,6 +607,7 @@ class LeadScoutEngine:
         self._leads.clear()
         try:
             from engine.database import Database
+
             with Database.get_connection() as conn:
                 conn.execute("DELETE FROM leads")
                 conn.commit()

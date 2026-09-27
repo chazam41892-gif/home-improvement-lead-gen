@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 PHONE_RE = re.compile(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
-STREET_RE = re.compile(r"\d+\s+[A-Za-z0-9\s,]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Circle|Cir|Place|Pl|Suite|Ste|#)\s*,?\s*[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}")
+STREET_RE = re.compile(
+    r"\d+\s+[A-Za-z0-9\s,]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Circle|Cir|Place|Pl|Suite|Ste|#)\s*,?\s*[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}"
+)
 
 
 class ExaEnricher(EnrichmentProvider):
@@ -32,6 +34,7 @@ class ExaEnricher(EnrichmentProvider):
         if self._exa is not None:
             return self._exa
         from ..search.exa import ExaSearchProvider
+
         api_key = KeyVault.get("exa")
         self._exa = ExaSearchProvider(api_key=api_key) if api_key else None
         return self._exa
@@ -53,7 +56,19 @@ class ExaEnricher(EnrichmentProvider):
                     url = hit.url or ""
                     parsed = urlparse(url)
                     domain = parsed.netloc.lower()
-                    if any(skip in domain for skip in ("facebook.com", "instagram.com", "yelp.com", "twitter.com", "linkedin.com", "angi.com", "homeadvisor.com", "nextdoor.com")):
+                    if any(
+                        skip in domain
+                        for skip in (
+                            "facebook.com",
+                            "instagram.com",
+                            "yelp.com",
+                            "twitter.com",
+                            "linkedin.com",
+                            "angi.com",
+                            "homeadvisor.com",
+                            "nextdoor.com",
+                        )
+                    ):
                         continue
                     if domain and not domain.startswith("www."):
                         return url
@@ -63,11 +78,15 @@ class ExaEnricher(EnrichmentProvider):
                 logger.debug("website search error for %s: %s", business, e)
         return None
 
-    async def enrich(self, business_name: str, trade: str,
-                     location: str | None = None,
-                     website: str | None = None,
-                     phone: str | None = None,
-                     **kwargs) -> EnrichmentResult:
+    async def enrich(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         # `phone` is declared for LSP compliance with EnrichmentProvider.enrich
         # (this provider resolves a website, not a phone number).
         result = EnrichmentResult(business_name=business_name, trade=trade)
@@ -85,7 +104,11 @@ class ExaEnricher(EnrichmentProvider):
                 if content_resp.get("ok", True) and "error" not in content_resp:
                     results = content_resp.get("results", [])
                     if results:
-                        text = (results[0].get("text") or "") + "\n" + " ".join(results[0].get("highlights") or [])
+                        text = (
+                            (results[0].get("text") or "")
+                            + "\n"
+                            + " ".join(results[0].get("highlights") or [])
+                        )
                         text = text[:5000]
                         emails = list(set(EMAIL_RE.findall(text)))
                         phones = list(set(PHONE_RE.findall(text)))

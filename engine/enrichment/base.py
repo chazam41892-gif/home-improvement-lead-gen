@@ -27,7 +27,11 @@ class EnrichmentResult:
     raw_data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self):
-        return {k: v for k, v in self.__dict__.items() if v is not None or k in ("sources", "social_links", "raw_data")}
+        return {
+            k: v
+            for k, v in self.__dict__.items()
+            if v is not None or k in ("sources", "social_links", "raw_data")
+        }
 
 
 class EnrichmentProvider:
@@ -42,11 +46,15 @@ class EnrichmentProvider:
     def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
 
-    async def enrich(self, business_name: str, trade: str,
-                     location: str | None = None,
-                     website: str | None = None,
-                     phone: str | None = None,
-                     **kwargs) -> EnrichmentResult:
+    async def enrich(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         raise NotImplementedError
 
     def is_available(self) -> bool:

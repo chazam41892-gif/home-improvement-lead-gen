@@ -4,6 +4,7 @@ Each module represents a B2B product or capability available through
 growth.leviathansi.xyz. AI agents can add new modules here by following
 AGENTS.md in the project root.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

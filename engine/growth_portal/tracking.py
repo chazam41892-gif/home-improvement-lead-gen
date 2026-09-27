@@ -1,4 +1,5 @@
 """Conversion tracking — UTM capture, pixel endpoints, attribution storage."""
+
 from __future__ import annotations
 
 import json
@@ -61,15 +62,18 @@ async def tracking_pixel(
     event_type: str = "page_view",
 ):
     """1x1 transparent pixel for conversion tracking in emails/lander."""
-    _record_event(request, {
-        "event_type": event_type,
-        "lead_id": lead_id,
-        "utm_source": utm_source,
-        "utm_medium": utm_medium,
-        "utm_campaign": utm_campaign,
-        "utm_term": utm_term,
-        "utm_content": utm_content,
-    })
+    _record_event(
+        request,
+        {
+            "event_type": event_type,
+            "lead_id": lead_id,
+            "utm_source": utm_source,
+            "utm_medium": utm_medium,
+            "utm_campaign": utm_campaign,
+            "utm_term": utm_term,
+            "utm_content": utm_content,
+        },
+    )
     # Return 1x1 transparent GIF
     return Response(
         content=b"GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
@@ -105,28 +109,43 @@ def _record_event(request: Request, data: dict[str, Any]):
     event_id = uuid.uuid4().hex[:12]
     headers = request.headers
     with Database.get_connection() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO utm_events (
                 id, event_type, lead_id, utm_source, utm_medium, utm_campaign,
                 utm_term, utm_content, page_path, referrer, user_agent, ip, timestamp, metadata
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            event_id,
-            data.get("event_type", "event"),
-            data.get("lead_id"),
-            data.get("utm_source"),
-            data.get("utm_medium"),
-            data.get("utm_campaign"),
-            data.get("utm_term"),
-            data.get("utm_content"),
-            str(request.url.path),
-            headers.get("referer"),
-            headers.get("user-agent"),
-            request.client.host if request.client else None,
-            _now(),
-            json.dumps({k: v for k, v in data.items() if k not in {
-                "event_type", "lead_id", "utm_source", "utm_medium",
-                "utm_campaign", "utm_term", "utm_content",
-            }}),
-        ))
+        """,
+            (
+                event_id,
+                data.get("event_type", "event"),
+                data.get("lead_id"),
+                data.get("utm_source"),
+                data.get("utm_medium"),
+                data.get("utm_campaign"),
+                data.get("utm_term"),
+                data.get("utm_content"),
+                str(request.url.path),
+                headers.get("referer"),
+                headers.get("user-agent"),
+                request.client.host if request.client else None,
+                _now(),
+                json.dumps(
+                    {
+                        k: v
+                        for k, v in data.items()
+                        if k
+                        not in {
+                            "event_type",
+                            "lead_id",
+                            "utm_source",
+                            "utm_medium",
+                            "utm_campaign",
+                            "utm_term",
+                            "utm_content",
+                        }
+                    }
+                ),
+            ),
+        )
         conn.commit()

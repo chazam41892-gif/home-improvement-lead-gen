@@ -18,6 +18,7 @@ class ConversionPipeline:
     def __init__(self, data_dir: str = "data"):
         self.data_dir = data_dir
         import os
+
         # CRITICAL (audit 2026-09-27): this used to call
         # Database.set_db_file(os.path.join(data_dir, "lead_gen.db")) unconditionally,
         # silently discarding the DATABASE_FILE override that engine.database reads
@@ -53,27 +54,30 @@ class ConversionPipeline:
         }
         try:
             with Database.get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO trade_accounts (
                         account_id, lead_id, business_name, phone, email, address, website, trade, source, plan, status, created_at, monthly_fee, leads_generated, conversions
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    account["account_id"],
-                    account["lead_id"],
-                    account["business_name"],
-                    account["phone"],
-                    account["email"],
-                    account["address"],
-                    account["website"],
-                    account["trade"],
-                    account["source"],
-                    account["plan"],
-                    account["status"],
-                    account["created_at"],
-                    account["monthly_fee"],
-                    account["leads_generated"],
-                    account["conversions"]
-                ))
+                """,
+                    (
+                        account["account_id"],
+                        account["lead_id"],
+                        account["business_name"],
+                        account["phone"],
+                        account["email"],
+                        account["address"],
+                        account["website"],
+                        account["trade"],
+                        account["source"],
+                        account["plan"],
+                        account["status"],
+                        account["created_at"],
+                        account["monthly_fee"],
+                        account["leads_generated"],
+                        account["conversions"],
+                    ),
+                )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to save trade account: %s", e)
@@ -95,18 +99,21 @@ class ConversionPipeline:
         }
         try:
             with Database.get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO trade_payments (
                         payment_id, account_id, amount, method, status, timestamp
                     ) VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    payment["payment_id"],
-                    payment["account_id"],
-                    payment["amount"],
-                    payment["method"],
-                    payment["status"],
-                    payment["timestamp"]
-                ))
+                """,
+                    (
+                        payment["payment_id"],
+                        payment["account_id"],
+                        payment["amount"],
+                        payment["method"],
+                        payment["status"],
+                        payment["timestamp"],
+                    ),
+                )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to save trade payment: %s", e)
@@ -154,9 +161,7 @@ class ConversionPipeline:
         accounts = self.get_accounts()
         total_revenue = sum(p.get("amount", 0) for p in payments)
         monthly_recurring = sum(
-            self._plan_fee(a.get("plan", "starter"))
-            for a in accounts
-            if a.get("status") == "active"
+            self._plan_fee(a.get("plan", "starter")) for a in accounts if a.get("status") == "active"
         )
         return {
             "total_accounts": len(accounts),

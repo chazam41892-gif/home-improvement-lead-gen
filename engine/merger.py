@@ -45,9 +45,9 @@ def _title_similarity(a: str, b: str) -> float:
 MERGE_SIMILARITY_THRESHOLD = 0.78
 
 
-def merge_leads(results: list[dict[str, Any]],
-                sources: list[str],
-                merge_threshold: float = MERGE_SIMILARITY_THRESHOLD) -> dict[str, Any]:
+def merge_leads(
+    results: list[dict[str, Any]], sources: list[str], merge_threshold: float = MERGE_SIMILARITY_THRESHOLD
+) -> dict[str, Any]:
     t0 = time.time()
     merged: list[dict[str, Any]] = []
     seen_domains: set[str] = set()

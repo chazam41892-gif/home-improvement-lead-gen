@@ -19,7 +19,7 @@ EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 PHONE_RE = re.compile(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
 STREET_RE = re.compile(
     r"\d+\s+[A-Za-z0-9\s,]{2,40}\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Circle|Cir|Place|Pl|Suite|Ste|#)\b",
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 
 # Realistic headers to mimic standard web browsers
@@ -29,6 +29,7 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
     "Connection": "keep-alive",
 }
+
 
 def _attr_str(value: object) -> str:
     """Narrow a BeautifulSoup attribute value to str.
@@ -51,14 +52,14 @@ class BrowserSearchProvider(SearchProvider):
             # Availability probe, not a use: importing the symbol proves the
             # package is installed. Annotated so the intent survives lint.
             from playwright.async_api import async_playwright as _  # noqa: F401
+
             self.playwright_available = True
         except ImportError:
             pass
 
-    async def search(self, query: str, *,
-                     num_results: int = 15,
-                     **kwargs) -> SearchResult:
+    async def search(self, query: str, *, num_results: int = 15, **kwargs) -> SearchResult:
         import time
+
         t0 = time.time()
         logger.info("Browser search started for query: %s", query)
 
@@ -72,7 +73,19 @@ class BrowserSearchProvider(SearchProvider):
             # Skip directory domains for crawling to save time, but keep them as hits
             parsed = urlparse(hit.url)
             domain = parsed.netloc.lower()
-            if any(skip in domain for skip in ("yelp.com", "yellowpages.com", "bbb.org", "angi.com", "homeadvisor.com", "facebook.com", "instagram.com", "nextdoor.com")):
+            if any(
+                skip in domain
+                for skip in (
+                    "yelp.com",
+                    "yellowpages.com",
+                    "bbb.org",
+                    "angi.com",
+                    "homeadvisor.com",
+                    "facebook.com",
+                    "instagram.com",
+                    "nextdoor.com",
+                )
+            ):
                 tasks.append(self._fake_enrich(hit))
             else:
                 tasks.append(self._enrich_website_task(hit, sem))
@@ -143,16 +156,31 @@ class BrowserSearchProvider(SearchProvider):
             if "duckduckgo.com/y.js" in clean_url:
                 continue
 
-            intent_triggers = ["recommendation", "recommend", "looking for", "hire", "need", "estimate", "quote", "repair", "install", "help"]
-            has_intent = any(trigger in title.lower() or trigger in snippet.lower() for trigger in intent_triggers)
+            intent_triggers = [
+                "recommendation",
+                "recommend",
+                "looking for",
+                "hire",
+                "need",
+                "estimate",
+                "quote",
+                "repair",
+                "install",
+                "help",
+            ]
+            has_intent = any(
+                trigger in title.lower() or trigger in snippet.lower() for trigger in intent_triggers
+            )
 
-            hits.append(SearchHit(
-                title=title,
-                url=href,
-                snippet=snippet,
-                score=0.95 if has_intent else 0.8,
-                extras={"high_intent": 1 if has_intent else 0}
-            ))
+            hits.append(
+                SearchHit(
+                    title=title,
+                    url=href,
+                    snippet=snippet,
+                    score=0.95 if has_intent else 0.8,
+                    extras={"high_intent": 1 if has_intent else 0},
+                )
+            )
 
         return hits
 
@@ -166,13 +194,15 @@ class BrowserSearchProvider(SearchProvider):
                     if desc:
                         hit.snippet = desc[:400]
                     # Put extracted contact info into extras
-                    hit.extras.update({
-                        "email": enrichment.get("email", ""),
-                        "phone": enrichment.get("phone", ""),
-                        "address": enrichment.get("address", ""),
-                        "social_links": enrichment.get("social_links", {}),
-                        "crawled": True,
-                    })
+                    hit.extras.update(
+                        {
+                            "email": enrichment.get("email", ""),
+                            "phone": enrichment.get("phone", ""),
+                            "address": enrichment.get("address", ""),
+                            "social_links": enrichment.get("social_links", {}),
+                            "crawled": True,
+                        }
+                    )
                     # Adjust score based on completeness
                     completeness = sum(1 for k in ("email", "phone", "address") if enrichment.get(k))
                     hit.score = min(1.0, 0.5 + 0.15 * completeness)
@@ -196,7 +226,9 @@ class BrowserSearchProvider(SearchProvider):
             desc = _attr_str(meta_desc.get("content"))
         else:
             # Fallback: extract first couple of paragraphs
-            paragraphs = [p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 20]
+            paragraphs = [
+                p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 20
+            ]
             desc = " ".join(paragraphs[:2])
         data["description"] = desc
 
@@ -210,7 +242,10 @@ class BrowserSearchProvider(SearchProvider):
             raw_href = _attr_str(a["href"])
             href = raw_href.lower()
             text = a.get_text(strip=True).lower()
-            if any(k in href or k in text for k in ("contact", "about", "info", "services", "contact-us", "about-us")):
+            if any(
+                k in href or k in text
+                for k in ("contact", "about", "info", "services", "contact-us", "about-us")
+            ):
                 contact_url = urllib.parse.urljoin(url, raw_href)
                 break
 
@@ -236,7 +271,11 @@ class BrowserSearchProvider(SearchProvider):
         phones = list(set(PHONE_RE.findall(text)))
 
         # Clean/filter emails to skip icons/images
-        emails = [e for e in emails if not any(skip in e.lower() for skip in ("png", "jpg", "jpeg", "gif", "bootstrap", "wix"))]
+        emails = [
+            e
+            for e in emails
+            if not any(skip in e.lower() for skip in ("png", "jpg", "jpeg", "gif", "bootstrap", "wix"))
+        ]
 
         # Clean phones/emails to avoid overlapping address matches
         temp_text = text
@@ -274,6 +313,7 @@ class BrowserSearchProvider(SearchProvider):
         if self.playwright_available:
             try:
                 from playwright.async_api import async_playwright
+
                 async with async_playwright() as p:
                     browser = await p.chromium.launch(headless=True)
                     context = await browser.new_context(user_agent=HEADERS["User-Agent"])

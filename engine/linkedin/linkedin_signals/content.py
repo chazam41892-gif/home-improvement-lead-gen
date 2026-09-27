@@ -8,8 +8,9 @@ class ContentEngine:
         self.store = store
         self.workflow = workflow
 
-    async def ingest(self, source_type: str, source_text: str,
-                     metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def ingest(
+        self, source_type: str, source_text: str, metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         asset = {
             "source_type": source_type,
             "source_text": source_text,
@@ -24,11 +25,18 @@ class ContentEngine:
         asset_id = self.store.create_content_asset(source_type, stored_source, persisted_metadata, insights)
         draft_ids = []
         for idea in insights.get("ideas", []):
-            remix = await self.workflow.remix_content({"asset_id": asset_id, "idea": idea, "metadata": metadata or {}})
+            remix = await self.workflow.remix_content(
+                {"asset_id": asset_id, "idea": idea, "metadata": metadata or {}}
+            )
             for draft in remix.get("drafts", []):
                 if str(draft.get("body", "")).strip():
                     draft_ids.append(self.store.create_content_draft(asset_id, draft))
-        return {"asset_id": asset_id, "ideas": len(insights.get("ideas", [])), "drafts_created": len(draft_ids), "draft_ids": draft_ids}
+        return {
+            "asset_id": asset_id,
+            "ideas": len(insights.get("ideas", [])),
+            "drafts_created": len(draft_ids),
+            "draft_ids": draft_ids,
+        }
 
     def approve_draft(self, draft_id: int) -> dict[str, Any]:
         current = self.store.get_content_draft(draft_id)

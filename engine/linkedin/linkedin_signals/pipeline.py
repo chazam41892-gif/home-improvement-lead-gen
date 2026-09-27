@@ -5,8 +5,20 @@ from .models import Engagement, deduplicate_engagements, score_post
 
 
 class SignalPipeline:
-    def __init__(self, store, linkedin, qualifier, waterfall, verifier, crm, workflow=None,
-                 compliance_gate=None, policy=None, offers=None, max_engagers: int = 500):
+    def __init__(
+        self,
+        store,
+        linkedin,
+        qualifier,
+        waterfall,
+        verifier,
+        crm,
+        workflow=None,
+        compliance_gate=None,
+        policy=None,
+        offers=None,
+        max_engagers: int = 500,
+    ):
         self.store = store
         self.linkedin = linkedin
         self.qualifier = qualifier
@@ -72,7 +84,7 @@ class SignalPipeline:
         ]
         deduped = deduplicate_engagements(engagements)
         stats["engagers_discovered"] = len(deduped)
-        deduped = deduped[:self.max_engagers]
+        deduped = deduped[: self.max_engagers]
         stats["engagers"] = len(deduped)
         stats["engagers_truncated"] = stats["engagers_discovered"] > stats["engagers"]
         for engagement in deduped:
@@ -101,7 +113,9 @@ class SignalPipeline:
                 )
             else:
                 qualification = await self.qualifier.qualify(lead_payload, post)
-            self.store.update_lead(lead_id, qualification_json=json.dumps(qualification, separators=(",", ":")))
+            self.store.update_lead(
+                lead_id, qualification_json=json.dumps(qualification, separators=(",", ":"))
+            )
             if not qualification.get("qualified"):
                 self.store.update_lead(lead_id, outreach_status="not_qualified")
                 continue
@@ -146,11 +160,17 @@ class SignalPipeline:
                     continue
                 draft = await self.workflow.write_outreach(reviewed_lead, post, offer, self.policy)
                 self.store.update_lead(lead_id, outreach_json=json.dumps(draft, separators=(",", ":")))
-                deterministic = self.compliance_gate.evaluate(reviewed_lead, draft, self.policy) if self.compliance_gate else {"approved": False, "missing": ["compliance_gate"], "violations": []}
+                deterministic = (
+                    self.compliance_gate.evaluate(reviewed_lead, draft, self.policy)
+                    if self.compliance_gate
+                    else {"approved": False, "missing": ["compliance_gate"], "violations": []}
+                )
                 if not deterministic.get("approved"):
                     self.store.update_lead(
                         lead_id,
-                        compliance_json=json.dumps({"approved": False, "deterministic": deterministic}, separators=(",", ":")),
+                        compliance_json=json.dumps(
+                            {"approved": False, "deterministic": deterministic}, separators=(",", ":")
+                        ),
                         outreach_status="compliance_blocked",
                     )
                     continue
@@ -160,7 +180,9 @@ class SignalPipeline:
                     "deterministic": deterministic,
                     "llm_review": llm_review,
                 }
-                self.store.update_lead(lead_id, compliance_json=json.dumps(combined_review, separators=(",", ":")))
+                self.store.update_lead(
+                    lead_id, compliance_json=json.dumps(combined_review, separators=(",", ":"))
+                )
                 if not combined_review["approved"]:
                     self.store.update_lead(lead_id, outreach_status="compliance_blocked")
                     continue

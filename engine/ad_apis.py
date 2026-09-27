@@ -5,6 +5,7 @@ Google Ads and Meta (Facebook/Instagram) Marketing API. It will only attempt
 live API calls when credentials are configured; otherwise it returns a
 preview/sandbox response so local development and tests continue to work.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,9 +51,7 @@ class GoogleAdsAPI:
 
     @property
     def is_configured(self) -> bool:
-        return bool(
-            self.developer_token and self.customer_id and self.refresh_token
-        )
+        return bool(self.developer_token and self.customer_id and self.refresh_token)
 
     async def _access_token(self) -> str | None:
         if not self.client_id or not self.client_secret or not self.refresh_token:
@@ -207,18 +206,24 @@ class AdPlatformManager:
         return {
             "google_ads": {
                 "configured": self.google.is_configured,
-                "missing": self._missing_env("GOOGLE_ADS", [
-                    "GOOGLE_ADS_DEVELOPER_TOKEN",
-                    "GOOGLE_ADS_CUSTOMER_ID",
-                    "GOOGLE_ADS_REFRESH_TOKEN",
-                ]),
+                "missing": self._missing_env(
+                    "GOOGLE_ADS",
+                    [
+                        "GOOGLE_ADS_DEVELOPER_TOKEN",
+                        "GOOGLE_ADS_CUSTOMER_ID",
+                        "GOOGLE_ADS_REFRESH_TOKEN",
+                    ],
+                ),
             },
             "meta": {
                 "configured": self.meta.is_configured,
-                "missing": self._missing_env("META", [
-                    "META_ACCESS_TOKEN",
-                    "META_AD_ACCOUNT_ID",
-                ]),
+                "missing": self._missing_env(
+                    "META",
+                    [
+                        "META_ACCESS_TOKEN",
+                        "META_AD_ACCOUNT_ID",
+                    ],
+                ),
             },
         }
 
@@ -251,13 +256,11 @@ class AdPlatformManager:
             results["google_ads"] = await self.google.create_campaign(plan)
             results["meta"] = await self.meta.create_campaign(plan)
         else:
-            return {"ok": False, "simulated": False,
-                    "error": f"Unknown platform: {plan.platform}"}
+            return {"ok": False, "simulated": False, "error": f"Unknown platform: {plan.platform}"}
 
         subs = [v for k, v in results.items() if k in ("google_ads", "meta")]
         # ok = at least one provider really succeeded and none of them simulated.
-        ok = any(bool(s.get("ok")) for s in subs) and not any(
-            bool(s.get("simulated")) for s in subs)
+        ok = any(bool(s.get("ok")) for s in subs) and not any(bool(s.get("simulated")) for s in subs)
         # Hoist the truth flags so callers do not have to dig into the sub-objects.
         results["ok"] = ok
         results["simulated"] = any(bool(s.get("simulated")) for s in subs)

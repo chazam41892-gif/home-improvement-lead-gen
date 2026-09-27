@@ -8,7 +8,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$|^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$|^hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$")
+_COLOR_RE = re.compile(
+    r"^#(?:[0-9a-fA-F]{3}){1,2}$|^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$|^hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$"
+)
 _URL_SCHEME_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 _HTML_TEMPLATE = """<!DOCTYPE html>
@@ -385,6 +387,7 @@ class LandingPageGenerator:
 
     def _load_from_db(self) -> None:
         from engine.database import Database
+
         try:
             with Database.get_connection() as conn:
                 cursor = conn.execute("SELECT * FROM landing_pages")
@@ -394,20 +397,21 @@ class LandingPageGenerator:
             # Best-effort warm cache: a cold or locked DB must not stop the
             # generator serving pages. Logged, because a silent failure here
             # looks exactly like "we have no landing pages".
-            logger.warning("Could not warm landing-page cache from the database",
-                           exc_info=True)
+            logger.warning("Could not warm landing-page cache from the database", exc_info=True)
 
     def _save_page_to_db(self, page_id: str, html: str) -> None:
         from engine.database import Database
+
         try:
             with Database.get_connection() as conn:
-                conn.execute("INSERT OR REPLACE INTO landing_pages (page_id, html) VALUES (?, ?)", (page_id, html))
+                conn.execute(
+                    "INSERT OR REPLACE INTO landing_pages (page_id, html) VALUES (?, ?)", (page_id, html)
+                )
                 conn.commit()
         except Exception:
             # The page is still returned to the caller; a failed persist means
             # it will be lost on restart, so it must not pass unlogged.
-            logger.error("Landing page %s was served but not persisted", page_id,
-                         exc_info=True)
+            logger.error("Landing page %s was served but not persisted", page_id, exc_info=True)
 
     @staticmethod
     def _default_form_fields() -> list[dict[str, Any]]:
@@ -416,7 +420,12 @@ class LandingPageGenerator:
             {"name": "phone", "label": "Phone Number", "type": "tel", "required": True},
             {"name": "email", "label": "Email Address", "type": "email", "required": True},
             {"name": "address", "label": "Street Address", "type": "text", "required": False},
-            {"name": "project_description", "label": "Project Description", "type": "textarea", "required": True},
+            {
+                "name": "project_description",
+                "label": "Project Description",
+                "type": "textarea",
+                "required": True,
+            },
         ]
 
     @staticmethod
@@ -457,12 +466,7 @@ class LandingPageGenerator:
         for t in trust_signals:
             icon = t.get("icon", "\u2705")
             text = escape(t.get("text", ""))
-            html += (
-                f'<div class="trust-badge">'
-                f'<span class="icon">{icon}</span>'
-                f"<span>{text}</span>"
-                f"</div>\n"
-            )
+            html += f'<div class="trust-badge"><span class="icon">{icon}</span><span>{text}</span></div>\n'
         return html
 
     @staticmethod
@@ -520,11 +524,13 @@ class LandingPageGenerator:
         page_title = escape(f"{business_name} | Free Estimate")
         hero_logo = (
             f'<img class="hero-logo" src="{escape(logo_url)}" alt="{escape(business_name)} logo">'
-            if logo_url else ""
+            if logo_url
+            else ""
         )
         hero_image = (
             f'<div class="hero-image"><img src="{escape(hero_image_url)}" alt="Hero image" loading="lazy"></div>'
-            if hero_image_url else ""
+            if hero_image_url
+            else ""
         )
 
         benefits_html = self._build_benefits_html(benefits)
@@ -563,12 +569,12 @@ class LandingPageGenerator:
 
     def list_pages(self) -> list[dict[str, Any]]:
         return [
-            {"id": pid, "url": f"/api/landing/{pid}", "size": len(html)}
-            for pid, html in self._pages.items()
+            {"id": pid, "url": f"/api/landing/{pid}", "size": len(html)} for pid, html in self._pages.items()
         ]
 
     def delete_page(self, page_id: str) -> bool:
         from engine.database import Database
+
         ok = self._pages.pop(page_id, None) is not None
         if ok:
             try:

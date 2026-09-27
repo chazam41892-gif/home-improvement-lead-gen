@@ -27,7 +27,11 @@ def _default_db_path():
 
 class LinkedInAcquisitionService:
     def __init__(self, store=None, enabled=None):
-        self.enabled = _truthy(os.environ.get("SIOS_LINKEDIN_ACQUISITION_ENGINE_ENABLED", "false")) if enabled is None else enabled
+        self.enabled = (
+            _truthy(os.environ.get("SIOS_LINKEDIN_ACQUISITION_ENGINE_ENABLED", "false"))
+            if enabled is None
+            else enabled
+        )
         self._store = store
         self._db_path = os.environ.get("SIOS_LINKEDIN_ACQUISITION_DB", str(_default_db_path()))
 
@@ -57,7 +61,9 @@ class LinkedInAcquisitionService:
             "method_count": catalog["method_count"],
             "authorized_sources": ["user_upload", "authorized_connector"],
             "prohibited_sources": ["linkedin_scrape", "browser_automation", "access_control_bypass"],
-            "stats": self.store.stats() if self.enabled else {"workspaces": 0, "prospects": 0, "suppressions": 0},
+            "stats": self.store.stats()
+            if self.enabled
+            else {"workspaces": 0, "prospects": 0, "suppressions": 0},
         }
 
     def create_workspace(self, tenant_id: str, request, idempotency_key: str):
@@ -67,7 +73,9 @@ class LinkedInAcquisitionService:
         if cached is not None:
             return cached
         workspace = self.store.create_workspace(tenant_id, request.name, request.settings)
-        self.store.audit(tenant_id, workspace["id"], "leadgen.workspace.created", {"workspace_id": workspace["id"]})
+        self.store.audit(
+            tenant_id, workspace["id"], "leadgen.workspace.created", {"workspace_id": workspace["id"]}
+        )
         response = {"workspace": workspace}
         self.store.record_idempotent(tenant_id, operation, idempotency_key, response)
         return response
@@ -103,7 +111,10 @@ class LinkedInAcquisitionService:
                     tenant_id,
                     workspace_id,
                     "leadgen.prospect.imported",
-                    {"source_type": prospect["source_type"], "verification_status": prospect["verification_status"]},
+                    {
+                        "source_type": prospect["source_type"],
+                        "verification_status": prospect["verification_status"],
+                    },
                 )
             else:
                 duplicates += 1
@@ -126,7 +137,9 @@ class LinkedInAcquisitionService:
         recipient = request.recipient.strip().lower()
         if request.channel in {"linkedin", "all"}:
             recipient = canonicalize_linkedin_url(recipient)
-        record = self.store.suppress(tenant_id, workspace_id, request.channel, recipient, request.reason.strip())
+        record = self.store.suppress(
+            tenant_id, workspace_id, request.channel, recipient, request.reason.strip()
+        )
         self.store.audit(
             tenant_id,
             workspace_id,

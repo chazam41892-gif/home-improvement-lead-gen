@@ -24,10 +24,11 @@ class CampaignSimulator:
 
         # 1. Location-based density multiplier (based on string hashing for stability)
         loc_hash = sum(ord(c) for c in location)
-        loc_mult = 0.8 + ((loc_hash % 50) / 100.0) # range 0.8 to 1.3
+        loc_mult = 0.8 + ((loc_hash % 50) / 100.0)  # range 0.8 to 1.3
 
         # 2. Seasonality modifier (checks current month)
         from datetime import datetime
+
         current_month = datetime.now().strftime("%B").lower()
         season_mult = 1.0
         if seasons:
@@ -60,12 +61,14 @@ class CampaignSimulator:
 
             total_leads += daily_leads
             total_conversions += conversions
-            daily_log.append({
-                "day": day,
-                "leads": daily_leads,
-                "conversions": conversions,
-                "revenue": round(conversions * avg_job_value, 2)
-            })
+            daily_log.append(
+                {
+                    "day": day,
+                    "leads": daily_leads,
+                    "conversions": conversions,
+                    "revenue": round(conversions * avg_job_value, 2),
+                }
+            )
 
         gross_revenue = round(total_conversions * avg_job_value, 2)
         net_profit = round(gross_revenue - monthly_spend, 2)
@@ -82,5 +85,5 @@ class CampaignSimulator:
             "gross_revenue": gross_revenue,
             "net_profit": net_profit,
             "roi_percentage": roi_pct,
-            "daily_log": daily_log
+            "daily_log": daily_log,
         }

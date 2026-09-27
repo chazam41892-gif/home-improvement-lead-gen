@@ -156,8 +156,9 @@ class SmartRouter:
                 missing.append(key)
         return missing
 
-    async def route_leads(self, leads: list[dict[str, Any]],
-                          search_config: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def route_leads(
+        self, leads: list[dict[str, Any]], search_config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         t0 = time.time()
         pipeline_log: dict[str, Any] = {
             "input_count": len(leads),
@@ -224,8 +225,9 @@ class SmartRouter:
             deduped.append(lead)
         return deduped
 
-    async def _run_score(self, leads: list[dict[str, Any]], step: RoutingStep,
-                         search_config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    async def _run_score(
+        self, leads: list[dict[str, Any]], step: RoutingStep, search_config: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         min_score = step.config.get("min_score", 0)
         filtered = [lead for lead in leads if (lead.get("score") or 0) >= min_score]
         return filtered
@@ -237,9 +239,10 @@ class SmartRouter:
         batch_size = step.config.get("batch_size", 25)
         enriched = []
         for i in range(0, len(leads), batch_size):
-            batch = leads[i:i + batch_size]
+            batch = leads[i : i + batch_size]
             tasks = [self._enrich_fn(lead) for lead in batch]
             import asyncio
+
             results = await asyncio.gather(*tasks, return_exceptions=True)
             # strict=True: if enrich_fn ever returns a different number of
             # results than inputs, that is a bug, and silently zipping would

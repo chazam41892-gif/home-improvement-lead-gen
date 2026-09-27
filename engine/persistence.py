@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 def save_leads(leads: dict) -> int:
     from engine.database import Database
+
     if not leads:
         return 0
     count = 0
@@ -21,40 +22,43 @@ def save_leads(leads: dict) -> int:
                     score_val = d.get("score", 0.0)
                     if isinstance(score_val, dict):
                         score_val = score_val.get("total", 0.0)
-                    conn.execute("""
+                    conn.execute(
+                        """
                         INSERT OR REPLACE INTO leads (
                             id, title, url, snippet, industry, location, source, score, found_at, email, phone, notes, score_breakdown,
                             status, first_name, last_name, address, project_description,
                             utm_source, utm_medium, utm_campaign,
                             sms_consent, email_consent, call_consent, consent_source
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        lid,
-                        d.get("title", ""),
-                        d.get("url", ""),
-                        d.get("snippet", ""),
-                        d.get("industry", ""),
-                        d.get("location", ""),
-                        d.get("source", ""),
-                        score_val,
-                        d.get("found_at", ""),
-                        d.get("email", ""),
-                        d.get("phone", ""),
-                        d.get("notes", ""),
-                        json.dumps(d.get("score_breakdown") or d.get("score_breakdown", {})),
-                        d.get("status", "new"),
-                        d.get("first_name", ""),
-                        d.get("last_name", ""),
-                        d.get("address", ""),
-                        d.get("project_description", ""),
-                        d.get("utm_source", ""),
-                        d.get("utm_medium", ""),
-                        d.get("utm_campaign", ""),
-                        1 if d.get("sms_consent") else 0,
-                        1 if d.get("email_consent") else 0,
-                        1 if d.get("call_consent") else 0,
-                        d.get("consent_source", ""),
-                    ))
+                    """,
+                        (
+                            lid,
+                            d.get("title", ""),
+                            d.get("url", ""),
+                            d.get("snippet", ""),
+                            d.get("industry", ""),
+                            d.get("location", ""),
+                            d.get("source", ""),
+                            score_val,
+                            d.get("found_at", ""),
+                            d.get("email", ""),
+                            d.get("phone", ""),
+                            d.get("notes", ""),
+                            json.dumps(d.get("score_breakdown") or d.get("score_breakdown", {})),
+                            d.get("status", "new"),
+                            d.get("first_name", ""),
+                            d.get("last_name", ""),
+                            d.get("address", ""),
+                            d.get("project_description", ""),
+                            d.get("utm_source", ""),
+                            d.get("utm_medium", ""),
+                            d.get("utm_campaign", ""),
+                            1 if d.get("sms_consent") else 0,
+                            1 if d.get("email_consent") else 0,
+                            1 if d.get("call_consent") else 0,
+                            d.get("consent_source", ""),
+                        ),
+                    )
                     count += 1
                 except Exception as e:
                     logger.warning("Failed to serialize lead %s: %s", lid, e)
@@ -67,6 +71,7 @@ def save_leads(leads: dict) -> int:
 
 def load_leads(engine=None) -> dict:
     from engine.database import Database
+
     # Values are LeadResult objects on the primary path and plain dicts on the
     # legacy schema-drift fallback further down, so the value type is a union.
     leads: dict[str, Any] = {}
@@ -137,7 +142,9 @@ def load_leads(engine=None) -> dict:
                         "consent_source": r["consent_source"],
                     }
                     try:
-                        d["score_breakdown"] = json.loads(r["score_breakdown"]) if r["score_breakdown"] else {}
+                        d["score_breakdown"] = (
+                            json.loads(r["score_breakdown"]) if r["score_breakdown"] else {}
+                        )
                     except Exception:
                         d["score_breakdown"] = {}
                     leads[lid] = d

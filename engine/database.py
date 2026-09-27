@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 DB_FILE = os.environ.get("DATABASE_FILE", "data/lead_gen.db")
 
+
 class Database:
     db_file = DB_FILE
 
@@ -37,8 +38,7 @@ class Database:
             except sqlite3.OperationalError:
                 # Some filesystems (network shares) reject WAL. Roll back to the
                 # default journal rather than failing the request.
-                logger.warning("WAL not available for %s; using default journal",
-                               cls.db_file)
+                logger.warning("WAL not available for %s; using default journal", cls.db_file)
         return conn
 
     @classmethod
@@ -102,7 +102,9 @@ class Database:
                 if col not in existing:
                     conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {dtype}")
             if "contact_name" in existing:
-                conn.execute("UPDATE leads SET first_name = contact_name WHERE first_name IS NULL OR first_name = ''")
+                conn.execute(
+                    "UPDATE leads SET first_name = contact_name WHERE first_name IS NULL OR first_name = ''"
+                )
             # Create trade_accounts table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS trade_accounts (
@@ -262,7 +264,9 @@ class Database:
                     UNIQUE(channel, identifier)
                 )
             """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_opt_outs_identifier ON opt_outs(channel, identifier)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_opt_outs_identifier ON opt_outs(channel, identifier)"
+            )
             # Create call_tasks table for human call reminders
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS call_tasks (
@@ -290,15 +294,21 @@ class Database:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_trade_subscriptions_account ON trade_subscriptions(account_id)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_trade_subscriptions_account ON trade_subscriptions(account_id)"
+            )
             # Indexes for commonly filtered columns
             conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_score ON leads(score)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_industry ON leads(industry)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_found_at ON leads(found_at)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_trade_payments_account ON trade_payments(account_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_stripe_mappings_sub ON stripe_mappings(stripe_subscription_id)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_trade_payments_account ON trade_payments(account_id)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_stripe_mappings_sub ON stripe_mappings(stripe_subscription_id)"
+            )
             conn.commit()
         logger.info("Database initialized successfully at %s", cls.db_file)
 
@@ -314,8 +324,10 @@ class Database:
             if applied:
                 logger.info("applied %s pending migration(s)", applied)
         except Exception:
-            logger.exception("Schema migrations failed; the app will start but the "
-                             "schema may be behind the code")
+            logger.exception(
+                "Schema migrations failed; the app will start but the schema may be behind the code"
+            )
+
 
 # Auto-initialize database on import
 try:

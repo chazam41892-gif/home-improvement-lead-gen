@@ -6,6 +6,7 @@ can only read search, enrichment, billing, and infra categories.
 
 Legacy fallback to ~/.lvtn/unified_vault.py for backward compatibility.
 """
+
 from __future__ import annotations
 
 import builtins
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 _HIVEMIND_VAULT = None
 _HIVEMIND_LOADED = False
 
+
 def _get_hivemind():
     global _HIVEMIND_VAULT, _HIVEMIND_LOADED
     if _HIVEMIND_LOADED:
@@ -32,14 +34,17 @@ def _get_hivemind():
         obsidian_dir = Path.home() / ".leviathan" / "HiveMind" / ".obsidian"
         sys.path.insert(0, str(obsidian_dir))
         from vault import HiveMindVault
+
         _HIVEMIND_VAULT = HiveMindVault.instance()
         logger.info("HiveMind vault connected — role=leadgen")
     except ImportError:
         pass
     return _HIVEMIND_VAULT
 
+
 # ── Legacy Unified Vault bridge (fallback) ──────────────────────────
 _UNIFIED_VAULT = None
+
 
 def _get_unified():
     global _UNIFIED_VAULT
@@ -47,40 +52,115 @@ def _get_unified():
         try:
             sys.path.insert(0, str(Path.home() / ".lvtn"))
             from unified_vault import UnifiedVault
+
             _UNIFIED_VAULT = UnifiedVault.instance()
         except ImportError:
             logger.warning("Unified vault not available — falling back to legacy key_vault.json")
             _UNIFIED_VAULT = False
     return _UNIFIED_VAULT if _UNIFIED_VAULT is not False else None
 
+
 # Legacy file path (kept for backward compat)
 VAULT_FILE = os.environ.get("VAULT_FILE", "data/key_vault.json")
 
 # Service metadata (kept for backward compat — unified vault has its own)
 SERVICE_KEYS = {
-    "exa": {"env_var": "EXA_API_KEY", "doc": "Exa Search API — business search & content extraction", "url": "https://dashboard.exa.ai"},
-    "perplexity": {"env_var": "PERPLEXITY_API_KEY", "doc": "Perplexity AI — deep research", "url": "https://www.perplexity.ai/settings/api"},
-    "anthropic": {"env_var": "ANTHROPIC_API_KEY", "doc": "Anthropic Claude — LLM parsing & enrichment", "url": "https://console.anthropic.com"},
-    "openai": {"env_var": "OPENAI_API_KEY", "doc": "OpenAI GPT — LLM parsing (fallback)", "url": "https://platform.openai.com/api-keys"},
-    "stripe_secret": {"env_var": "STRIPE_SECRET_KEY", "doc": "Stripe Secret Key — billing", "url": "https://dashboard.stripe.com/apikeys"},
-    "stripe_webhook": {"env_var": "STRIPE_WEBHOOK_SECRET", "doc": "Stripe Webhook — payment events", "url": "https://dashboard.stripe.com/webhooks"},
-    "clearbit": {"env_var": "CLEARBIT_API_KEY", "doc": "Clearbit — company enrichment (domain → name, logo, employees)", "url": "https://dashboard.clearbit.com"},
-    "hunter": {"env_var": "HUNTER_API_KEY", "doc": "Hunter.io — email finder (domain → email addresses)", "url": "https://hunter.io/api-keys"},
-    "apollo": {"env_var": "APOLLO_API_KEY", "doc": "Apollo.io — contact & company data", "url": "https://app.apollo.io/#/settings/api"},
-    "people_data_labs": {"env_var": "PEOPLE_DATA_LABS_KEY", "doc": "People Data Labs — person & company enrichment", "url": "https://www.peopledatalabs.com"},
-    "loox": {"env_var": "LOOX_API_KEY", "doc": "Loox — reverse phone & address lookup", "url": "https://www.loox.com"},
-    "cometapi": {"env_var": "COMETAPI_API_KEY", "doc": "CometAPI — alternate LLM provider (OpenAI-compatible, 500+ models)", "url": "https://www.cometapi.com"},
+    "exa": {
+        "env_var": "EXA_API_KEY",
+        "doc": "Exa Search API — business search & content extraction",
+        "url": "https://dashboard.exa.ai",
+    },
+    "perplexity": {
+        "env_var": "PERPLEXITY_API_KEY",
+        "doc": "Perplexity AI — deep research",
+        "url": "https://www.perplexity.ai/settings/api",
+    },
+    "anthropic": {
+        "env_var": "ANTHROPIC_API_KEY",
+        "doc": "Anthropic Claude — LLM parsing & enrichment",
+        "url": "https://console.anthropic.com",
+    },
+    "openai": {
+        "env_var": "OPENAI_API_KEY",
+        "doc": "OpenAI GPT — LLM parsing (fallback)",
+        "url": "https://platform.openai.com/api-keys",
+    },
+    "stripe_secret": {
+        "env_var": "STRIPE_SECRET_KEY",
+        "doc": "Stripe Secret Key — billing",
+        "url": "https://dashboard.stripe.com/apikeys",
+    },
+    "stripe_webhook": {
+        "env_var": "STRIPE_WEBHOOK_SECRET",
+        "doc": "Stripe Webhook — payment events",
+        "url": "https://dashboard.stripe.com/webhooks",
+    },
+    "clearbit": {
+        "env_var": "CLEARBIT_API_KEY",
+        "doc": "Clearbit — company enrichment (domain → name, logo, employees)",
+        "url": "https://dashboard.clearbit.com",
+    },
+    "hunter": {
+        "env_var": "HUNTER_API_KEY",
+        "doc": "Hunter.io — email finder (domain → email addresses)",
+        "url": "https://hunter.io/api-keys",
+    },
+    "apollo": {
+        "env_var": "APOLLO_API_KEY",
+        "doc": "Apollo.io — contact & company data",
+        "url": "https://app.apollo.io/#/settings/api",
+    },
+    "people_data_labs": {
+        "env_var": "PEOPLE_DATA_LABS_KEY",
+        "doc": "People Data Labs — person & company enrichment",
+        "url": "https://www.peopledatalabs.com",
+    },
+    "loox": {
+        "env_var": "LOOX_API_KEY",
+        "doc": "Loox — reverse phone & address lookup",
+        "url": "https://www.loox.com",
+    },
+    "cometapi": {
+        "env_var": "COMETAPI_API_KEY",
+        "doc": "CometAPI — alternate LLM provider (OpenAI-compatible, 500+ models)",
+        "url": "https://www.cometapi.com",
+    },
     "enrichment_key": {"env_var": "ENRICHMENT_API_KEY", "doc": "Generic enrichment fallback key", "url": ""},
-    "crmx_api_key": {"env_var": "CRMX_API_KEY", "doc": "GoHighLevel/CRM+ Access Token", "url": "https://services.leadconnectorhq.com"},
+    "crmx_api_key": {
+        "env_var": "CRMX_API_KEY",
+        "doc": "GoHighLevel/CRM+ Access Token",
+        "url": "https://services.leadconnectorhq.com",
+    },
     "crmx_location_id": {"env_var": "CRMX_LOCATION_ID", "doc": "GoHighLevel/CRM+ Location ID", "url": ""},
     "crmx_base_url": {"env_var": "CRMX_BASE_URL", "doc": "GoHighLevel/CRM+ Base API URL", "url": ""},
-    "salesforce_access_token": {"env_var": "SALESFORCE_ACCESS_TOKEN", "doc": "Salesforce Access Bearer Token", "url": "https://login.salesforce.com"},
-    "salesforce_instance_url": {"env_var": "SALESFORCE_INSTANCE_URL", "doc": "Salesforce Instance Domain URL", "url": ""},
-    "zoho_access_token": {"env_var": "ZOHO_ACCESS_TOKEN", "doc": "Zoho CRM OAuth Access Token", "url": "https://www.zoho.com/crm/developer/docs/"},
+    "salesforce_access_token": {
+        "env_var": "SALESFORCE_ACCESS_TOKEN",
+        "doc": "Salesforce Access Bearer Token",
+        "url": "https://login.salesforce.com",
+    },
+    "salesforce_instance_url": {
+        "env_var": "SALESFORCE_INSTANCE_URL",
+        "doc": "Salesforce Instance Domain URL",
+        "url": "",
+    },
+    "zoho_access_token": {
+        "env_var": "ZOHO_ACCESS_TOKEN",
+        "doc": "Zoho CRM OAuth Access Token",
+        "url": "https://www.zoho.com/crm/developer/docs/",
+    },
     "zoho_api_domain": {"env_var": "ZOHO_API_DOMAIN", "doc": "Zoho CRM API Domain URL", "url": ""},
-    "google_oauth_client_id": {"env_var": "GOOGLE_OAUTH_CLIENT_ID", "doc": "Google OAuth Client ID for sign-in", "url": "https://console.cloud.google.com"},
-    "google_oauth_client_secret": {"env_var": "GOOGLE_OAUTH_CLIENT_SECRET", "doc": "Google OAuth Client Secret", "url": "https://console.cloud.google.com"},
+    "google_oauth_client_id": {
+        "env_var": "GOOGLE_OAUTH_CLIENT_ID",
+        "doc": "Google OAuth Client ID for sign-in",
+        "url": "https://console.cloud.google.com",
+    },
+    "google_oauth_client_secret": {
+        "env_var": "GOOGLE_OAUTH_CLIENT_SECRET",
+        "doc": "Google OAuth Client Secret",
+        "url": "https://console.cloud.google.com",
+    },
 }
+
 
 @dataclass
 class VaultEntry:
@@ -115,6 +195,7 @@ class KeyVault:
     continues to work. Keys are stored in the unified vault, shared across
     all projects (lvtn CLI, Lead Gen Pro, Gambot IDE).
     """
+
     _entries: dict[str, builtins.list[VaultEntry]] = {}
     _loaded = False
 
@@ -171,6 +252,7 @@ class KeyVault:
                 data = json.load(f)
                 if isinstance(data, dict) and data.get("encrypted") and "ciphertext" in data:
                     from cryptography.fernet import Fernet
+
                     key = cls._get_encryption_key()
                     fernet = Fernet(key)
                     decrypted = fernet.decrypt(data["ciphertext"].encode("utf-8")).decode("utf-8")
@@ -178,7 +260,12 @@ class KeyVault:
                 for svc, keys_list in data.items():
                     for entry in keys_list:
                         cls._entries.setdefault(svc, []).append(
-                            VaultEntry(service=svc, key=entry["key"], label=entry.get("label", "user"), source="vault")
+                            VaultEntry(
+                                service=svc,
+                                key=entry["key"],
+                                label=entry.get("label", "user"),
+                                source="vault",
+                            )
                         )
         except (FileNotFoundError, json.JSONDecodeError, Exception) as e:
             logger.debug("Failed to load legacy vault: %s", e)
@@ -230,10 +317,7 @@ class KeyVault:
                 "url": cfg["url"],
                 "env_var": cfg["env_var"],
                 "configured": len(entries) > 0,
-                "keys": [
-                    {"label": e.label, "source": e.source, "masked": e.masked()}
-                    for e in entries
-                ],
+                "keys": [{"label": e.label, "source": e.source, "masked": e.masked()} for e in entries],
             }
         return result
 
@@ -294,6 +378,7 @@ class KeyVault:
         """
         import base64
         import hashlib
+
         # Use a stable but per-machine seed so moving the file alone doesn't decrypt it.
         seed = os.environ.get("VAULT_MASTER_SEED", str(Path.home().resolve()))
         digest = hashlib.sha256(seed.encode("utf-8")).digest()
@@ -304,14 +389,12 @@ class KeyVault:
         """Persist vault entries to disk using Fernet encryption (legacy fallback)."""
         try:
             from cryptography.fernet import Fernet
+
             vault_path = os.path.join(os.path.dirname(__file__) or ".", "..", VAULT_FILE)
             os.makedirs(os.path.dirname(vault_path) or ".", exist_ok=True)
             data = {}
             for svc, entries in cls._entries.items():
-                vault_entries = [
-                    {"key": e.key, "label": e.label}
-                    for e in entries if e.source == "vault"
-                ]
+                vault_entries = [{"key": e.key, "label": e.label} for e in entries if e.source == "vault"]
                 if vault_entries:
                     data[svc] = vault_entries
             fernet = Fernet(cls._get_encryption_key())

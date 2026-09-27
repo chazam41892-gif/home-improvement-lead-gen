@@ -119,7 +119,14 @@ class AcquisitionStore:
         with self._connect() as connection:
             connection.execute(
                 "INSERT INTO acquisition_workspaces VALUES (?, ?, ?, ?, ?, ?)",
-                (workspace["id"], tenant_id, workspace["name"], json.dumps(settings, separators=(",", ":")), workspace["created_at"], workspace["created_at"]),
+                (
+                    workspace["id"],
+                    tenant_id,
+                    workspace["name"],
+                    json.dumps(settings, separators=(",", ":")),
+                    workspace["created_at"],
+                    workspace["created_at"],
+                ),
             )
         return workspace
 
@@ -143,10 +150,22 @@ class AcquisitionStore:
                  source_timestamp, provenance_json, verification_status, lawful_or_authorized_basis,
                  suppression_status, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)""",
-                (uuid.uuid4().hex, tenant_id, workspace_id, prospect["display_name"], prospect.get("company", ""),
-                 prospect.get("role", ""), prospect["profile_url"], prospect["source_type"], prospect["source_timestamp"],
-                 json.dumps(prospect["provenance"], separators=(",", ":")), prospect["verification_status"],
-                 prospect["lawful_or_authorized_basis"], now, now),
+                (
+                    uuid.uuid4().hex,
+                    tenant_id,
+                    workspace_id,
+                    prospect["display_name"],
+                    prospect.get("company", ""),
+                    prospect.get("role", ""),
+                    prospect["profile_url"],
+                    prospect["source_type"],
+                    prospect["source_timestamp"],
+                    json.dumps(prospect["provenance"], separators=(",", ":")),
+                    prospect["verification_status"],
+                    prospect["lawful_or_authorized_basis"],
+                    now,
+                    now,
+                ),
             )
             return cursor.rowcount == 1
 
@@ -163,8 +182,16 @@ class AcquisitionStore:
                 result.append(item)
             return result
 
-    def suppress(self, tenant_id: str, workspace_id: str, channel: str, recipient: str, reason: str) -> dict[str, Any]:
-        record = {"id": uuid.uuid4().hex, "channel": channel, "recipient": recipient, "reason": reason, "created_at": _now()}
+    def suppress(
+        self, tenant_id: str, workspace_id: str, channel: str, recipient: str, reason: str
+    ) -> dict[str, Any]:
+        record = {
+            "id": uuid.uuid4().hex,
+            "channel": channel,
+            "recipient": recipient,
+            "reason": reason,
+            "created_at": _now(),
+        }
         with self._connect() as connection:
             connection.execute(
                 """INSERT INTO suppression_records VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -196,7 +223,14 @@ class AcquisitionStore:
         with self._connect() as connection:
             connection.execute(
                 "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?, ?)",
-                (uuid.uuid4().hex, tenant_id, workspace_id, event_type, json.dumps(payload, separators=(",", ":")), _now()),
+                (
+                    uuid.uuid4().hex,
+                    tenant_id,
+                    workspace_id,
+                    event_type,
+                    json.dumps(payload, separators=(",", ":")),
+                    _now(),
+                ),
             )
 
     def list_audit(self, tenant_id: str, workspace_id: str) -> list[dict[str, Any]]:

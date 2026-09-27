@@ -13,10 +13,22 @@ def export_to_csv(leads: list[dict[str, Any]]) -> str:
 
     output = io.StringIO()
     fieldnames = [
-        "id", "title", "url", "snippet", "industry",
-        "location", "score", "contact_score", "business_score",
-        "industry_score", "location_score", "enrichment_score",
-        "source", "found_at", "email", "phone",
+        "id",
+        "title",
+        "url",
+        "snippet",
+        "industry",
+        "location",
+        "score",
+        "contact_score",
+        "business_score",
+        "industry_score",
+        "location_score",
+        "enrichment_score",
+        "source",
+        "found_at",
+        "email",
+        "phone",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
@@ -48,10 +60,7 @@ def export_to_csv(leads: list[dict[str, Any]]) -> str:
 def export_to_json(leads: list[dict[str, Any]]) -> str:
     clean = []
     for lead in leads:
-        clean.append({
-            k: v for k, v in lead.items()
-            if v is not None and v != ""
-        })
+        clean.append({k: v for k, v in lead.items() if v is not None and v != ""})
     return json.dumps(clean, indent=2, default=str)
 
 

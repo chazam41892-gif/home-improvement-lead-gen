@@ -17,6 +17,7 @@ def _get_provider():
     if _exa_provider is not None:
         return _exa_provider
     from ..search.exa import ExaSearchProvider
+
     return ExaSearchProvider()
 
 
@@ -39,13 +40,15 @@ async def search_google_maps(trade: str, location: str, max_results: int = 25) -
                     continue
                 seen.add(key)
                 if hit.title and trade.lower() in hit.title.lower():
-                    leads.append(TradeLead(
-                        business_name=hit.title,
-                        website=hit.url,
-                        source="google_maps",
-                        trade=trade,
-                        notes=hit.snippet[:300],
-                    ))
+                    leads.append(
+                        TradeLead(
+                            business_name=hit.title,
+                            website=hit.url,
+                            source="google_maps",
+                            trade=trade,
+                            notes=hit.snippet[:300],
+                        )
+                    )
         except Exception as e:
             logger.warning("google_maps search error for %s: %s", query, e)
     return leads
@@ -61,19 +64,23 @@ async def search_homeadvisor(trade: str, location: str, max_results: int = 25) -
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["homeadvisor.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["homeadvisor.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title.replace(" - HomeAdvisor", "").strip(),
-                    website=hit.url,
-                    source="homeadvisor",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title.replace(" - HomeAdvisor", "").strip(),
+                        website=hit.url,
+                        source="homeadvisor",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("homeadvisor search error: %s", e)
     return leads
@@ -89,19 +96,23 @@ async def search_angi(trade: str, location: str, max_results: int = 25) -> list[
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["angi.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["angi.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title.split(" | ")[0].strip(),
-                    website=hit.url,
-                    source="angi",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title.split(" | ")[0].strip(),
+                        website=hit.url,
+                        source="angi",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("angi search error: %s", e)
     return leads
@@ -117,19 +128,23 @@ async def search_yelp(trade: str, location: str, max_results: int = 25) -> list[
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["yelp.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["yelp.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title.replace(" - Yelp", "").strip(),
-                    website=hit.url,
-                    source="yelp",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title.replace(" - Yelp", "").strip(),
+                        website=hit.url,
+                        source="yelp",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("yelp search error: %s", e)
     return leads
@@ -145,19 +160,23 @@ async def search_facebook(trade: str, location: str, max_results: int = 25) -> l
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["facebook.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["facebook.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title,
-                    website=hit.url,
-                    source="facebook",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title,
+                        website=hit.url,
+                        source="facebook",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("facebook search error: %s", e)
     return leads
@@ -173,19 +192,23 @@ async def search_nextdoor(trade: str, location: str, max_results: int = 25) -> l
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["nextdoor.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["nextdoor.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title,
-                    website=hit.url,
-                    source="nextdoor",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title,
+                        website=hit.url,
+                        source="nextdoor",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("nextdoor search error: %s", e)
     return leads
@@ -200,19 +223,23 @@ async def search_instagram(trade: str, location: str, max_results: int = 25) -> 
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["instagram.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["instagram.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title,
-                    website=hit.url,
-                    source="instagram",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title,
+                        website=hit.url,
+                        source="instagram",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("instagram search error: %s", e)
     return leads
@@ -227,19 +254,23 @@ async def search_houzz(trade: str, location: str, max_results: int = 25) -> list
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["houzz.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["houzz.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title,
-                    website=hit.url,
-                    source="houzz",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title,
+                        website=hit.url,
+                        source="houzz",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("houzz search error: %s", e)
     return leads
@@ -257,7 +288,9 @@ async def search_linkedin(trade: str, location: str, max_results: int = 25) -> l
     provider = _get_provider()
     for query in queries[:3]:
         try:
-            result = await provider.search(query, include_domains=["linkedin.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["linkedin.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
@@ -266,13 +299,15 @@ async def search_linkedin(trade: str, location: str, max_results: int = 25) -> l
                 name = hit.title
                 for suffix in (" | LinkedIn", " - LinkedIn", " |linkedin", " on LinkedIn"):
                     name = name.replace(suffix, "").strip()
-                leads.append(TradeLead(
-                    business_name=name,
-                    website=hit.url,
-                    source="linkedin",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=name,
+                        website=hit.url,
+                        source="linkedin",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("linkedin search error: %s", e)
     return leads
@@ -290,11 +325,21 @@ async def search_apollo(trade: str, location: str, max_results: int = 25) -> lis
 
     title_map = {
         "land_developer": [
-            "VP Land Acquisition", "Director of Land Acquisition", "Land Acquisition Manager",
-            "VP of Development", "Director of Development", "Chief Development Officer",
-            "Land Buyer", "VP Real Estate", "Director of Real Estate",
-            "Land Entitlement Manager", "VP Acquisitions", "Director of Acquisitions",
-            "President", "CEO", "Owner",
+            "VP Land Acquisition",
+            "Director of Land Acquisition",
+            "Land Acquisition Manager",
+            "VP of Development",
+            "Director of Development",
+            "Chief Development Officer",
+            "Land Buyer",
+            "VP Real Estate",
+            "Director of Real Estate",
+            "Land Entitlement Manager",
+            "VP Acquisitions",
+            "Director of Acquisitions",
+            "President",
+            "CEO",
+            "Owner",
         ],
     }
     titles = title_map.get(trade, ["President", "CEO", "Owner", "VP Acquisitions", "Director of Development"])
@@ -322,7 +367,9 @@ async def search_apollo(trade: str, location: str, max_results: int = 25) -> lis
             data = resp.json()
         for person in data.get("people", []):
             org = person.get("organization", {}) or {}
-            name = org.get("name") or " ".join(filter(None, [person.get("first_name", ""), person.get("last_name", "")]))
+            name = org.get("name") or " ".join(
+                filter(None, [person.get("first_name", ""), person.get("last_name", "")])
+            )
             if name in seen:
                 continue
             seen.add(name)
@@ -352,19 +399,23 @@ async def search_zillow(trade: str, location: str, max_results: int = 25) -> lis
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["zillow.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["zillow.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title.replace(" - Zillow", "").replace(" | Zillow", "").strip(),
-                    website=hit.url,
-                    source="zillow",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title.replace(" - Zillow", "").replace(" | Zillow", "").strip(),
+                        website=hit.url,
+                        source="zillow",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("zillow search error: %s", e)
     return leads
@@ -381,19 +432,23 @@ async def search_loopnet(trade: str, location: str, max_results: int = 25) -> li
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["loopnet.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["loopnet.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title.replace(" - LoopNet", "").replace(" | LoopNet", "").strip(),
-                    website=hit.url,
-                    source="loopnet",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title.replace(" - LoopNet", "").replace(" | LoopNet", "").strip(),
+                        website=hit.url,
+                        source="loopnet",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("loopnet search error: %s", e)
     return leads
@@ -409,19 +464,25 @@ async def search_landwatch(trade: str, location: str, max_results: int = 25) -> 
     provider = _get_provider()
     for query in queries:
         try:
-            result = await provider.search(query, include_domains=["landwatch.com"], num_results=min(10, max_results))
+            result = await provider.search(
+                query, include_domains=["landwatch.com"], num_results=min(10, max_results)
+            )
             for hit in result.hits or []:
                 key = hit.url or hit.title
                 if key in seen:
                     continue
                 seen.add(key)
-                leads.append(TradeLead(
-                    business_name=hit.title.replace(" - LandWatch", "").replace(" | LandWatch", "").strip(),
-                    website=hit.url,
-                    source="landwatch",
-                    trade=trade,
-                    notes=hit.snippet[:300],
-                ))
+                leads.append(
+                    TradeLead(
+                        business_name=hit.title.replace(" - LandWatch", "")
+                        .replace(" | LandWatch", "")
+                        .strip(),
+                        website=hit.url,
+                        source="landwatch",
+                        trade=trade,
+                        notes=hit.snippet[:300],
+                    )
+                )
         except Exception as e:
             logger.warning("landwatch search error: %s", e)
     return leads

@@ -415,9 +415,7 @@ class AdCopyGenerator:
         if data is None:
             data = {
                 "headlines": [f"Professional {industry.title()} Services"],
-                "descriptions": [
-                    f"Expert {industry} services near you. Quality work, guaranteed."
-                ],
+                "descriptions": [f"Expert {industry} services near you. Quality work, guaranteed."],
                 "usps": ["Free Estimate", "Licensed & Insured", "Quality Guaranteed"],
             }
 
@@ -438,18 +436,14 @@ class AdCopyGenerator:
 
             if platform == "google":
                 headline = self._make_google_headline(headline, industry, location)
-                description = self._make_description(
-                    description, location, selected_usp
-                )
+                description = self._make_description(description, location, selected_usp)
 
             elif platform == "facebook":
                 fb_list = _FACEBOOK_HEADLINES.get(industry, data["headlines"])
                 headline = fb_list[i % len(fb_list)]
                 if location:
                     headline = f"{headline} — Serving {location}"
-                description = self._make_description(
-                    data["descriptions"][desc_idx], location, selected_usp
-                )
+                description = self._make_description(data["descriptions"][desc_idx], location, selected_usp)
 
             elif platform == "lsa":
                 lsa_template = _LSA_DESCRIPTIONS.get(
@@ -475,9 +469,7 @@ class AdCopyGenerator:
         return results
 
     @staticmethod
-    def _make_google_headline(
-        headline: str, industry: str, location: str
-    ) -> str:
+    def _make_google_headline(headline: str, industry: str, location: str) -> str:
         loc = location or "Near You"
         variants = [
             f"{loc} {industry.title()} Experts",
@@ -488,14 +480,10 @@ class AdCopyGenerator:
         return variants[hash(headline) % len(variants)]
 
     @staticmethod
-    def _make_description(
-        description: str, location: str, usp: str
-    ) -> str:
+    def _make_description(description: str, location: str, usp: str) -> str:
         result = description
         if location and "{location}" not in result:
-            result = result.replace("near you", f"in {location}").replace(
-                "Near You", f"in {location}"
-            )
+            result = result.replace("near you", f"in {location}").replace("Near You", f"in {location}")
             if "near you" not in result.lower():
                 result = f"{result.strip('. ')} in {location}."
         if usp and usp not in result:
@@ -589,7 +577,7 @@ class AdCopyGenerator:
                 '"></script>\n'
                 "<script>\n"
                 "  window.dataLayer = window.dataLayer || [];\n"
-                '  function gtag(){dataLayer.push(arguments);}\n'
+                "  function gtag(){dataLayer.push(arguments);}\n"
                 f"  gtag('js', new Date());\n"
                 f"  gtag('config', '{tracking_id}');\n"
                 "</script>"
@@ -602,7 +590,7 @@ class AdCopyGenerator:
                 "  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?\n"
                 "  n.callMethod.apply(n,arguments):n.queue.push(arguments)};\n"
                 "  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';\n"
-                '  n.queue=[];t=b.createElement(e);t.async=!0;\n'
+                "  n.queue=[];t=b.createElement(e);t.async=!0;\n"
                 "  t.src=v;s=b.getElementsByTagName(e)[0];\n"
                 "  s.parentNode.insertBefore(t,s)}(window, document,'script',\n"
                 "  'https://connect.facebook.net/en_US/fbevents.js');\n"
@@ -618,12 +606,12 @@ class AdCopyGenerator:
 
         if pixel_type == "linkedin_insight":
             return (
-                "<script type=\"text/javascript\">\n"
-                "  _linkedin_partner_id = \"" + tracking_id + "\";\n"
+                '<script type="text/javascript">\n'
+                '  _linkedin_partner_id = "' + tracking_id + '";\n'
                 "  window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];\n"
                 "  window._linkedin_data_partner_ids.push(_linkedin_partner_id);\n"
                 "</script>\n"
-                "<script type=\"text/javascript\">\n"
+                '<script type="text/javascript">\n'
                 "(function(l) {\n"
                 "if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};\n"
                 "window.lintrk.q=[]}\n"
@@ -633,7 +621,7 @@ class AdCopyGenerator:
                 "b.src = 'https://snap.licdn.com/li.lms-analytics/insight.min.js';\n"
                 "s.parentNode.insertBefore(b, s);})(window.lintrk);\n"
                 "</script>\n"
-                '<noscript>\n'
+                "<noscript>\n"
                 '<img height="1" width="1" style="display:none;" alt="" '
                 'src="https://px.ads.linkedin.com/collect/?pid='
                 f"{tracking_id}"
@@ -649,14 +637,10 @@ class AdCopyGenerator:
         head_pixels = ""
 
         for px in pixels:
-            snippet = AdCopyGenerator.generate_pixel_html(
-                px["type"], px["tracking_id"]
-            )
+            snippet = AdCopyGenerator.generate_pixel_html(px["type"], px["tracking_id"])
             head_pixels += snippet + "\n"
 
-        modified = landing_page_html.replace(
-            head_close, head_pixels + "\n" + head_close
-        )
+        modified = landing_page_html.replace(head_close, head_pixels + "\n" + head_close)
 
         conversion_scripts = ""
         for px in pixels:
@@ -665,17 +649,12 @@ class AdCopyGenerator:
 
             if ptype == "google_ads":
                 conversion_scripts += (
-                    f"\n                gtag('event', 'conversion', "
-                    f"{{'send_to': '{tid}/lead'}});"
+                    f"\n                gtag('event', 'conversion', {{'send_to': '{tid}/lead'}});"
                 )
             elif ptype == "facebook_pixel":
-                conversion_scripts += (
-                    "\n                fbq('track', 'Lead');"
-                )
+                conversion_scripts += "\n                fbq('track', 'Lead');"
             elif ptype == "linkedin_insight":
-                conversion_scripts += (
-                    f"\n                window.lintrk('track', {{'conversion_id': {tid}}});"
-                )
+                conversion_scripts += f"\n                window.lintrk('track', {{'conversion_id': {tid}}});"
 
         if conversion_scripts:
             success_redirect = re.search(
@@ -684,11 +663,7 @@ class AdCopyGenerator:
             )
             if success_redirect:
                 original_redirect = success_redirect.group(0)
-                replacement = (
-                    original_redirect.rstrip(";")
-                    + conversion_scripts
-                    + ";"
-                )
+                replacement = original_redirect.rstrip(";") + conversion_scripts + ";"
                 modified = modified.replace(original_redirect, replacement)
 
         return modified

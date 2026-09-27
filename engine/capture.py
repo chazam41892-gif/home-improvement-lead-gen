@@ -184,13 +184,17 @@ class LeadCaptureProcessor:
             has_enabled = any(s.enabled for s in steps.values()) if steps else False
             if has_enabled:
                 import asyncio
+
                 try:
                     loop = asyncio.get_running_loop()
                     if loop.is_running():
                         task = asyncio.create_task(self._engine._router.route_leads([lead_dict]))
                         task.add_done_callback(
-                            lambda t: logger.error("Routing task failed: %s", t.exception())
-                            if t.exception() else None
+                            lambda t: (
+                                logger.error("Routing task failed: %s", t.exception())
+                                if t.exception()
+                                else None
+                            )
                         )
                 except RuntimeError:
                     pass
@@ -218,36 +222,39 @@ class LeadCaptureProcessor:
         """Persist captured lead to the canonical database."""
         try:
             with Database.get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO leads (
                         id, title, url, snippet, industry, location, source, score, found_at,
                         email, phone, notes, score_breakdown, status,
                         first_name, last_name, address, project_description,
                         utm_source, utm_medium, utm_campaign
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    lead_obj.id,
-                    lead_obj.title,
-                    lead_obj.url,
-                    lead_obj.snippet,
-                    lead_obj.industry,
-                    lead_obj.location,
-                    lead_obj.source,
-                    lead_obj.score.total,
-                    lead_obj.found_at,
-                    lead_obj.email,
-                    lead_obj.phone,
-                    lead_obj.notes,
-                    json.dumps(lead_obj.score.as_dict()),
-                    lead_obj.status,
-                    lead_obj.first_name,
-                    lead_obj.last_name,
-                    lead_obj.address,
-                    lead_obj.project_description,
-                    lead_obj.utm_source,
-                    lead_obj.utm_medium,
-                    lead_obj.utm_campaign,
-                ))
+                """,
+                    (
+                        lead_obj.id,
+                        lead_obj.title,
+                        lead_obj.url,
+                        lead_obj.snippet,
+                        lead_obj.industry,
+                        lead_obj.location,
+                        lead_obj.source,
+                        lead_obj.score.total,
+                        lead_obj.found_at,
+                        lead_obj.email,
+                        lead_obj.phone,
+                        lead_obj.notes,
+                        json.dumps(lead_obj.score.as_dict()),
+                        lead_obj.status,
+                        lead_obj.first_name,
+                        lead_obj.last_name,
+                        lead_obj.address,
+                        lead_obj.project_description,
+                        lead_obj.utm_source,
+                        lead_obj.utm_medium,
+                        lead_obj.utm_campaign,
+                    ),
+                )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to persist captured lead: %s", e)

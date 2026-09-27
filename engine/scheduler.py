@@ -91,14 +91,29 @@ class ScanScheduler:
     def _save_schedule_to_db(self, s: ScanSchedule):
         try:
             with Database.get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO schedules (
                         id, name, query, provider, industry, location, num_results, min_score, interval_minutes, enabled, created_at, last_run, last_result_count, total_runs
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    s.id, s.name, s.query, s.provider, s.industry, s.location, s.num_results, s.min_score, s.interval_minutes,
-                    1 if s.enabled else 0, s.created_at, s.last_run, s.last_result_count, s.total_runs
-                ))
+                """,
+                    (
+                        s.id,
+                        s.name,
+                        s.query,
+                        s.provider,
+                        s.industry,
+                        s.location,
+                        s.num_results,
+                        s.min_score,
+                        s.interval_minutes,
+                        1 if s.enabled else 0,
+                        s.created_at,
+                        s.last_run,
+                        s.last_result_count,
+                        s.total_runs,
+                    ),
+                )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to save schedule to database: %s", e)
@@ -149,8 +164,17 @@ class ScanScheduler:
         sched = self._schedules.get(schedule_id)
         if not sched:
             return None
-        for key in ("name", "query", "provider", "industry", "location",
-                     "num_results", "min_score", "interval_minutes", "enabled"):
+        for key in (
+            "name",
+            "query",
+            "provider",
+            "industry",
+            "location",
+            "num_results",
+            "min_score",
+            "interval_minutes",
+            "enabled",
+        ):
             if key in updates:
                 setattr(sched, key, updates[key])
         self._save_schedule_to_db(sched)
@@ -175,9 +199,9 @@ class ScanScheduler:
         return self._schedules.get(schedule_id)
 
     def list_schedules(self) -> list[dict[str, Any]]:
-        return [s.as_dict() for s in sorted(
-            self._schedules.values(), key=lambda s: s.created_at, reverse=True
-        )]
+        return [
+            s.as_dict() for s in sorted(self._schedules.values(), key=lambda s: s.created_at, reverse=True)
+        ]
 
     def get_results(self, schedule_id: str) -> list[dict[str, Any]]:
         return self._results.get(schedule_id, [])

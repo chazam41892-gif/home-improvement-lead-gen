@@ -117,14 +117,25 @@ class NurtureEngine:
     def _save_sequence_to_db(self, seq: Sequence):
         try:
             with Database.get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO nurture_sequences (
                         id, lead_name, lead_id, lead_email, lead_phone, industry, created_at, actions, current_step, completed
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    seq.id, seq.lead_name, seq.lead_id, seq.lead_email, seq.lead_phone, seq.industry, seq.created_at,
-                    json.dumps(seq.actions), seq.current_step, 1 if seq.completed else 0
-                ))
+                """,
+                    (
+                        seq.id,
+                        seq.lead_name,
+                        seq.lead_id,
+                        seq.lead_email,
+                        seq.lead_phone,
+                        seq.industry,
+                        seq.created_at,
+                        json.dumps(seq.actions),
+                        seq.current_step,
+                        1 if seq.completed else 0,
+                    ),
+                )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to save nurture sequence to database: %s", e)
@@ -275,12 +286,14 @@ class NurtureEngine:
 
             deadline = created + timedelta(minutes=action["delay_minutes"])
             if now >= deadline:
-                due.append({
-                    "sequence_id": seq.id,
-                    "action_index": seq.current_step,
-                    "type": action["type"],
-                    "template": action["template"],
-                })
+                due.append(
+                    {
+                        "sequence_id": seq.id,
+                        "action_index": seq.current_step,
+                        "type": action["type"],
+                        "template": action["template"],
+                    }
+                )
 
         return due
 
@@ -315,7 +328,9 @@ class NurtureEngine:
         self._record_opt_out("sms", phone, "STOP")
         return True
 
-    def mark_action_sent(self, sequence_id: str, action_index: int, result: dict[str, Any] | None = None) -> bool:
+    def mark_action_sent(
+        self, sequence_id: str, action_index: int, result: dict[str, Any] | None = None
+    ) -> bool:
         seq = self._load_sequence_by_id(sequence_id)
         if not seq:
             return False
@@ -346,6 +361,7 @@ class NurtureEngine:
     async def execute_due_actions(self) -> list[dict[str, Any]]:
         """Find due actions and dispatch them via real providers."""
         from engine.messaging import MessagingOrchestrator
+
         messenger = MessagingOrchestrator()
         due = self.get_due_actions()
         results = []
@@ -362,7 +378,13 @@ class NurtureEngine:
             if self._has_opt_out(consent_channel, identifier):
                 logger.info("Skipping nurture action %s for %s due to opt-out", atype, seq_id)
                 self.mark_action_sent(seq_id, idx, {"ok": True, "provider": "opt-out", "skipped": True})
-                results.append({"sequence_id": seq_id, "action": atype, "result": {"ok": True, "skipped": True, "reason": "opt-out"}})
+                results.append(
+                    {
+                        "sequence_id": seq_id,
+                        "action": atype,
+                        "result": {"ok": True, "skipped": True, "reason": "opt-out"},
+                    }
+                )
                 continue
 
             result: dict[str, Any] = {"ok": False, "error": "unknown action type"}
@@ -458,10 +480,7 @@ class NurtureEngine:
         business_name: str = "Our Business",
         primary_color: str = "#6366f1",
     ) -> str:
-        slot_options = "".join(
-            f'<option value="{val}">{label}</option>'
-            for val, label in _TIME_SLOTS
-        )
+        slot_options = "".join(f'<option value="{val}">{label}</option>' for val, label in _TIME_SLOTS)
 
         return f"""<div id="nurture-scheduling-widget" class="nsw-root">
 <style>
@@ -728,19 +747,22 @@ class NurtureEngine:
         self._appointments.append(appointment)
         try:
             with Database.get_connection() as conn:
-                conn.execute("""
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO appointments (
                         appointment_id, name, phone, email, date, time_slot, created_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    appointment["appointment_id"],
-                    appointment["name"],
-                    appointment["phone"],
-                    appointment["email"],
-                    appointment["date"],
-                    appointment["time_slot"],
-                    appointment["created_at"]
-                ))
+                """,
+                    (
+                        appointment["appointment_id"],
+                        appointment["name"],
+                        appointment["phone"],
+                        appointment["email"],
+                        appointment["date"],
+                        appointment["time_slot"],
+                        appointment["created_at"],
+                    ),
+                )
                 conn.commit()
         except Exception as e:
             logger.error("Failed to save appointment to database: %s", e)
@@ -779,7 +801,7 @@ class NurtureEngine:
                 with Database.get_connection() as conn:
                     conn.execute(
                         "UPDATE leads SET sms_consent = 0, email_consent = 0, opt_out_sms_at = ?, opt_out_email_at = ? WHERE id = ?",
-                        (datetime.now().isoformat(), datetime.now().isoformat(), seq.lead_id)
+                        (datetime.now().isoformat(), datetime.now().isoformat(), seq.lead_id),
                     )
                     conn.commit()
             except Exception as e:
@@ -788,7 +810,7 @@ class NurtureEngine:
             return {
                 "ok": True,
                 "action": "opt_out",
-                "response": "You have been successfully unsubscribed. No further messages will be sent."
+                "response": "You have been successfully unsubscribed. No further messages will be sent.",
             }
 
         # 2. Booking intent check
@@ -801,23 +823,23 @@ class NurtureEngine:
                 f"or let us know if 10:00 AM, 11:00 AM, or 2:00 PM tomorrow works for you!"
             )
 
-            seq.actions.append({
-                "type": "incoming_reply",
-                "message": reply_text,
-                "sent_at": datetime.now().isoformat(),
-            })
-            seq.actions.append({
-                "type": "ai_response",
-                "message": response,
-                "sent_at": datetime.now().isoformat(),
-            })
+            seq.actions.append(
+                {
+                    "type": "incoming_reply",
+                    "message": reply_text,
+                    "sent_at": datetime.now().isoformat(),
+                }
+            )
+            seq.actions.append(
+                {
+                    "type": "ai_response",
+                    "message": response,
+                    "sent_at": datetime.now().isoformat(),
+                }
+            )
             self._save_sequence_to_db(seq)
 
-            return {
-                "ok": True,
-                "action": "booking_prompt",
-                "response": response
-            }
+            return {"ok": True, "action": "booking_prompt", "response": response}
 
         # 3. Question / Objection check
         perplexity_key = os.environ.get("PERPLEXITY_API_KEY")
@@ -825,23 +847,23 @@ class NurtureEngine:
         if perplexity_key:
             try:
                 import httpx
+
                 prompt = (
                     f"You are an AI lead nurturing assistant. A lead named {seq.lead_name} "
                     f"in the '{seq.industry}' industry replied to our automated outreach: '{reply_text}'. "
                     f"Draft a polite, professional, and very brief B2B response (under 3 sentences) answering their inquiry, "
                     f"and steering them to schedule a meeting using: /api/nurture/schedule/widget."
                 )
-                headers = {
-                    "Authorization": f"Bearer {perplexity_key}",
-                    "Content-Type": "application/json"
-                }
+                headers = {"Authorization": f"Bearer {perplexity_key}", "Content-Type": "application/json"}
                 body = {
                     "model": "sonar-pro",
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 200
+                    "max_tokens": 200,
                 }
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.post("https://api.perplexity.ai/chat/completions", json=body, headers=headers)
+                    resp = await client.post(
+                        "https://api.perplexity.ai/chat/completions", json=body, headers=headers
+                    )
                     if resp.status_code == 200:
                         data = resp.json()
                         response = data["choices"][0]["message"]["content"].strip()
@@ -856,20 +878,20 @@ class NurtureEngine:
                 f"/api/nurture/schedule/widget?business_name={urllib.parse.quote(seq.industry.capitalize())}"
             )
 
-        seq.actions.append({
-            "type": "incoming_reply",
-            "message": reply_text,
-            "sent_at": datetime.now().isoformat(),
-        })
-        seq.actions.append({
-            "type": "ai_response",
-            "message": response,
-            "sent_at": datetime.now().isoformat(),
-        })
+        seq.actions.append(
+            {
+                "type": "incoming_reply",
+                "message": reply_text,
+                "sent_at": datetime.now().isoformat(),
+            }
+        )
+        seq.actions.append(
+            {
+                "type": "ai_response",
+                "message": response,
+                "sent_at": datetime.now().isoformat(),
+            }
+        )
         self._save_sequence_to_db(seq)
 
-        return {
-            "ok": True,
-            "action": "ai_response",
-            "response": response
-        }
+        return {"ok": True, "action": "ai_response", "response": response}

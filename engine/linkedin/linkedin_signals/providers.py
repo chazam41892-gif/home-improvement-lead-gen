@@ -46,11 +46,14 @@ class LinkedInAPIClient:
         }
 
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        async with aiohttp.ClientSession(headers=self.headers) as session, session.get(
-            f"{self.base_url}{path}",
-            params=params,
-            timeout=aiohttp.ClientTimeout(total=self.timeout),
-        ) as response:
+        async with (
+            aiohttp.ClientSession(headers=self.headers) as session,
+            session.get(
+                f"{self.base_url}{path}",
+                params=params,
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
+            ) as response,
+        ):
             text = await response.text()
             if response.status >= 400:
                 raise ProviderError(f"LinkedIn API {response.status}: {text[:500]}")
@@ -58,11 +61,14 @@ class LinkedInAPIClient:
 
     async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         headers = {**self.headers, "Content-Type": "application/json"}
-        async with aiohttp.ClientSession(headers=headers) as session, session.post(
-            f"{self.base_url}{path}",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=self.timeout),
-        ) as response:
+        async with (
+            aiohttp.ClientSession(headers=headers) as session,
+            session.post(
+                f"{self.base_url}{path}",
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
+            ) as response,
+        ):
             text = await response.text()
             if response.status >= 400:
                 raise ProviderError(f"LinkedIn API {response.status}: {text[:500]}")
@@ -95,7 +101,12 @@ class LinkedInAPIClient:
     async def list_posts(self, author_urn: str, count: int = 20):
         data = await self._get(
             "/posts",
-            {"q": "author", "author": author_urn, "count": max(1, min(count, 100)), "sortBy": "LAST_MODIFIED"},
+            {
+                "q": "author",
+                "author": author_urn,
+                "count": max(1, min(count, 100)),
+                "sortBy": "LAST_MODIFIED",
+            },
         )
         return data.get("elements", [])
 
@@ -126,27 +137,35 @@ class LinkedInAPIClient:
             {"q": "entity", "sort": "(value:REVERSE_CHRONOLOGICAL)"},
         )
         comments = await self._get_paged(f"/socialActions/{encoded}/comments")
-        reaction_count = sum(int(item.get("count", 0)) for item in metadata.get("reactionSummaries", {}).values())
+        reaction_count = sum(
+            int(item.get("count", 0)) for item in metadata.get("reactionSummaries", {}).values()
+        )
         comment_count = int(metadata.get("commentSummary", {}).get("count", len(comments)))
         repost_count = int(metadata.get("reshareSummary", {}).get("count", 0))
         created_ms = post.get("createdAt") or post.get("created", {}).get("time")
         engagements = []
         for item in reactions:
             created = item.get("created") or {}
-            engagements.append({
-                "actor_urn": item.get("actor") or created.get("actor", ""),
-                "profile_url": "",
-                "action": item.get("reactionType", "REACTION"),
-            })
+            engagements.append(
+                {
+                    "actor_urn": item.get("actor") or created.get("actor", ""),
+                    "profile_url": "",
+                    "action": item.get("reactionType", "REACTION"),
+                }
+            )
         for item in comments:
             actor = item.get("actor", "")
             message = item.get("message", {})
-            engagements.append({
-                "actor_urn": actor,
-                "profile_url": item.get("profileUrl", ""),
-                "action": "COMMENT",
-                "comment_text": message.get("text", "") if isinstance(message, dict) else str(message or ""),
-            })
+            engagements.append(
+                {
+                    "actor_urn": actor,
+                    "profile_url": item.get("profileUrl", ""),
+                    "action": "COMMENT",
+                    "comment_text": message.get("text", "")
+                    if isinstance(message, dict)
+                    else str(message or ""),
+                }
+            )
         return {
             "post": {
                 "urn": post.get("id", post_urn),
@@ -155,7 +174,9 @@ class LinkedInAPIClient:
                 "reactions": reaction_count,
                 "comments": comment_count,
                 "reposts": repost_count,
-                "age_hours": max((time.time() * 1000 - float(created_ms)) / 3_600_000, 1.0) if created_ms is not None else None,
+                "age_hours": max((time.time() * 1000 - float(created_ms)) / 3_600_000, 1.0)
+                if created_ms is not None
+                else None,
                 "raw": {"post": post, "metadata": metadata},
             },
             "engagements": engagements,
@@ -177,12 +198,15 @@ class ApifyLinkedInCollector:
 
     async def _run_actor(self, actor: str, payload: dict[str, Any]):
         url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
-        async with aiohttp.ClientSession() as session, session.post(
-            url,
-            params={"token": self.api_token},
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=self.timeout),
-        ) as response:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                url,
+                params={"token": self.api_token},
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
+            ) as response,
+        ):
             data = await response.json(content_type=None)
             if response.status >= 400:
                 raise ProviderError(f"Apify actor {response.status}: {str(data)[:500]}")
@@ -195,7 +219,10 @@ class ApifyLinkedInCollector:
             reactor = {}
         return {
             "actor_urn": reactor.get("urn") or reactor.get("id") or "",
-            "profile_url": reactor.get("profile_url") or reactor.get("profileUrl") or reactor.get("linkedin_url") or "",
+            "profile_url": reactor.get("profile_url")
+            or reactor.get("profileUrl")
+            or reactor.get("linkedin_url")
+            or "",
             "name": reactor.get("name") or reactor.get("fullName") or "",
             "headline": reactor.get("headline") or "",
             "action": item.get("reaction_type") or item.get("reactionType") or "REACTION",
@@ -208,7 +235,11 @@ class ApifyLinkedInCollector:
             author = {}
         return {
             "actor_urn": author.get("urn") or author.get("id") or "",
-            "profile_url": author.get("profile_url") or author.get("profileUrl") or author.get("linkedin_url") or item.get("profile_url") or "",
+            "profile_url": author.get("profile_url")
+            or author.get("profileUrl")
+            or author.get("linkedin_url")
+            or item.get("profile_url")
+            or "",
             "name": author.get("name") or author.get("fullName") or item.get("author_name") or "",
             "headline": author.get("headline") or item.get("author_headline") or "",
             "action": "COMMENT",
@@ -237,7 +268,12 @@ class ApifyLinkedInCollector:
         )
         comments = await self._paged(
             self.comments_actor,
-            lambda page: {"postIds": [post_url], "page_number": page, "sortOrder": "most recent", "limit": 100},
+            lambda page: {
+                "postIds": [post_url],
+                "page_number": page,
+                "sortOrder": "most recent",
+                "limit": 100,
+            },
         )
         engagements = list(official_result.get("engagements", [])) if official_result else []
         engagements.extend(self.normalize_reaction(item) for item in reactions)
@@ -260,7 +296,11 @@ class ApifyLinkedInCollector:
                 "comments": len(comments),
                 "reposts": 0,
                 "age_hours": None,
-                "raw": {"collector": "apify", "reaction_records": len(reactions), "comment_records": len(comments)},
+                "raw": {
+                    "collector": "apify",
+                    "reaction_records": len(reactions),
+                    "comment_records": len(comments),
+                },
             },
             "engagements": engagements,
         }
@@ -298,8 +338,13 @@ class LLMQualifier:
 
 
 class EnrichmentWaterfall:
-    def __init__(self, providers: Iterable[Any], mobile_provider: Any = None,
-                 max_attempts: int = 3, retry_delay_seconds: float = 0.25):
+    def __init__(
+        self,
+        providers: Iterable[Any],
+        mobile_provider: Any = None,
+        max_attempts: int = 3,
+        retry_delay_seconds: float = 0.25,
+    ):
         self.providers = list(providers)
         self.mobile_provider = mobile_provider
         self.max_attempts = max(1, int(max_attempts))
@@ -320,7 +365,7 @@ class EnrichmentWaterfall:
                 except ProviderError as error:
                     if attempt + 1 >= self.max_attempts or not self._retryable(error):
                         break
-                    await asyncio.sleep(self.retry_delay_seconds * (2 ** attempt))
+                    await asyncio.sleep(self.retry_delay_seconds * (2**attempt))
             if result and result.get("email"):
                 enriched = {**result, "enrichment_source": provider.name}
                 if self.mobile_provider and not enriched.get("phone"):
@@ -343,11 +388,14 @@ class ApolloEnricher:
             return None
         payload = {"linkedin_url": lead["profile_url"], "reveal_personal_emails": False}
         headers = {"x-api-key": self.api_key, "Content-Type": "application/json", "Cache-Control": "no-cache"}
-        async with aiohttp.ClientSession(headers=headers) as session, session.post(
-            "https://api.apollo.io/api/v1/people/match",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=45),
-        ) as response:
+        async with (
+            aiohttp.ClientSession(headers=headers) as session,
+            session.post(
+                "https://api.apollo.io/api/v1/people/match",
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=45),
+            ) as response,
+        ):
             data = await response.json(content_type=None)
             if response.status >= 400:
                 raise ProviderError(f"Apollo API {response.status}: {str(data)[:500]}")
@@ -376,11 +424,14 @@ class ProspeoEnricher:
             return None
         headers = {"X-KEY": self.api_key, "Content-Type": "application/json"}
         payload = {"only_verified_email": True, "data": {"linkedin_url": lead["profile_url"]}}
-        async with aiohttp.ClientSession(headers=headers) as session, session.post(
-            "https://api.prospeo.io/enrich-person",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=45),
-        ) as response:
+        async with (
+            aiohttp.ClientSession(headers=headers) as session,
+            session.post(
+                "https://api.prospeo.io/enrich-person",
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=45),
+            ) as response,
+        ):
             data = await response.json(content_type=None)
             if response.status >= 400:
                 raise ProviderError(f"Prospeo API {response.status}: {str(data)[:500]}")
@@ -410,11 +461,14 @@ class LeadMagicEnricher:
 
     async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         headers = {"X-API-Key": self.api_key, "Content-Type": "application/json"}
-        async with aiohttp.ClientSession(headers=headers) as session, session.post(
-            f"{self.base_url}/{path}",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=45),
-        ) as response:
+        async with (
+            aiohttp.ClientSession(headers=headers) as session,
+            session.post(
+                f"{self.base_url}/{path}",
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=45),
+            ) as response,
+        ):
             data = await response.json(content_type=None)
             if response.status >= 400:
                 raise ProviderError(f"LeadMagic API {response.status}: {str(data)[:500]}")
@@ -438,10 +492,12 @@ class LeadMagicEnricher:
         if not self.api_key:
             return ""
         payload = {
-            key: value for key, value in {
+            key: value
+            for key, value in {
                 "profile_url": lead.get("profile_url", ""),
                 "work_email": lead.get("email", ""),
-            }.items() if value
+            }.items()
+            if value
         }
         if not payload:
             return ""
@@ -458,11 +514,14 @@ class MillionVerifier:
     async def verify(self, email: str) -> dict[str, Any]:
         if not self.api_key:
             return {"status": "unconfigured", "email": email}
-        async with aiohttp.ClientSession() as session, session.get(
-            "https://api.millionverifier.com/api/v3/",
-            params={"api": self.api_key, "email": email, "timeout": 10},
-            timeout=aiohttp.ClientTimeout(total=20),
-        ) as response:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(
+                "https://api.millionverifier.com/api/v3/",
+                params={"api": self.api_key, "email": email, "timeout": 10},
+                timeout=aiohttp.ClientTimeout(total=20),
+            ) as response,
+        ):
             data = await response.json(content_type=None)
             if response.status >= 400:
                 raise ProviderError(f"MillionVerifier API {response.status}: {str(data)[:500]}")
@@ -501,11 +560,14 @@ class InstantlyClient:
             raise ProviderError("Instantly API key is not configured")
         payload = self.build_payload(campaign_id, lead)
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        async with aiohttp.ClientSession(headers=headers) as session, session.post(
-            "https://api.instantly.ai/api/v2/leads",
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=30),
-        ) as response:
+        async with (
+            aiohttp.ClientSession(headers=headers) as session,
+            session.post(
+                "https://api.instantly.ai/api/v2/leads",
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as response,
+        ):
             data = await response.json(content_type=None)
             if response.status >= 400:
                 raise ProviderError(f"Instantly API {response.status}: {str(data)[:500]}")

@@ -3,6 +3,7 @@
 Serves growth.leviathansi.xyz. Users land on the module catalog, click a
 module, create a profile, subscribe via Stripe, then access the module.
 """
+
 from __future__ import annotations
 
 import html as _html
@@ -33,6 +34,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 # ───────────────────────────── Pydantic models
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -68,6 +70,7 @@ class LeadCaptureRequest(BaseModel):
 
 
 # ───────────────────────────── HTML helpers
+
 
 def _page(title: str, body: str, extra_head: str = "") -> str:
     return f"""<!DOCTYPE html>
@@ -128,6 +131,7 @@ async def _request_body(request: Request) -> dict[str, Any]:
 
 # ───────────────────────────── Portal pages
 
+
 @router.get("/", response_class=HTMLResponse)
 async def portal_home(request: Request):
     """B2B module catalog at growth.leviathansi.xyz"""
@@ -141,13 +145,13 @@ async def portal_home(request: Request):
         btn_class = "bg-emerald-500 hover:bg-emerald-600" if access else "bg-blue-600 hover:bg-blue-700"
         cards.append(f"""
         <div class="bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-2xl transition">
-          <div class="text-4xl mb-4">{m['icon']}</div>
-          <h3 class="text-xl font-bold mb-2">{m['name']}</h3>
-          <p class="text-gray-400 mb-4">{m['description']}</p>
+          <div class="text-4xl mb-4">{m["icon"]}</div>
+          <h3 class="text-xl font-bold mb-2">{m["name"]}</h3>
+          <p class="text-gray-400 mb-4">{m["description"]}</p>
           <div class="flex flex-wrap gap-2 mb-4">
-            {''.join(f'<span class="text-xs bg-gray-700 px-2 py-1 rounded">{t}</span>' for t in m['tags'])}
+            {"".join(f'<span class="text-xs bg-gray-700 px-2 py-1 rounded">{t}</span>' for t in m["tags"])}
           </div>
-          <a href="/growth/module/{m['slug']}" class="inline-block {btn_class} text-white px-4 py-2 rounded font-semibold">
+          <a href="/growth/module/{m["slug"]}" class="inline-block {btn_class} text-white px-4 py-2 rounded font-semibold">
             {cta}
           </a>
         </div>
@@ -159,7 +163,7 @@ async def portal_home(request: Request):
     if user:
         auth_bar = f"""
         <div class="flex items-center gap-4">
-          <span class="text-sm text-gray-400">{user['user']['name']} — {plan.capitalize()}</span>
+          <span class="text-sm text-gray-400">{user["user"]["name"]} — {plan.capitalize()}</span>
           <a href="/growth/profile" class="text-sm text-emerald-400 hover:underline">Profile</a>
           <a href="/growth/logout" class="text-sm text-red-400 hover:underline">Logout</a>
         </div>
@@ -287,7 +291,7 @@ async def profile_page(request: Request):
 
     plans_html = ""
     for plan_id, cents in [("starter", 9700), ("growth", 19700), ("pro", 49700), ("enterprise", 99700)]:
-        price = f"${cents/100:.0f}/mo"
+        price = f"${cents / 100:.0f}/mo"
         active = sub_status.get("plan") == plan_id
         btn = f"""
         <form action="/growth/api/subscribe" method="POST" class="inline">
@@ -305,7 +309,7 @@ async def profile_page(request: Request):
             </a>
             """
         plans_html += f"""
-        <div class="bg-gray-800 p-6 rounded-xl border {'border-emerald-500' if active else 'border-gray-700'}">
+        <div class="bg-gray-800 p-6 rounded-xl border {"border-emerald-500" if active else "border-gray-700"}">
           <h3 class="text-xl font-bold mb-2">{plan_id.capitalize()}</h3>
           <p class="text-2xl font-bold text-emerald-400 mb-4">{price}</p>
           {btn}
@@ -322,11 +326,11 @@ async def profile_page(request: Request):
     <main class="max-w-4xl mx-auto px-4 py-12">
       <h1 class="text-3xl font-bold mb-8">Your Profile</h1>
       <div class="bg-gray-800 p-6 rounded-xl mb-8">
-        <p><strong>Name:</strong> {_html.escape(user['user']['name'])}</p>
-        <p><strong>Email:</strong> {_html.escape(user['user']['email'])}</p>
-        <p><strong>Company:</strong> {_html.escape(org['name'])}</p>
-        <p><strong>Current plan:</strong> {_html.escape(org.get('plan','free')).capitalize()}</p>
-        <p><strong>Subscription status:</strong> {_html.escape(sub_status.get('status','none'))}</p>
+        <p><strong>Name:</strong> {_html.escape(user["user"]["name"])}</p>
+        <p><strong>Email:</strong> {_html.escape(user["user"]["email"])}</p>
+        <p><strong>Company:</strong> {_html.escape(org["name"])}</p>
+        <p><strong>Current plan:</strong> {_html.escape(org.get("plan", "free")).capitalize()}</p>
+        <p><strong>Subscription status:</strong> {_html.escape(sub_status.get("status", "none"))}</p>
       </div>
       <h2 class="text-2xl font-bold mb-4">Available plans</h2>
       <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -361,7 +365,7 @@ async def module_landing(request: Request, module_slug: str):
     <header class="border-b border-gray-800">
       <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
         <a href="/growth" class="text-2xl font-bold tracking-tight">Leviathan <span class="text-emerald-400">Growth</span></a>
-          <span class="text-gray-400">{_html.escape(user['user']['name'])}</span>
+          <span class="text-gray-400">{_html.escape(user["user"]["name"])}</span>
       </div>
     </header>
     <main class="max-w-4xl mx-auto px-4 py-12 text-center">
@@ -379,7 +383,7 @@ def _leadgen_module_html(user: dict[str, Any]) -> str:
         <a href="/growth" class="text-2xl font-bold tracking-tight">Leviathan <span class="text-emerald-400">Growth</span></a>
         <div class="flex items-center gap-4">
           <a href="/growth/profile" class="text-sm text-emerald-400 hover:underline">Profile</a>
-          <span class="text-sm text-gray-400">{_html.escape(user['user']['name'])}</span>
+          <span class="text-sm text-gray-400">{_html.escape(user["user"]["name"])}</span>
         </div>
       </div>
     </header>
@@ -448,6 +452,7 @@ def _leadgen_module_html(user: dict[str, Any]) -> str:
 
 # ───────────────────────────── API endpoints
 
+
 @router.get("/auth/google/login")
 async def google_login(request: Request):
     client_id = KeyVault.get("google_oauth_client_id")
@@ -465,7 +470,7 @@ async def google_login(request: Request):
         "scope": "openid email profile",
         "state": state,
         "access_type": "online",
-        "prompt": "select_account"
+        "prompt": "select_account",
     }
     google_auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
     return RedirectResponse(google_auth_url, status_code=302)
@@ -481,7 +486,9 @@ async def google_callback(request: Request):
     client_id = KeyVault.get("google_oauth_client_id")
     client_secret = KeyVault.get("google_oauth_client_secret")
     if not client_id or not client_secret:
-        raise HTTPException(status_code=503, detail="Google OAuth credentials are not fully configured in KeyVault.")
+        raise HTTPException(
+            status_code=503, detail="Google OAuth credentials are not fully configured in KeyVault."
+        )
 
     base_url = str(request.base_url).rstrip("/")
     redirect_uri = f"{base_url}/growth/auth/google/callback"
@@ -492,7 +499,7 @@ async def google_callback(request: Request):
         "client_id": client_id,
         "client_secret": client_secret,
         "redirect_uri": redirect_uri,
-        "grant_type": "authorization_code"
+        "grant_type": "authorization_code",
     }
 
     try:
@@ -500,12 +507,16 @@ async def google_callback(request: Request):
             token_resp = await client.post(token_url, data=data)
             if token_resp.status_code != 200:
                 logger.error("Failed to exchange Google OAuth code: %s", token_resp.text)
-                raise HTTPException(status_code=400, detail=f"Google token exchange failed: {token_resp.text[:200]}")
+                raise HTTPException(
+                    status_code=400, detail=f"Google token exchange failed: {token_resp.text[:200]}"
+                )
             token_data = token_resp.json()
             access_token = token_data.get("access_token")
 
             userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo"
-            userinfo_resp = await client.get(userinfo_url, headers={"Authorization": f"Bearer {access_token}"})
+            userinfo_resp = await client.get(
+                userinfo_url, headers={"Authorization": f"Bearer {access_token}"}
+            )
             if userinfo_resp.status_code != 200:
                 logger.error("Failed to fetch Google userinfo: %s", userinfo_resp.text)
                 raise HTTPException(status_code=400, detail="Google userinfo request failed.")
@@ -534,7 +545,9 @@ async def google_callback(request: Request):
             token = reg_result["token"]
 
     if "token" not in locals():
-        token = auth_manager._create_jwt(user["id"], user["org_id"], user["email"], user.get("role", "member"))
+        token = auth_manager._create_jwt(
+            user["id"], user["org_id"], user["email"], user.get("role", "member")
+        )
 
     if not state.startswith("/growth/"):
         state = "/growth/"
@@ -630,10 +643,7 @@ async def api_me(request: Request):
 async def api_modules(request: Request):
     user = _current_user(request)
     plan = user.get("org", {}).get("plan", "free") if user else "free"
-    return [
-        {**m, "access": can_access_module(m["id"], plan)}
-        for m in list_modules()
-    ]
+    return [{**m, "access": can_access_module(m["id"], plan)} for m in list_modules()]
 
 
 @router.post("/api/capture")
@@ -653,7 +663,9 @@ async def api_capture(request: Request):
         "capture_timestamp": now,
         "full_name": body.get("full_name", ""),
         "first_name": body.get("full_name", "").split()[0] if body.get("full_name") else "",
-        "last_name": " ".join(body.get("full_name", "").split()[1:]) if len(body.get("full_name", "").split()) > 1 else "",
+        "last_name": " ".join(body.get("full_name", "").split()[1:])
+        if len(body.get("full_name", "").split()) > 1
+        else "",
         "email": body.get("email", ""),
         "phone": body.get("phone", ""),
         "company_name": body.get("company_name", ""),
@@ -674,29 +686,32 @@ async def api_capture(request: Request):
         "utm_campaign": body.get("utm_campaign", ""),
         "budget_range": body.get("budget_range", ""),
         "consent_flags": {"email": True, "sms": True, "call": True},
-        "notes": [f"Captured from {body.get('source','growth_portal')}"],
+        "notes": [f"Captured from {body.get('source', 'growth_portal')}"],
     }
 
     # Store in database
     with Database.get_connection() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO leads (id, title, url, snippet, industry, location, source, score, found_at, email, phone, notes, score_breakdown)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            lead_id,
-            lead.get("full_name", ""),
-            "",
-            lead.get("description", "")[:300],
-            lead.get("service_requested", ""),
-            f"{lead.get('city','')}, {lead.get('state','')} {lead.get('zip','')}".strip(", "),
-            lead.get("source", ""),
-            0,
-            now,
-            lead.get("email", ""),
-            lead.get("phone", ""),
-            json.dumps(lead.get("notes", [])),
-            json.dumps({}),
-        ))
+        """,
+            (
+                lead_id,
+                lead.get("full_name", ""),
+                "",
+                lead.get("description", "")[:300],
+                lead.get("service_requested", ""),
+                f"{lead.get('city', '')}, {lead.get('state', '')} {lead.get('zip', '')}".strip(", "),
+                lead.get("source", ""),
+                0,
+                now,
+                lead.get("email", ""),
+                lead.get("phone", ""),
+                json.dumps(lead.get("notes", [])),
+                json.dumps({}),
+            ),
+        )
         conn.commit()
 
     # Trigger CRM webhook / follow-up
@@ -728,6 +743,7 @@ async def thank_you_page(request: Request):
 async def _push_to_crm(lead: dict[str, Any]):
     """Push captured lead to CRM via existing crm_push + internal webhook."""
     from ..crm_push import CrmPush
+
     try:
         crm = CrmPush()
         await crm.push_lead(lead)
@@ -738,6 +754,7 @@ async def _push_to_crm(lead: dict[str, Any]):
     webhook_url = KeyVault.get("lead_webhook_url") or ""
     if webhook_url:
         import httpx
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 await client.post(webhook_url, json=lead)
@@ -748,6 +765,7 @@ async def _push_to_crm(lead: dict[str, Any]):
 async def _queue_followup(lead: dict[str, Any]):
     """Queue immediate follow-up sequence."""
     from ..nurture import NurtureEngine
+
     try:
         engine = NurtureEngine()
         await engine.start_sequence(lead)

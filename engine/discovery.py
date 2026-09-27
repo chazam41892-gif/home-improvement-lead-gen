@@ -33,12 +33,14 @@ logger = logging.getLogger("leadgen.discovery")
 
 try:
     import aiohttp
+
     _AIOHTTP = True
 except ImportError:  # pragma: no cover
     _AIOHTTP = False
 
 try:
     from bs4 import BeautifulSoup
+
     _BS4 = True
 except ImportError:  # pragma: no cover
     _BS4 = False
@@ -46,9 +48,11 @@ except ImportError:  # pragma: no cover
 
 # ── Data Models ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class LeadSource:
     """Raw scraped text awaiting AI extraction."""
+
     source: str
     text: str
     url: str = ""
@@ -58,6 +62,7 @@ class LeadSource:
 @dataclass
 class TargetProfile:
     """What the user is looking for."""
+
     customer_description: str = ""
     keywords: list[str] = field(default_factory=list)
     locations: list[str] = field(default_factory=list)
@@ -145,6 +150,7 @@ last_reddit_error: str = ""
 
 # ── Google Maps Scraper ────────────────────────────────────────────────────
 
+
 async def scrape_google_maps(queries: list[str]) -> list[LeadSource]:
     """Scrape Google Maps search results for potential leads.
 
@@ -178,11 +184,14 @@ async def scrape_google_maps(queries: list[str]) -> list[LeadSource]:
                     # Say so, so an empty result is not read as "no leads exist".
                     logger.warning(
                         "google_maps %s returned only %d chars of text (JS-rendered page); "
-                        "use the Places API for reliable data", query, len(text))
+                        "use the Places API for reliable data",
+                        query,
+                        len(text),
+                    )
                     continue
-                results.append(LeadSource(
-                    source="google_maps", text=text, url=url,
-                    metadata={"query": query}))
+                results.append(
+                    LeadSource(source="google_maps", text=text, url=url, metadata={"query": query})
+                )
             except Exception as e:
                 logger.warning("Google Maps failed for %r: %s", query, e)
             await asyncio.sleep(1.5)
@@ -191,9 +200,18 @@ async def scrape_google_maps(queries: list[str]) -> list[LeadSource]:
 
 # ── Reddit Scraper ─────────────────────────────────────────────────────────
 
-_SUBREDDITS = ["HomeImprovement", "Contractor", "RealEstate", "smallbusiness",
-               "Entrepreneur", "Roofing", "Homebuilding", "Construction",
-               "DIY", "HomeDecorating"]
+_SUBREDDITS = [
+    "HomeImprovement",
+    "Contractor",
+    "RealEstate",
+    "smallbusiness",
+    "Entrepreneur",
+    "Roofing",
+    "Homebuilding",
+    "Construction",
+    "DIY",
+    "HomeDecorating",
+]
 
 
 async def scrape_reddit(queries: list[str], subreddits: list[str] | None = None) -> list[LeadSource]:
@@ -221,14 +239,17 @@ async def scrape_reddit(queries: list[str], subreddits: list[str] | None = None)
         for sub in subs[:5]:
             for q in queries[:3]:
                 try:
-                    url = (f"https://www.reddit.com/r/{sub}/search.json"
-                           f"?q={quote(q)}&restrict_sr=1&sort=new&limit=5")
+                    url = (
+                        f"https://www.reddit.com/r/{sub}/search.json"
+                        f"?q={quote(q)}&restrict_sr=1&sort=new&limit=5"
+                    )
                     async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                         if resp.status == 403:
                             last_reddit_error = (
                                 "HTTP 403 Blocked — Reddit's JSON API refuses this IP "
                                 "(datacenter egress). Use a residential IP or the "
-                                "official OAuth API.")
+                                "official OAuth API."
+                            )
                             logger.warning("reddit %s: %s", sub, last_reddit_error)
                             return results
                         if resp.status != 200:
@@ -238,10 +259,14 @@ async def scrape_reddit(queries: list[str], subreddits: list[str] | None = None)
                         d = child.get("data", {})
                         text = f"{d.get('title', '')}\n{d.get('selftext', '')}"[:3000]
                         if len(text) > 50:
-                            results.append(LeadSource(
-                                source="reddit", text=text,
-                                url=f"https://reddit.com{d.get('permalink', '')}",
-                                metadata={"subreddit": sub, "query": q}))
+                            results.append(
+                                LeadSource(
+                                    source="reddit",
+                                    text=text,
+                                    url=f"https://reddit.com{d.get('permalink', '')}",
+                                    metadata={"subreddit": sub, "query": q},
+                                )
+                            )
                 except Exception as e:
                     logger.warning("reddit %s/%s failed: %s", sub, q, e)
                 await asyncio.sleep(0.5)
@@ -249,6 +274,7 @@ async def scrape_reddit(queries: list[str], subreddits: list[str] | None = None)
 
 
 # ── GitHub Lead Scraper ────────────────────────────────────────────────────
+
 
 async def scrape_github(queries: list[str], api_key: str = "") -> list[LeadSource]:
     """Scrape GitHub user + repo search for developer/company leads."""
@@ -269,8 +295,7 @@ async def scrape_github(queries: list[str], api_key: str = "") -> list[LeadSourc
                         for user in data.get("items", []):
                             login = user.get("login", "")
                             u_url = f"https://api.github.com/users/{login}"
-                            async with session.get(
-                                    u_url, timeout=aiohttp.ClientTimeout(total=5)) as u_resp:
+                            async with session.get(u_url, timeout=aiohttp.ClientTimeout(total=5)) as u_resp:
                                 if u_resp.status != 200:
                                     continue
                                 u = await u_resp.json()
@@ -284,14 +309,17 @@ async def scrape_github(queries: list[str], api_key: str = "") -> list[LeadSourc
                                     f"Blog/Website: {u.get('blog', '')}\n"
                                     f"Public Repos: {u.get('public_repos', 0)}"
                                 )
-                                results.append(LeadSource(
-                                    source="github", text=text,
-                                    url=u.get("html_url", f"https://github.com/{login}"),
-                                    metadata={"username": login, "query": q}))
+                                results.append(
+                                    LeadSource(
+                                        source="github",
+                                        text=text,
+                                        url=u.get("html_url", f"https://github.com/{login}"),
+                                        metadata={"username": login, "query": q},
+                                    )
+                                )
 
                 repo_url = f"https://api.github.com/search/repositories?q={quote(q)}&per_page=5"
-                async with session.get(
-                        repo_url, timeout=aiohttp.ClientTimeout(total=10)) as r_resp:
+                async with session.get(repo_url, timeout=aiohttp.ClientTimeout(total=10)) as r_resp:
                     if r_resp.status == 200:
                         r_data = await r_resp.json()
                         for repo in r_data.get("items", []):
@@ -303,10 +331,14 @@ async def scrape_github(queries: list[str], api_key: str = "") -> list[LeadSourc
                                 f"Topics: {', '.join(repo.get('topics', []))}\n"
                                 f"Stars: {repo.get('stargazers_count', 0)}"
                             )
-                            results.append(LeadSource(
-                                source="github", text=text,
-                                url=repo.get("html_url", ""),
-                                metadata={"repo": repo.get("full_name"), "query": q}))
+                            results.append(
+                                LeadSource(
+                                    source="github",
+                                    text=text,
+                                    url=repo.get("html_url", ""),
+                                    metadata={"repo": repo.get("full_name"), "query": q},
+                                )
+                            )
             except Exception as e:
                 logger.warning("GitHub scrape failed for %r: %s", q, e)
             await asyncio.sleep(0.5)
@@ -315,8 +347,13 @@ async def scrape_github(queries: list[str], api_key: str = "") -> list[LeadSourc
 
 # ── Craigslist Scraper ─────────────────────────────────────────────────────
 
-_CRAIGSLIST_CITIES = {"eugene": "eugene", "portland": "portland", "salem": "salem",
-                      "seattle": "seattle", "losangeles": "losangeles"}
+_CRAIGSLIST_CITIES = {
+    "eugene": "eugene",
+    "portland": "portland",
+    "salem": "salem",
+    "seattle": "seattle",
+    "losangeles": "losangeles",
+}
 
 
 async def scrape_craigslist(queries: list[str], cities: list[str] | None = None) -> list[LeadSource]:
@@ -334,8 +371,7 @@ async def scrape_craigslist(queries: list[str], cities: list[str] | None = None)
         for city in cities:
             for q in queries[:3]:
                 try:
-                    url = (f"https://{city}.craigslist.org/search/bbb"
-                           f"?query={quote(q)}&is_paid=all")
+                    url = f"https://{city}.craigslist.org/search/bbb?query={quote(q)}&is_paid=all"
                     async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                         html = await resp.text()
                     soup = BeautifulSoup(html, "html.parser")
@@ -348,10 +384,14 @@ async def scrape_craigslist(queries: list[str], cities: list[str] | None = None)
                             # str | AttributeValueList | None, so narrow it
                             # rather than passing a union into LeadSource.url.
                             href = link_el.get("href") if link_el else None
-                            results.append(LeadSource(
-                                source="craigslist", text=title,
-                                url=str(href) if href else "",
-                                metadata={"city": city, "query": q}))
+                            results.append(
+                                LeadSource(
+                                    source="craigslist",
+                                    text=title,
+                                    url=str(href) if href else "",
+                                    metadata={"city": city, "query": q},
+                                )
+                            )
                 except Exception:
                     pass
                 await asyncio.sleep(1)
@@ -359,6 +399,7 @@ async def scrape_craigslist(queries: list[str], cities: list[str] | None = None)
 
 
 # ── Exa / Tavily / URL ────────────────────────────────────────────────────
+
 
 async def scrape_exa(queries: list[str], api_key: str = "") -> list[LeadSource]:
     """Search Exa's AI web index for prospect pages matching the queries."""
@@ -372,16 +413,25 @@ async def scrape_exa(queries: list[str], api_key: str = "") -> list[LeadSource]:
             try:
                 payload = {"query": q, "numResults": 5, "type": "auto"}
                 async with session.post(
-                        "https://api.exa.ai/search",
-                        headers={"x-api-key": api_key, "Content-Type": "application/json"},
-                        json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    "https://api.exa.ai/search",
+                    headers={"x-api-key": api_key, "Content-Type": "application/json"},
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=20),
+                ) as resp:
                     data = await resp.json()
                 for item in data.get("results", []):
-                    text = f"{item.get('title', '')}\n{(item.get('text') or item.get('highlight') or '')[:2000]}"
+                    text = (
+                        f"{item.get('title', '')}\n{(item.get('text') or item.get('highlight') or '')[:2000]}"
+                    )
                     if len(text) > 30:
-                        results.append(LeadSource(
-                            source="exa", text=text, url=item.get("url", ""),
-                            metadata={"query": q, "ai_agent": "exa"}))
+                        results.append(
+                            LeadSource(
+                                source="exa",
+                                text=text,
+                                url=item.get("url", ""),
+                                metadata={"query": q, "ai_agent": "exa"},
+                            )
+                        )
             except Exception as e:
                 logger.warning("Exa search failed: %s", e)
             await asyncio.sleep(0.3)
@@ -400,16 +450,23 @@ async def scrape_tavily(queries: list[str], api_key: str = "") -> list[LeadSourc
             try:
                 payload = {"api_key": api_key, "query": q, "max_results": 5}
                 async with session.post(
-                        "https://api.tavily.com/search",
-                        headers={"Content-Type": "application/json"},
-                        json=payload, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    "https://api.tavily.com/search",
+                    headers={"Content-Type": "application/json"},
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=20),
+                ) as resp:
                     data = await resp.json()
                 for item in data.get("results", []):
                     text = f"{item.get('title', '')}\n{(item.get('content') or '')[:2000]}"
                     if len(text) > 30:
-                        results.append(LeadSource(
-                            source="tavily", text=text, url=item.get("url", ""),
-                            metadata={"query": q, "ai_agent": "tavily"}))
+                        results.append(
+                            LeadSource(
+                                source="tavily",
+                                text=text,
+                                url=item.get("url", ""),
+                                metadata={"query": q, "ai_agent": "tavily"},
+                            )
+                        )
             except Exception as e:
                 logger.warning("Tavily search failed: %s", e)
             await asyncio.sleep(0.3)
@@ -443,8 +500,7 @@ EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 async def verify_lead_email(email: str) -> dict[str, Any]:
     """Verify email syntax and check domain deliverability via DNS MX."""
     if not email or not EMAIL_REGEX.match(email.strip()):
-        return {"email": email, "valid_syntax": False, "domain_has_mx": False,
-                "deliverability_score": 0.0}
+        return {"email": email, "valid_syntax": False, "domain_has_mx": False, "deliverability_score": 0.0}
 
     clean_email = email.strip().lower()
     domain = clean_email.split("@")[-1]
@@ -455,8 +511,12 @@ async def verify_lead_email(email: str) -> dict[str, Any]:
     except Exception:
         has_mx, score = False, 0.1
 
-    return {"email": clean_email, "valid_syntax": True, "domain_has_mx": has_mx,
-            "deliverability_score": score}
+    return {
+        "email": clean_email,
+        "valid_syntax": True,
+        "domain_has_mx": has_mx,
+        "deliverability_score": score,
+    }
 
 
 # ── Orchestrator ───────────────────────────────────────────────────────────
@@ -501,18 +561,20 @@ class DiscoveryEngine:
         ingested = []
         for item in raw_leads:
             email = item.get("email") or item.get("Email") or ""
-            ingested.append({
-                "name": item.get("name") or
-                        f"{item.get('first_name', '')} {item.get('last_name', '')}".strip(),
-                "email": email,
-                "phone": item.get("phone") or item.get("Phone") or "",
-                "company": item.get("company") or item.get("Company") or "",
-                "title": item.get("title") or item.get("Title") or "",
-                "location": item.get("location") or item.get("City") or "",
-                "source_url": item.get("url") or item.get("linkedin_url") or "",
-                "source_type": source_name,
-                "intent_score": float(item.get("intent_score", 0.8)),
-            })
+            ingested.append(
+                {
+                    "name": item.get("name")
+                    or f"{item.get('first_name', '')} {item.get('last_name', '')}".strip(),
+                    "email": email,
+                    "phone": item.get("phone") or item.get("Phone") or "",
+                    "company": item.get("company") or item.get("Company") or "",
+                    "title": item.get("title") or item.get("Title") or "",
+                    "location": item.get("location") or item.get("City") or "",
+                    "source_url": item.get("url") or item.get("linkedin_url") or "",
+                    "source_type": source_name,
+                    "intent_score": float(item.get("intent_score", 0.8)),
+                }
+            )
         await self.verify_and_enrich(ingested)
         self._leads_db.extend(ingested)
         logger.info("Ingested %d webhook leads from %s", len(ingested), source_name)
@@ -526,14 +588,19 @@ class DiscoveryEngine:
         'completed' when the run genuinely finished; a missing key is not a crash.
         """
         import time as _time
+
         job_id = f"discovery_{int(_time.time())}"
         queries = generate_search_queries(profile)
 
         job = ScrapeJob(
-            id=job_id, profile=profile, sources_used=list(sources),
-            status="running", created_at=_time.time(),
-            api_keys_used={k: (v[:8] + "..." if v else "")
-                           for k, v in self._api_keys.items() if k in sources},
+            id=job_id,
+            profile=profile,
+            sources_used=list(sources),
+            status="running",
+            created_at=_time.time(),
+            api_keys_used={
+                k: (v[:8] + "..." if v else "") for k, v in self._api_keys.items() if k in sources
+            },
         )
         self.jobs[job_id] = job
 
@@ -547,8 +614,9 @@ class DiscoveryEngine:
 
             for name in sources:
                 if name in KEYED_SOURCES and not (
-                        self._api_keys.get(name) or os.environ.get(
-                            "EXA_API_KEY" if name == "exa" else "TAVILY_API_KEY")):
+                    self._api_keys.get(name)
+                    or os.environ.get("EXA_API_KEY" if name == "exa" else "TAVILY_API_KEY")
+                ):
                     job.skipped.append(f"{name}:no_api_key")
                     continue
 
@@ -628,8 +696,9 @@ TEXT:
 """
 
 
-async def extract_leads_with_ai(sources: list[LeadSource], profile: TargetProfile,
-                                llm_func) -> list[dict[str, Any]]:
+async def extract_leads_with_ai(
+    sources: list[LeadSource], profile: TargetProfile, llm_func
+) -> list[dict[str, Any]]:
     """Use an LLM to extract structured leads matching the target profile."""
     all_leads: list[dict[str, Any]] = []
     profile_desc = profile.customer_description or "general contractor services"
@@ -637,7 +706,8 @@ async def extract_leads_with_ai(sources: list[LeadSource], profile: TargetProfil
         if not src.text or len(src.text) < 50:
             continue
         prompt = LEAD_EXTRACTION_PROMPT.format(
-            profile_description=profile_desc, source=src.source, text=src.text[:6000])
+            profile_description=profile_desc, source=src.source, text=src.text[:6000]
+        )
         try:
             result = await llm_func(prompt)
             if isinstance(result, str):
@@ -649,21 +719,23 @@ async def extract_leads_with_ai(sources: list[LeadSource], profile: TargetProfil
                 parsed = json.loads(cleaned)
                 if isinstance(parsed, list):
                     for item in parsed:
-                        all_leads.append({
-                            "name": item.get("name", ""),
-                            "email": item.get("email", ""),
-                            "phone": item.get("phone", ""),
-                            "company": item.get("company", ""),
-                            "title": item.get("title", ""),
-                            "location": item.get("location", ""),
-                            "address": item.get("address", ""),
-                            "pain_points": item.get("pain_points", []),
-                            "need_type": item.get("need_type", ""),
-                            "intent_score": min(float(item.get("intent_score", 0)), 1.0),
-                            "source_url": src.url,
-                            "source_type": src.source,
-                            "raw_snippet": src.text[:500],
-                        })
+                        all_leads.append(
+                            {
+                                "name": item.get("name", ""),
+                                "email": item.get("email", ""),
+                                "phone": item.get("phone", ""),
+                                "company": item.get("company", ""),
+                                "title": item.get("title", ""),
+                                "location": item.get("location", ""),
+                                "address": item.get("address", ""),
+                                "pain_points": item.get("pain_points", []),
+                                "need_type": item.get("need_type", ""),
+                                "intent_score": min(float(item.get("intent_score", 0)), 1.0),
+                                "source_url": src.url,
+                                "source_type": src.source,
+                                "raw_snippet": src.text[:500],
+                            }
+                        )
         except Exception as e:
             logger.warning("AI extraction failed: %s", e)
         await asyncio.sleep(0.1)

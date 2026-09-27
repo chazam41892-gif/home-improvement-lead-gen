@@ -29,7 +29,9 @@ class PromptWorkflow:
     async def _run(self, node: str, payload: dict[str, Any], required: Iterable[str]):
         if not self.llm_func:
             raise WorkflowContractError(f"{node} requires a configured LLM")
-        raw = await self.llm_func(render_prompt(node, json.dumps(payload, ensure_ascii=False, separators=(",", ":"))))
+        raw = await self.llm_func(
+            render_prompt(node, json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+        )
         result = _parse_json_object(raw, node)
         missing = [key for key in required if key not in result]
         if missing:
@@ -37,9 +39,13 @@ class PromptWorkflow:
         return result
 
     async def evaluate_post(self, post: dict[str, Any], target_profile: dict[str, Any]):
-        return await self._run("post_relevance", {"post": post, "target_profile": target_profile}, ("relevant", "reason"))
+        return await self._run(
+            "post_relevance", {"post": post, "target_profile": target_profile}, ("relevant", "reason")
+        )
 
-    async def select_sources(self, target_profile: dict[str, Any], candidate_accounts, existing_source_accounts):
+    async def select_sources(
+        self, target_profile: dict[str, Any], candidate_accounts, existing_source_accounts
+    ):
         return await self._run(
             "source_account_selection",
             {
@@ -51,12 +57,20 @@ class PromptWorkflow:
         )
 
     async def qualify(self, lead: dict[str, Any], post: dict[str, Any], target_profile: dict[str, Any]):
-        return await self._run("lead_qualification", {"lead": lead, "post": post, "target_profile": target_profile}, ("qualified", "reason"))
+        return await self._run(
+            "lead_qualification",
+            {"lead": lead, "post": post, "target_profile": target_profile},
+            ("qualified", "reason"),
+        )
 
     async def match_offer(self, lead: dict[str, Any], offers):
-        return await self._run("offer_matching", {"lead": lead, "approved_offers": offers}, ("matched", "offer_id", "reason"))
+        return await self._run(
+            "offer_matching", {"lead": lead, "approved_offers": offers}, ("matched", "offer_id", "reason")
+        )
 
-    async def write_outreach(self, lead: dict[str, Any], post: dict[str, Any], offer: dict[str, Any], policy: dict[str, Any]):
+    async def write_outreach(
+        self, lead: dict[str, Any], post: dict[str, Any], offer: dict[str, Any], policy: dict[str, Any]
+    ):
         return await self._run(
             "personalized_outreach",
             {"lead": lead, "post": post, "offer": offer, "sender_policy": policy},
@@ -71,7 +85,9 @@ class PromptWorkflow:
         )
 
     async def classify_reply(self, reply: dict[str, Any]):
-        return await self._run("reply_classification", reply, ("primary_label", "must_suppress", "requires_human"))
+        return await self._run(
+            "reply_classification", reply, ("primary_label", "must_suppress", "requires_human")
+        )
 
     async def extract_content(self, asset: dict[str, Any]):
         return await self._run("content_extraction", asset, ("ideas",))
@@ -84,7 +100,13 @@ class PromptWorkflow:
 
 
 class ComplianceGate:
-    required_policy_fields = ("lawful_basis", "sender_name", "business_name", "postal_address", "opt_out_text")
+    required_policy_fields = (
+        "lawful_basis",
+        "sender_name",
+        "business_name",
+        "postal_address",
+        "opt_out_text",
+    )
 
     def evaluate(self, lead: dict[str, Any], draft: dict[str, Any], policy: dict[str, Any]):
         missing = [field for field in self.required_policy_fields if not str(policy.get(field, "")).strip()]

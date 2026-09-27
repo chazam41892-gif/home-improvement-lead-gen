@@ -113,12 +113,16 @@ class LLMEnricher(EnrichmentProvider):
 
         return None
 
-    async def enrich(self, business_name: str, trade: str,
-                     location: str | None = None,
-                     website: str | None = None,
-                     phone: str | None = None,
-                     raw_text: str | None = None,
-                     **kwargs) -> EnrichmentResult:
+    async def enrich(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        raw_text: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         # `phone` is declared for LSP compliance with EnrichmentProvider.enrich
         # (this provider reads raw page text, not a caller-supplied phone).
         # `raw_text` is provider-specific and must follow the base's parameters.
@@ -164,7 +168,18 @@ Return ONLY a JSON object with these fields (use null for missing):
                 cleaned = cleaned.split("\n", 1)[1]
                 cleaned = cleaned.rsplit("```", 1)[0]
             data = json.loads(cleaned.strip())
-            for field in ("contact_name", "title", "phone", "email", "address", "city", "state", "zip", "revenue", "website"):
+            for field in (
+                "contact_name",
+                "title",
+                "phone",
+                "email",
+                "address",
+                "city",
+                "state",
+                "zip",
+                "revenue",
+                "website",
+            ):
                 val = data.get(field)
                 if val:
                     setattr(result, field, str(val))

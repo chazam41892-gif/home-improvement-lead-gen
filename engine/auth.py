@@ -162,42 +162,76 @@ class AuthManager:
 
     def _seed_default_verticals(self, conn, org_id: str, now: str):
         defaults = [
-            ("Home Improvement", "home_improvement", {
-                "platforms": ["google_maps", "yelp", "facebook", "nextdoor"],
-                "keywords": ["contractor", "services", "repair", "installation"],
-                "avg_job_value": 8500,
-                "lead_cpl_ceiling": 85,
-                "urgency_triggers": ["emergency", "repair", "broken"],
-                "best_platform": "google_maps",
-                "conversion_rate": 0.10,
-            }),
-            ("Real Estate Investors", "real_estate_investors", {
-                "platforms": ["google_maps", "facebook", "linkedin"],
-                "keywords": ["real estate investor", "property investor", "land developer", "fix and flip", "wholesaler"],
-                "avg_job_value": 50000,
-                "lead_cpl_ceiling": 200,
-                "urgency_triggers": ["closing", "funding", "deal"],
-                "best_platform": "linkedin",
-                "conversion_rate": 0.05,
-            }),
-            ("Software Buyers", "software_buyers", {
-                "platforms": ["linkedin", "facebook", "google_maps"],
-                "keywords": ["software", "SaaS", "tech buyer", "CTO", "IT director", "digital transformation"],
-                "avg_job_value": 500,
-                "lead_cpl_ceiling": 50,
-                "urgency_triggers": ["migration", "upgrade", "compliance"],
-                "best_platform": "linkedin",
-                "conversion_rate": 0.08,
-            }),
-            ("Developers Looking for Land", "developers_land", {
-                "platforms": ["google_maps", "facebook", "linkedin"],
-                "keywords": ["land developer", "real estate developer", "construction developer", "property development"],
-                "avg_job_value": 100000,
-                "lead_cpl_ceiling": 500,
-                "urgency_triggers": ["zoning", "permits", "closing"],
-                "best_platform": "linkedin",
-                "conversion_rate": 0.03,
-            }),
+            (
+                "Home Improvement",
+                "home_improvement",
+                {
+                    "platforms": ["google_maps", "yelp", "facebook", "nextdoor"],
+                    "keywords": ["contractor", "services", "repair", "installation"],
+                    "avg_job_value": 8500,
+                    "lead_cpl_ceiling": 85,
+                    "urgency_triggers": ["emergency", "repair", "broken"],
+                    "best_platform": "google_maps",
+                    "conversion_rate": 0.10,
+                },
+            ),
+            (
+                "Real Estate Investors",
+                "real_estate_investors",
+                {
+                    "platforms": ["google_maps", "facebook", "linkedin"],
+                    "keywords": [
+                        "real estate investor",
+                        "property investor",
+                        "land developer",
+                        "fix and flip",
+                        "wholesaler",
+                    ],
+                    "avg_job_value": 50000,
+                    "lead_cpl_ceiling": 200,
+                    "urgency_triggers": ["closing", "funding", "deal"],
+                    "best_platform": "linkedin",
+                    "conversion_rate": 0.05,
+                },
+            ),
+            (
+                "Software Buyers",
+                "software_buyers",
+                {
+                    "platforms": ["linkedin", "facebook", "google_maps"],
+                    "keywords": [
+                        "software",
+                        "SaaS",
+                        "tech buyer",
+                        "CTO",
+                        "IT director",
+                        "digital transformation",
+                    ],
+                    "avg_job_value": 500,
+                    "lead_cpl_ceiling": 50,
+                    "urgency_triggers": ["migration", "upgrade", "compliance"],
+                    "best_platform": "linkedin",
+                    "conversion_rate": 0.08,
+                },
+            ),
+            (
+                "Developers Looking for Land",
+                "developers_land",
+                {
+                    "platforms": ["google_maps", "facebook", "linkedin"],
+                    "keywords": [
+                        "land developer",
+                        "real estate developer",
+                        "construction developer",
+                        "property development",
+                    ],
+                    "avg_job_value": 100000,
+                    "lead_cpl_ceiling": 500,
+                    "urgency_triggers": ["zoning", "permits", "closing"],
+                    "best_platform": "linkedin",
+                    "conversion_rate": 0.03,
+                },
+            ),
         ]
         for name, slug, config in defaults:
             vid = uuid.uuid4().hex[:16]
@@ -209,16 +243,26 @@ class AuthManager:
     def login(self, email: str, password: str) -> dict[str, Any]:
         email = email.strip().lower()
         with Database.get_connection() as conn:
-            row = conn.execute("SELECT id, email, password_hash, name, org_id, role FROM users WHERE email = ?", (email,)).fetchone()
+            row = conn.execute(
+                "SELECT id, email, password_hash, name, org_id, role FROM users WHERE email = ?", (email,)
+            ).fetchone()
             if not row:
                 raise ValueError("Invalid email or password")
             if not _verify_password(password, row["password_hash"]):
                 raise ValueError("Invalid email or password")
 
-            org = conn.execute("SELECT id, name, slug, plan FROM orgs WHERE id = ?", (row["org_id"],)).fetchone()
+            org = conn.execute(
+                "SELECT id, name, slug, plan FROM orgs WHERE id = ?", (row["org_id"],)
+            ).fetchone()
             token = self._create_jwt(row["id"], row["org_id"], row["email"], row["role"])
             return {
-                "user": {"id": row["id"], "email": row["email"], "name": row["name"], "org_id": row["org_id"], "role": row["role"]},
+                "user": {
+                    "id": row["id"],
+                    "email": row["email"],
+                    "name": row["name"],
+                    "org_id": row["org_id"],
+                    "role": row["role"],
+                },
                 "org": {"id": org["id"], "name": org["name"], "slug": org["slug"], "plan": org["plan"]},
                 "token": token,
             }
@@ -244,23 +288,35 @@ class AuthManager:
     def verify_api_key(self, key: str) -> dict[str, Any] | None:
         key_hash = _hash_api_key(key)
         with Database.get_connection() as conn:
-            row = conn.execute("""
+            row = conn.execute(
+                """
                 SELECT ak.user_id, ak.org_id, u.role, o.plan
                 FROM api_keys ak
                 JOIN users u ON u.id = ak.user_id
                 JOIN orgs o ON o.id = ak.org_id
                 WHERE ak.key_hash = ?
-            """, (key_hash,)).fetchone()
+            """,
+                (key_hash,),
+            ).fetchone()
             if row:
-                conn.execute("UPDATE api_keys SET last_used = ? WHERE key_hash = ?",
-                             (datetime.now(UTC).isoformat(), key_hash))
+                conn.execute(
+                    "UPDATE api_keys SET last_used = ? WHERE key_hash = ?",
+                    (datetime.now(UTC).isoformat(), key_hash),
+                )
                 conn.commit()
-                return {"user_id": row["user_id"], "org_id": row["org_id"], "role": row["role"], "plan": row["plan"]}
+                return {
+                    "user_id": row["user_id"],
+                    "org_id": row["org_id"],
+                    "role": row["role"],
+                    "plan": row["plan"],
+                }
             return None
 
     def get_user(self, user_id: str) -> dict[str, Any] | None:
         with Database.get_connection() as conn:
-            row = conn.execute("SELECT id, email, name, org_id, role, created_at FROM users WHERE id = ?", (user_id,)).fetchone()
+            row = conn.execute(
+                "SELECT id, email, name, org_id, role, created_at FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
             if row:
                 return dict(row)
             return None
@@ -274,7 +330,9 @@ class AuthManager:
 
     def list_api_keys(self, user_id: str) -> list[dict[str, Any]]:
         with Database.get_connection() as conn:
-            rows = conn.execute("SELECT id, name, created_at, last_used FROM api_keys WHERE user_id = ?", (user_id,)).fetchall()
+            rows = conn.execute(
+                "SELECT id, name, created_at, last_used FROM api_keys WHERE user_id = ?", (user_id,)
+            ).fetchall()
             return [dict(r) for r in rows]
 
     def create_api_key(self, user_id: str, org_id: str, name: str = "default") -> str:
@@ -298,7 +356,10 @@ class AuthManager:
 
     def get_org_verticals(self, org_id: str) -> list[dict[str, Any]]:
         with Database.get_connection() as conn:
-            rows = conn.execute("SELECT id, name, slug, config, enabled FROM org_verticals WHERE org_id = ? ORDER BY name", (org_id,)).fetchall()
+            rows = conn.execute(
+                "SELECT id, name, slug, config, enabled FROM org_verticals WHERE org_id = ? ORDER BY name",
+                (org_id,),
+            ).fetchall()
             result = []
             for r in rows:
                 d = dict(r)
@@ -343,7 +404,9 @@ class AuthManager:
 
     def delete_vertical(self, vertical_id: str, org_id: str) -> bool:
         with Database.get_connection() as conn:
-            cursor = conn.execute("DELETE FROM org_verticals WHERE id = ? AND org_id = ?", (vertical_id, org_id))
+            cursor = conn.execute(
+                "DELETE FROM org_verticals WHERE id = ? AND org_id = ?", (vertical_id, org_id)
+            )
             conn.commit()
             return cursor.rowcount > 0
 
@@ -351,7 +414,7 @@ class AuthManager:
         with Database.get_connection() as conn:
             row = conn.execute(
                 "SELECT id, email, name, org_id, role, google_id, created_at FROM users WHERE google_id = ?",
-                (google_id,)
+                (google_id,),
             ).fetchone()
             if row:
                 return dict(row)
@@ -362,7 +425,7 @@ class AuthManager:
         with Database.get_connection() as conn:
             row = conn.execute(
                 "SELECT id, email, name, org_id, role, google_id, created_at FROM users WHERE email = ?",
-                (email,)
+                (email,),
             ).fetchone()
             if row:
                 return dict(row)
@@ -421,7 +484,14 @@ class AuthManager:
 
             token = self._create_jwt(user_id, org_id, email, "owner")
             return {
-                "user": {"id": user_id, "email": email, "name": name, "org_id": org_id, "role": "owner", "google_id": google_id},
+                "user": {
+                    "id": user_id,
+                    "email": email,
+                    "name": name,
+                    "org_id": org_id,
+                    "role": "owner",
+                    "google_id": google_id,
+                },
                 "org": {"id": org_id, "name": org_name, "slug": slug, "plan": "free"},
                 "api_key": api_key,
                 "token": token,

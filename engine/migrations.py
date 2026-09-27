@@ -29,6 +29,7 @@ Usage:
     from engine.migrations import apply_migrations
     apply_migrations()   # idempotent; safe to call on every boot
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -88,8 +89,7 @@ def _m001_align_leads_with_persistence(conn: sqlite3.Connection) -> None:
     chain has nothing to alter, and ALTERing a missing table would abort the
     whole chain.
     """
-    tables = {r[0] for r in conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table'")}
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if "leads" not in tables:
         logger.info("no `leads` table yet; migration 001 is a no-op")
         return
@@ -142,9 +142,9 @@ def apply_migrations(db_path: str | Path | None = None) -> int:
         applied = 0
 
         for version, name, steps in sorted(CHAIN, key=lambda m: m[0]):
-            src = "".join(
-                (s.__doc__ or "") for s in steps
-            ) + repr([getattr(s, "__name__", "") for s in steps])
+            src = "".join((s.__doc__ or "") for s in steps) + repr(
+                [getattr(s, "__name__", "") for s in steps]
+            )
             digest = _checksum(src)
             if version in done:
                 if done[version][1] != digest:
@@ -167,21 +167,18 @@ def apply_migrations(db_path: str | Path | None = None) -> int:
                 for step in steps:
                     step(conn)
                 conn.execute(
-                    "INSERT INTO schema_migrations(version, name, checksum, applied_at) "
-                    "VALUES (?, ?, ?, ?)",
+                    "INSERT INTO schema_migrations(version, name, checksum, applied_at) VALUES (?, ?, ?, ?)",
                     (version, name, digest, time.time()),
                 )
                 conn.commit()
             except Exception:
                 conn.rollback()
-                logger.exception("migration %s (%s) failed and was rolled back",
-                                 version, name)
+                logger.exception("migration %s (%s) failed and was rolled back", version, name)
                 raise
             applied += 1
 
         if applied:
-            logger.info("applied %s migration(s); schema is now at v%s",
-                        applied, SCHEMA_VERSION)
+            logger.info("applied %s migration(s); schema is now at v%s", applied, SCHEMA_VERSION)
         return applied
     finally:
         conn.close()

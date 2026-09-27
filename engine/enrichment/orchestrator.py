@@ -28,8 +28,7 @@ class EnrichmentRouter:
         self.min_confidence = min_confidence
         self.fallthrough = fallthrough
 
-    def rank_providers(self, providers: list[EnrichmentProvider],
-                       input_fields: set) -> list[ProviderRoute]:
+    def rank_providers(self, providers: list[EnrichmentProvider], input_fields: set) -> list[ProviderRoute]:
         scored: list[ProviderRoute] = []
         for p in providers:
             score = p.suitability_score(input_fields)
@@ -39,8 +38,7 @@ class EnrichmentRouter:
         scored.sort(key=lambda r: r.suitability, reverse=True)
         return scored
 
-    def routing_plan(self, providers: list[EnrichmentProvider],
-                     input_fields: set) -> list[ProviderRoute]:
+    def routing_plan(self, providers: list[EnrichmentProvider], input_fields: set) -> list[ProviderRoute]:
         ranked = self.rank_providers(providers, input_fields)
         selected = False
         for route in ranked:
@@ -119,11 +117,15 @@ class EnrichOrchestrator:
             "known_input_fields": sorted(input_fields),
         }
 
-    async def enrich(self, business_name: str, trade: str,
-                     location: str | None = None,
-                     website: str | None = None,
-                     phone: str | None = None,
-                     **kwargs) -> EnrichmentResult:
+    async def enrich(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         if not self.providers:
             logger.warning("No enrichment providers available")
             return EnrichmentResult(
@@ -134,23 +136,44 @@ class EnrichOrchestrator:
 
         if self.routing_mode == "smart":
             return await self._enrich_smart(
-                business_name=business_name, trade=trade,
-                location=location, website=website, phone=phone, **kwargs,
+                business_name=business_name,
+                trade=trade,
+                location=location,
+                website=website,
+                phone=phone,
+                **kwargs,
             )
 
         return await self._enrich_parallel(
-            business_name=business_name, trade=trade,
-            location=location, website=website, phone=phone, **kwargs,
+            business_name=business_name,
+            trade=trade,
+            location=location,
+            website=website,
+            phone=phone,
+            **kwargs,
         )
 
-    async def _enrich_parallel(self, business_name: str, trade: str,
-                               location: str | None = None,
-                               website: str | None = None,
-                               phone: str | None = None,
-                               **kwargs) -> EnrichmentResult:
+    async def _enrich_parallel(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         results = await asyncio.gather(
-            *(p.enrich(business_name=business_name, trade=trade, location=location, website=website, phone=phone, **kwargs)
-              for p in self.providers),
+            *(
+                p.enrich(
+                    business_name=business_name,
+                    trade=trade,
+                    location=location,
+                    website=website,
+                    phone=phone,
+                    **kwargs,
+                )
+                for p in self.providers
+            ),
             return_exceptions=True,
         )
         merged = EnrichmentResult(business_name=business_name, trade=trade)
@@ -163,11 +186,15 @@ class EnrichOrchestrator:
         self._score_confidence(merged)
         return merged
 
-    async def _enrich_smart(self, business_name: str, trade: str,
-                            location: str | None = None,
-                            website: str | None = None,
-                            phone: str | None = None,
-                            **kwargs) -> EnrichmentResult:
+    async def _enrich_smart(
+        self,
+        business_name: str,
+        trade: str,
+        location: str | None = None,
+        website: str | None = None,
+        phone: str | None = None,
+        **kwargs,
+    ) -> EnrichmentResult:
         input_fields = {k for k, v in locals().items() if k != "self" and v is not None}
         if "kwargs" in input_fields:
             input_fields.remove("kwargs")
@@ -176,13 +203,20 @@ class EnrichOrchestrator:
         plan = self.router.routing_plan(self.providers, input_fields)
         selected = [r for r in plan if r.selected]
 
-        logger.info("Smart routing plan for %s: %s", business_name,
-                     [{"provider": r.provider.name, "suitability": r.suitability, "selected": r.selected} for r in plan])
+        logger.info(
+            "Smart routing plan for %s: %s",
+            business_name,
+            [
+                {"provider": r.provider.name, "suitability": r.suitability, "selected": r.selected}
+                for r in plan
+            ],
+        )
 
         if not selected:
             logger.warning("No suitable providers for lead %s (fields: %s)", business_name, input_fields)
             return EnrichmentResult(
-                business_name=business_name, trade=trade,
+                business_name=business_name,
+                trade=trade,
                 error=f"No suitable enrichment provider for available inputs: {sorted(input_fields)}",
             )
 
@@ -191,8 +225,12 @@ class EnrichOrchestrator:
             if route.provider not in self.providers:
                 continue
             result = await route.provider.enrich(
-                business_name=business_name, trade=trade,
-                location=location, website=website, phone=phone, **kwargs,
+                business_name=business_name,
+                trade=trade,
+                location=location,
+                website=website,
+                phone=phone,
+                **kwargs,
             )
             merged = self._merge(merged, result)
             # `or`, not `and`. This flag was inverted: gating the early-stop break
@@ -202,14 +240,29 @@ class EnrichOrchestrator:
             # "stop at the first good hit" got the exact opposite. fallthrough
             # means "try all providers and merge", so it must SUPPRESS the break.
             if not self.router.fallthrough or merged.confidence >= self.router.min_confidence:
-                logger.info("Smart routing: %s reached confidence %.2f (>=%.2f), stopping",
-                            route.provider.name, merged.confidence, self.router.min_confidence)
+                logger.info(
+                    "Smart routing: %s reached confidence %.2f (>=%.2f), stopping",
+                    route.provider.name,
+                    merged.confidence,
+                    self.router.min_confidence,
+                )
                 break
         self._score_confidence(merged)
         return merged
 
     def _merge(self, target: EnrichmentResult, source: EnrichmentResult) -> EnrichmentResult:
-        for field in ("contact_name", "title", "phone", "email", "address", "city", "state", "zip", "website", "revenue"):
+        for field in (
+            "contact_name",
+            "title",
+            "phone",
+            "email",
+            "address",
+            "city",
+            "state",
+            "zip",
+            "website",
+            "revenue",
+        ):
             existing = getattr(target, field)
             new_val = getattr(source, field)
             if new_val and not existing:
@@ -265,11 +318,14 @@ def get_orchestrator() -> EnrichOrchestrator:
     return _orchestrator
 
 
-async def enrich_lead(business_name: str, trade: str,
-                      location: str | None = None,
-                      website: str | None = None,
-                      phone: str | None = None,
-                      **kwargs) -> EnrichmentResult:
+async def enrich_lead(
+    business_name: str,
+    trade: str,
+    location: str | None = None,
+    website: str | None = None,
+    phone: str | None = None,
+    **kwargs,
+) -> EnrichmentResult:
     return await get_orchestrator().enrich(
         business_name=business_name,
         trade=trade,

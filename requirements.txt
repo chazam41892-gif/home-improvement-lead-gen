@@ -1,12 +1,36 @@
-fastapi==0.115.0
+# Runtime dependencies for the Lead Gen Pro API.
+#
+# These pins were stale: they trailed the versions actually installed and
+# tested against by a wide margin (fastapi 0.115 vs 0.135, stripe 11 vs 15,
+# PyJWT 2.8 vs 2.12, cryptography 42 vs 46). CI was never run, so nothing caught
+# that a clean runner would install a DIFFERENT dependency set than the one the
+# 1,938-test suite had been verified against. Pins below are the versions the
+# suite actually passes on, verified 2026-09-27.
+fastapi==0.135.2
 uvicorn[standard]==0.30.6
 python-multipart==0.0.12
-httpx==0.28.0
-python-dotenv==1.0.1
+httpx==0.28.1
+python-dotenv==1.2.3
 PyYAML==6.0.2
-aiohttp==3.10.0
-stripe==11.0.0
-bcrypt==4.2.0
-PyJWT==2.8.0
-cryptography==42.0.8
+aiohttp==3.13.4
+stripe==15.2.0
+bcrypt==5.0.0
+PyJWT==2.12.1
+cryptography==46.0.6
 email-validator==2.2.0
+
+# Imported at top level by engine/enrichment/browser_enricher.py and
+# engine/search/browser_agent.py (from bs4 import BeautifulSoup) and by
+# engine/growth_portal/portal.py. Both were ABSENT here, so a clean CI runner
+# failed at collection. Local runs only passed because these were present in
+# the global environment -- the exact class of gap that hides until CI runs.
+beautifulsoup4==4.14.3
+pydantic==2.13.4
+
+# The playwright PACKAGE (not the browser binaries) is a test dependency: the
+# browser tests monkeypatch playwright.async_api.async_playwright with a fake
+# and never launch a real browser, but they still import the module, so without
+# this 9 tests ERROR on collection. `playwright install chromium` is NOT needed
+# for the suite -- only for running a real crawl. Found by running the gate in
+# a clean virtualenv, which is the only thing that surfaced it.
+playwright==1.62.0

@@ -16,8 +16,7 @@ PERPLEXITY_BASE = "https://api.perplexity.ai"
 class PerplexitySearchProvider(SearchProvider):
     name = "perplexity"
 
-    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0,
-                 base_url: str = PERPLEXITY_BASE):
+    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0, base_url: str = PERPLEXITY_BASE):
         super().__init__(
             api_key=api_key or os.environ.get("PERPLEXITY_API_KEY"),
             timeout=timeout,
@@ -27,12 +26,17 @@ class PerplexitySearchProvider(SearchProvider):
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode("utf-8")
-        req = urllib.request.Request(url, data=data, method="POST", headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": f"Bearer {self.api_key or ''}",
-            "User-Agent": "LeviathanLeadGen/3.0",
-        })
+        req = urllib.request.Request(
+            url,
+            data=data,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {self.api_key or ''}",
+                "User-Agent": "LeviathanLeadGen/3.0",
+            },
+        )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
@@ -42,15 +46,18 @@ class PerplexitySearchProvider(SearchProvider):
         except Exception as e:
             return {"error": f"{type(e).__name__}: {e}"}
 
-    async def search(self, query: str, *,
-                     num_results: int = 10,
-                     search_type: str = "auto",
-                     **kwargs) -> SearchResult:
+    async def search(
+        self, query: str, *, num_results: int = 10, search_type: str = "auto", **kwargs
+    ) -> SearchResult:
         t0 = time.time()
         if not self.api_key:
-            return SearchResult(query=query, hits=[], provider=self.name,
-                                elapsed_sec=time.time() - t0,
-                                error="PERPLEXITY_API_KEY not set. Add your key in Settings.")
+            return SearchResult(
+                query=query,
+                hits=[],
+                provider=self.name,
+                elapsed_sec=time.time() - t0,
+                error="PERPLEXITY_API_KEY not set. Add your key in Settings.",
+            )
 
         body: dict[str, Any] = {
             "model": "sonar-pro",
@@ -60,15 +67,16 @@ class PerplexitySearchProvider(SearchProvider):
 
         resp = await asyncio.to_thread(self._post, "/chat/completions", body)
         if "error" in resp:
-            return SearchResult(query=query, hits=[], provider=self.name,
-                                elapsed_sec=time.time() - t0,
-                                error=resp["error"])
+            return SearchResult(
+                query=query, hits=[], provider=self.name, elapsed_sec=time.time() - t0, error=resp["error"]
+            )
 
         choices = resp.get("choices", [])
         citations = resp.get("citations", [])
         hits: list[SearchHit] = []
 
         from urllib.parse import urlparse
+
         for url in citations[:num_results]:
             if not url:
                 continue
@@ -78,27 +86,31 @@ class PerplexitySearchProvider(SearchProvider):
                 title = f"Source: {domain}"
             except Exception:
                 title = "Cited Business Source"
-            hits.append(SearchHit(
-                title=title,
-                url=url,
-                snippet=f"Cited source found via Perplexity AI deep search. Context: {query}",
-                published_date=None,
-                score=0.9,
-                extras={"source": "perplexity", "citation": True, "model": "sonar-pro"},
-            ))
+            hits.append(
+                SearchHit(
+                    title=title,
+                    url=url,
+                    snippet=f"Cited source found via Perplexity AI deep search. Context: {query}",
+                    published_date=None,
+                    score=0.9,
+                    extras={"source": "perplexity", "citation": True, "model": "sonar-pro"},
+                )
+            )
 
         if not hits:
             for c in choices[:num_results]:
                 content = c.get("message", {}).get("content", "")
-                hits.append(SearchHit(
-                    title=query,
-                    url="",
-                    snippet=content[:500],
-                    published_date=None,
-                    score=1.0,
-                    extras={"source": "perplexity", "model": "sonar-pro"},
-                ))
+                hits.append(
+                    SearchHit(
+                        title=query,
+                        url="",
+                        snippet=content[:500],
+                        published_date=None,
+                        score=1.0,
+                        extras={"source": "perplexity", "model": "sonar-pro"},
+                    )
+                )
 
-        return SearchResult(query=query, hits=hits, provider=self.name,
-                            elapsed_sec=time.time() - t0,
-                            raw=resp)
+        return SearchResult(
+            query=query, hits=hits, provider=self.name, elapsed_sec=time.time() - t0, raw=resp
+        )

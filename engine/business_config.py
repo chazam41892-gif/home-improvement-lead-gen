@@ -57,9 +57,7 @@ class BusinessConfig:
         cost_per_acquired_customer = self.lead_cost_ceiling * leads_needed_per_job
         max_cost_per_click = self.lead_cost_ceiling * _APPROX_CVR
         break_even_leads = (
-            self.monthly_ad_budget / self.lead_cost_ceiling
-            if self.lead_cost_ceiling > 0
-            else 0
+            self.monthly_ad_budget / self.lead_cost_ceiling if self.lead_cost_ceiling > 0 else 0
         )
 
         return {
@@ -75,9 +73,16 @@ class BusinessConfig:
             "break_even_leads": break_even_leads,
         }
 
-    def evaluate_lead(self, trade_avg_job_value: float, trade_cpl_ceiling: float, lead_score: float = 50) -> dict:
+    def evaluate_lead(
+        self, trade_avg_job_value: float, trade_cpl_ceiling: float, lead_score: float = 50
+    ) -> dict:
         """Return an economic verdict for a lead given the business model and trade economics."""
-        if trade_avg_job_value <= 0 or trade_cpl_ceiling <= 0 or self.gross_margin <= 0 or self.lead_cost_ceiling <= 0:
+        if (
+            trade_avg_job_value <= 0
+            or trade_cpl_ceiling <= 0
+            or self.gross_margin <= 0
+            or self.lead_cost_ceiling <= 0
+        ):
             return {
                 "verdict": "invalid",
                 "error": "Trade economics or business config missing required positive values",

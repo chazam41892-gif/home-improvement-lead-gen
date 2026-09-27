@@ -17,6 +17,7 @@ class CrmPush:
 
     def _get_key(self, service: str, env_var: str) -> str | None:
         from engine.key_vault import KeyVault
+
         key = KeyVault.get(service)
         if key:
             return key
@@ -24,12 +25,22 @@ class CrmPush:
 
     async def push_lead(self, lead: dict, provider: str = "hubspot", config: dict | None = None) -> dict:
         results = await self.push_leads([lead], provider=provider, config=config)
-        return results[0] if results else {"ok": False, "provider": provider, "lead_id": lead.get("id", ""), "error": "No leads pushed"}
+        return (
+            results[0]
+            if results
+            else {
+                "ok": False,
+                "provider": provider,
+                "lead_id": lead.get("id", ""),
+                "error": "No leads pushed",
+            }
+        )
 
     async def push_leads(
         self, leads: list[dict], provider: str = "hubspot", config: dict | None = None
     ) -> list[dict]:
         import httpx
+
         cfg = config or {}
         min_score = cfg.get("min_score", 70)
         results: list[dict] = []
@@ -37,7 +48,15 @@ class CrmPush:
         for lead in leads:
             lead_id = lead.get("id", "")
             if lead.get("score", 0) < min_score:
-                results.append({"ok": False, "provider": provider, "lead_id": lead_id, "error": "Below min score", "skipped": True})
+                results.append(
+                    {
+                        "ok": False,
+                        "provider": provider,
+                        "lead_id": lead_id,
+                        "error": "Below min score",
+                        "skipped": True,
+                    }
+                )
                 continue
 
             result: dict[str, Any] = {"ok": False, "provider": provider, "lead_id": lead_id}
@@ -60,7 +79,10 @@ class CrmPush:
                         resp = await client.post(
                             "https://api.hubapi.com/crm/v3/objects/contacts",
                             json=payload,
-                            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json",
+                            },
                         )
                     if resp.status_code >= 400:
                         result["error"] = resp.text[:300]
@@ -77,6 +99,7 @@ class CrmPush:
             elif provider == "gohighlevel":
                 try:
                     from crm_plus.crmx import upsert_contact
+
                     res = await upsert_contact(lead)
                     if res.get("ok"):
                         result["ok"] = True
@@ -117,7 +140,10 @@ class CrmPush:
                         resp = await client.post(
                             url,
                             json=payload,
-                            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+                            headers={
+                                "Authorization": f"Bearer {access_token}",
+                                "Content-Type": "application/json",
+                            },
                         )
                     if resp.status_code >= 400:
                         result["error"] = resp.text[:300]
@@ -147,7 +173,8 @@ class CrmPush:
                         {
                             "First_Name": lead.get("first_name") or parts[0],
                             "Last_Name": lead.get("last_name") or (parts[1] if len(parts) > 1 else "Contact"),
-                            "Company": lead.get("company", lead.get("business_name", "")) or "Unknown Company",
+                            "Company": lead.get("company", lead.get("business_name", ""))
+                            or "Unknown Company",
                             "Email": lead.get("email", ""),
                             "Phone": lead.get("phone", ""),
                             "Description": lead.get("notes", ""),
@@ -159,7 +186,10 @@ class CrmPush:
                         resp = await client.post(
                             url,
                             json=payload,
-                            headers={"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"},
+                            headers={
+                                "Authorization": f"Zoho-oauthtoken {access_token}",
+                                "Content-Type": "application/json",
+                            },
                         )
                     if resp.status_code >= 400:
                         result["error"] = resp.text[:300]
@@ -212,13 +242,15 @@ class CrmPush:
             else:
                 result["error"] = f"Unknown CRM provider: {provider}"
 
-            self._history.append({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "provider": provider,
-                "lead_id": lead_id,
-                "ok": result.get("ok", False),
-                "error": result.get("error"),
-            })
+            self._history.append(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "provider": provider,
+                    "lead_id": lead_id,
+                    "ok": result.get("ok", False),
+                    "error": result.get("error"),
+                }
+            )
             results.append(result)
 
         return results
