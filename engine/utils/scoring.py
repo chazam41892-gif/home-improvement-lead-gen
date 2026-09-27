@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 
 @dataclass
@@ -13,9 +13,9 @@ class LeadScore:
     industry_relevance: float = 0.0
     location_match: float = 0.0
     enrichment_potential: float = 0.0
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "total": round(self.total, 1),
             "contact_completeness": round(self.contact_completeness, 1),
@@ -27,7 +27,7 @@ class LeadScore:
         }
 
 
-INDUSTRY_KEYWORDS: Dict[str, List[str]] = {
+INDUSTRY_KEYWORDS: dict[str, list[str]] = {
     "roofing": ["roof", "roofing", "shingle", "gutter", "roofer"],
     "plumbing": ["plumb", "pipe", "drain", "sewer", "water heater", "faucet"],
     "hvac": ["hvac", "heating", "cooling", "air conditioning", "furnace", "ac repair"],
@@ -45,7 +45,7 @@ INDUSTRY_KEYWORDS: Dict[str, List[str]] = {
     "moving": ["moving", "mover", "relocation", "trucking"],
 }
 
-INDUSTRY_WEIGHTS: Dict[str, float] = {
+INDUSTRY_WEIGHTS: dict[str, float] = {
     "roofing": 1.0, "hvac": 1.0, "plumbing": 1.0, "electrical": 1.0,
     "solar": 0.95, "kitchen_bath": 0.9, "windows": 0.9,
     "construction": 0.85, "landscaping": 0.8, "painting": 0.8,
@@ -118,7 +118,7 @@ def score_business_presence(title: str, snippet: str) -> float:
     return min(score, 100)
 
 
-def score_industry_relevance(title: str, snippet: str, target_industry: Optional[str] = None) -> float:
+def score_industry_relevance(title: str, snippet: str, target_industry: str | None = None) -> float:
     combined = f"{title} {snippet}".lower()
 
     if target_industry:
@@ -141,8 +141,8 @@ def score_industry_relevance(title: str, snippet: str, target_industry: Optional
     return best_score
 
 
-def score_location_match(snippet: str, target_city: Optional[str] = None,
-                         target_state: Optional[str] = None, target_zip: Optional[str] = None) -> float:
+def score_location_match(snippet: str, target_city: str | None = None,
+                         target_state: str | None = None, target_zip: str | None = None) -> float:
     if not target_city and not target_state and not target_zip:
         return 50.0
 
@@ -178,10 +178,10 @@ def score_enrichment_potential(url: str) -> float:
 
 
 def score_lead(title: str, snippet: str, url: str,
-               target_industry: Optional[str] = None,
-               target_city: Optional[str] = None,
-               target_state: Optional[str] = None,
-               target_zip: Optional[str] = None) -> LeadScore:
+               target_industry: str | None = None,
+               target_city: str | None = None,
+               target_state: str | None = None,
+               target_zip: str | None = None) -> LeadScore:
     contact = score_contact_completeness(title, snippet, url)
     business = score_business_presence(title, snippet)
     industry = score_industry_relevance(title, snippet, target_industry)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -9,11 +9,11 @@ class SearchHit:
     title: str
     url: str
     snippet: str = ""
-    published_date: Optional[str] = None
+    published_date: str | None = None
     score: float = 0.0
-    extras: Dict[str, Any] = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "title": self.title,
             "url": self.url,
@@ -27,14 +27,14 @@ class SearchHit:
 @dataclass
 class SearchResult:
     query: str
-    hits: List[SearchHit]
+    hits: list[SearchHit]
     provider: str
     elapsed_sec: float = 0.0
-    total_results: Optional[int] = None
-    raw: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    total_results: int | None = None
+    raw: dict[str, Any] | None = None
+    error: str | None = None
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "ok": self.error is None,
             "query": self.query,
@@ -50,7 +50,7 @@ class SearchResult:
 class SearchProvider:
     name = "base"
 
-    def __init__(self, *, api_key: Optional[str] = None, timeout: float = 30.0):
+    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0):
         self.api_key = api_key
         self.timeout = timeout
 

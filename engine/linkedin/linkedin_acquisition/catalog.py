@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-
 _CAPABILITIES = (
     ("S1", "authority_content", (
         ("hook_diagnostic", "Diagnose whether an opening earns attention without unsupported claims."),

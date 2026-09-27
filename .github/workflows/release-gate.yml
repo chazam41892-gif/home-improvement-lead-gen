@@ -1,0 +1,81 @@
+name: release-gate
+
+# Elite release readiness is not "tests pass" -- it is tests, static analysis,
+# type checking, and a coverage floor, all enforced on every push. A red build
+# is the signal; a green one is the only acceptable state for a release.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: tests + static analysis + types
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio ruff mypy
+
+      - name: Lint (ruff)
+        run: |
+          ruff check engine/ main.py \
+            --exit-non-zero-on-fix \
+            --output-format=github
+
+      - name: Format check (ruff format)
+        run: ruff format --check engine/ main.py
+
+      - name: Type check (mypy)
+        run: mypy engine/ main.py
+
+      - name: Tests with coverage gate
+        run: |
+          pytest \
+            --cov=engine \
+            --cov=main \
+            --cov-branch \
+            --cov-report=term-missing:skip-covered \
+            --cov-report=xml \
+            --cov-report=html \
+            --junitxml=pytest-report.xml
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            htmlcov/
+            coverage.xml
+            pytest-report.xml
+          retention-days: 14
+
+      - name: Fail if coverage regressed
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          rate = float(ET.parse("coverage.xml").getroot().get("line-rate")) * 100
+          floor = 80.0
+          print(f"line coverage: {rate:.2f}%  (floor {floor:.0f}%)")
+          if rate < floor:
+              raise SystemExit(f"COVERAGE REGRESSION: {rate:.2f}% < {floor:.0f}%")
+          PY

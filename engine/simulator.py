@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import random
 import math
-from typing import Dict, Any
+import random
+
 from engine.trades.trades import get_trade_config
+
 
 class CampaignSimulator:
     """
@@ -36,7 +37,7 @@ class CampaignSimulator:
         # 3. Compute cost-per-lead (CPL) and spend
         budget_scale = 1.0 + (math.log(max(1.0, daily_budget / 50.0)) * 0.15) if daily_budget > 50 else 1.0
         projected_cpl = round(cpl_ceiling * loc_mult * budget_scale, 2)
-        
+
         monthly_spend = daily_budget * 30
         simulated_leads = int(monthly_spend / max(10.0, projected_cpl))
 
@@ -51,13 +52,13 @@ class CampaignSimulator:
         for day in range(1, 31):
             daily_leads = int(rng.gauss(daily_lead_rate, math.sqrt(max(1.0, daily_lead_rate))))
             daily_leads = max(0, daily_leads)
-            
+
             day_conv_rate = base_conv_rate * season_mult * rng.uniform(0.9, 1.1)
             conversions = 0
             for _ in range(daily_leads):
                 if rng.random() < day_conv_rate:
                     conversions += 1
-            
+
             total_leads += daily_leads
             total_conversions += conversions
             daily_log.append({

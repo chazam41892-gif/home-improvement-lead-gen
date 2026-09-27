@@ -6,8 +6,8 @@ AGENTS.md in the project root.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
 
 
 @dataclass
@@ -18,11 +18,11 @@ class Module:
     description: str
     icon: str = "box"
     min_plan: str = "free"
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     route_path: str = ""
-    required_plans: List[str] = field(default_factory=list)
+    required_plans: list[str] = field(default_factory=list)
     # Function(module_id, org_plan) -> bool
-    access_check: Optional[Callable[[str, str], bool]] = None
+    access_check: Callable[[str, str], bool] | None = None
 
 
 # Plan hierarchy (lower index = more access)
@@ -40,7 +40,7 @@ def _default_access_check(module: Module, org_plan: str) -> bool:
     return _plan_index(org_plan) >= _plan_index(module.min_plan)
 
 
-MODULE_REGISTRY: Dict[str, Module] = {
+MODULE_REGISTRY: dict[str, Module] = {
     "leadgen": Module(
         id="leadgen",
         name="Lead Gen Pro",
@@ -54,7 +54,7 @@ MODULE_REGISTRY: Dict[str, Module] = {
 }
 
 
-def list_modules() -> List[Dict[str, any]]:
+def list_modules() -> list[dict[str, any]]:
     return [
         {
             "id": m.id,
@@ -70,7 +70,7 @@ def list_modules() -> List[Dict[str, any]]:
     ]
 
 
-def get_module(module_id: str) -> Optional[Module]:
+def get_module(module_id: str) -> Module | None:
     return MODULE_REGISTRY.get(module_id)
 
 
@@ -89,5 +89,5 @@ def register_module(module: Module) -> None:
     MODULE_REGISTRY[module.id] = module
 
 
-def plans() -> List[str]:
+def plans() -> list[str]:
     return list(_PLAN_ORDER)

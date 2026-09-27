@@ -8,13 +8,13 @@ Legacy fallback to ~/.lvtn/unified_vault.py for backward compatibility.
 """
 from __future__ import annotations
 
+import builtins
 import json
+import logging
 import os
 import sys
-import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class KeyVault:
     continues to work. Keys are stored in the unified vault, shared across
     all projects (lvtn CLI, Lead Gen Pro, Gambot IDE).
     """
-    _entries: Dict[str, List[VaultEntry]] = {}
+    _entries: dict[str, builtins.list[VaultEntry]] = {}
     _loaded = False
 
     @classmethod
@@ -173,7 +173,7 @@ class KeyVault:
         logger.info("KeyVault loaded (legacy) — %d services configured", len(cls._entries))
 
     @classmethod
-    def get(cls, service: str) -> Optional[str]:
+    def get(cls, service: str) -> str | None:
         uv = _get_unified()
         if uv:
             key = uv.get(service)
@@ -187,7 +187,7 @@ class KeyVault:
         return None
 
     @classmethod
-    def list(cls) -> Dict[str, list]:
+    def list(cls) -> dict[str, list]:
         uv = _get_unified()
         if uv:
             all_svcs = uv.list_all()

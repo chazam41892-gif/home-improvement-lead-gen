@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 from html import escape
-from typing import Any, Optional
+from typing import Any
 
 _COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$|^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$|^hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)$")
 _URL_SCHEME_RE = re.compile(r"^https?://", re.IGNORECASE)

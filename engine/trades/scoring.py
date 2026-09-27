@@ -1,5 +1,5 @@
-from .trades import get_trade_config
 from .base import TradeLead
+from .trades import get_trade_config
 
 
 def score_trade_lead(lead: TradeLead, trade: str) -> float:

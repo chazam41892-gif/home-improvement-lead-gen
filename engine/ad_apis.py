@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 
@@ -28,10 +28,10 @@ class AdCampaignPlan:
     headline: str
     description: str
     cta: str
-    keywords: List[str]
+    keywords: list[str]
     landing_page_url: str
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    start_date: str | None = None
+    end_date: str | None = None
 
 
 class GoogleAdsAPI:
@@ -54,7 +54,7 @@ class GoogleAdsAPI:
             self.developer_token and self.customer_id and self.refresh_token
         )
 
-    async def _access_token(self) -> Optional[str]:
+    async def _access_token(self) -> str | None:
         if not self.client_id or not self.client_secret or not self.refresh_token:
             return None
         try:
@@ -76,7 +76,7 @@ class GoogleAdsAPI:
             logger.error("Google Ads token refresh error: %s", e)
             return None
 
-    async def create_campaign(self, plan: AdCampaignPlan) -> Dict[str, Any]:
+    async def create_campaign(self, plan: AdCampaignPlan) -> dict[str, Any]:
         if not self.is_configured:
             return self._preview(plan)
 
@@ -121,7 +121,7 @@ class GoogleAdsAPI:
             logger.error("Google Ads campaign create error: %s", e)
             return {"ok": False, "error": str(e)}
 
-    def _preview(self, plan: AdCampaignPlan) -> Dict[str, Any]:
+    def _preview(self, plan: AdCampaignPlan) -> dict[str, Any]:
         return {
             "ok": True,
             "simulated": True,
@@ -153,7 +153,7 @@ class MetaMarketingAPI:
     def is_configured(self) -> bool:
         return bool(self.access_token and self.ad_account_id)
 
-    async def create_campaign(self, plan: AdCampaignPlan) -> Dict[str, Any]:
+    async def create_campaign(self, plan: AdCampaignPlan) -> dict[str, Any]:
         if not self.is_configured:
             return self._preview(plan)
 
@@ -178,7 +178,7 @@ class MetaMarketingAPI:
             logger.error("Meta campaign create error: %s", e)
             return {"ok": False, "error": str(e)}
 
-    def _preview(self, plan: AdCampaignPlan) -> Dict[str, Any]:
+    def _preview(self, plan: AdCampaignPlan) -> dict[str, Any]:
         return {
             "ok": True,
             "simulated": True,
@@ -203,7 +203,7 @@ class AdPlatformManager:
         self.google = GoogleAdsAPI()
         self.meta = MetaMarketingAPI()
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         return {
             "google_ads": {
                 "configured": self.google.is_configured,
@@ -223,7 +223,7 @@ class AdPlatformManager:
         }
 
     @staticmethod
-    def _missing_env(prefix: str, keys: List[str]) -> List[str]:
+    def _missing_env(prefix: str, keys: list[str]) -> list[str]:
         """Keys not resolvable via the vault.
 
         Audit 2026-09-27 (M-17): this was named `_missing_env` but queries
@@ -233,7 +233,7 @@ class AdPlatformManager:
         """
         return [k for k in keys if not KeyVault.get(k)]
 
-    async def launch(self, plan: AdCampaignPlan) -> Dict[str, Any]:
+    async def launch(self, plan: AdCampaignPlan) -> dict[str, Any]:
         """Launch a campaign.
 
         CRITICAL (audit 2026-09-27, C-3): this used to `return {"ok": True, **results}`
@@ -242,7 +242,7 @@ class AdPlatformManager:
         `ok` is now derived from the provider sub-result and `simulated` is hoisted to
         the TOP level so the HTTP layer and the UI can both see it.
         """
-        results: Dict[str, Any] = {"plan": plan.__dict__}
+        results: dict[str, Any] = {"plan": plan.__dict__}
         if plan.platform in ("google", "google_ads"):
             results["google_ads"] = await self.google.create_campaign(plan)
         elif plan.platform in ("meta", "facebook", "instagram"):
@@ -273,4 +273,4 @@ class AdPlatformManager:
         return results
 
 
-__all__ = ["AdPlatformManager", "AdCampaignPlan", "GoogleAdsAPI", "MetaMarketingAPI"]
+__all__ = ["AdCampaignPlan", "AdPlatformManager", "GoogleAdsAPI", "MetaMarketingAPI"]

@@ -5,7 +5,7 @@ import logging
 import re
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from engine.database import Database
 
@@ -21,7 +21,7 @@ class _SimpleScore:
         self.location_match = 50.0
         self.enrichment_potential = 50.0
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "total": round(self.total, 1),
             "contact_completeness": round(self.contact_completeness, 1),
@@ -33,7 +33,7 @@ class _SimpleScore:
 
 
 class _CaptureLead:
-    def __init__(self, data: Dict[str, Any]) -> None:
+    def __init__(self, data: dict[str, Any]) -> None:
         self.id = data["id"]
         self.title = data["title"]
         self.url = data.get("url", "")
@@ -55,7 +55,7 @@ class _CaptureLead:
         self.utm_campaign = data.get("utm_campaign", "")
         self.status = data.get("status", "new")
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "title": self.title,
@@ -112,11 +112,11 @@ def _truncate(text: str, max_len: int = 300) -> str:
 
 
 class LeadCaptureProcessor:
-    def __init__(self, engine: Any, landing_pages: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, engine: Any, landing_pages: dict[str, Any] | None = None) -> None:
         self._engine = engine
         self._landing_pages = landing_pages or {}
 
-    def process_submission(self, data: Dict[str, Any], source_page_id: str = "") -> Dict[str, Any]:
+    def process_submission(self, data: dict[str, Any], source_page_id: str = "") -> dict[str, Any]:
         name = (data.get("name") or "").strip()
         if not name:
             return {"ok": False, "error": "Name is required"}
@@ -252,14 +252,14 @@ class LeadCaptureProcessor:
         except Exception as e:
             logger.error("Failed to persist captured lead: %s", e)
 
-    def get_submissions(self, limit: int = 50) -> List[Dict[str, Any]]:
-        results: List[Dict[str, Any]] = []
+    def get_submissions(self, limit: int = 50) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
         for lead in self._engine._leads.values():
             if hasattr(lead, "source") and lead.source == "landing_page":
                 results.append(lead.as_dict() if hasattr(lead, "as_dict") else lead)
         return results[:limit]
 
-    def get_submission_stats(self) -> Dict[str, Any]:
+    def get_submission_stats(self) -> dict[str, Any]:
         submissions = self.get_submissions(limit=100000)
         total = len(submissions)
         if total == 0:

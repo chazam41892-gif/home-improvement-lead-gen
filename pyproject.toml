@@ -69,4 +69,65 @@ deploy = ["*.sh", "*.conf", "*.yml", "nginx/*"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 python_files = "test_*.py"
+# --strict-markers: a typo'd @pytest.mark must fail loudly, not silently no-op.
+addopts = "--strict-markers"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["engine", "main"]
+omit = [
+    "*/__pycache__/*",
+    "*/tests/*",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+# Release gate: coverage must not regress below this floor.
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "class .*\\(ABC\\):",
+    "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+exclude = [".git", "__pycache__", "dist", "build", ".venv", "node_modules"]
+
+[tool.ruff.lint]
+# Rules that catch real defects, not style opinions.
+select = [
+    "F",     # pyflakes: undefined names, unused vars/imports
+    "E",     # pycodestyle errors
+    "W",     # warnings
+    "B",     # bugbear: mutable defaults, shadowing
+    "C4",    # comprehensions
+    "SIM",   # simplify
+    "UP",    # pyupgrade
+    "I",     # import sorting
+    "S",     # bandit security
+    "BLE",   # blind except
+    "RUF",
+]
+ignore = [
+    "E501",    # line length handled by the formatter
+    "B008",    # FastAPI Depends() in defaults is idiomatic
+    "B904",    # raise ... from is good practice, not a defect
+    "SIM108",  # ternary is not always clearer
+    "RUF001", "RUF002", "RUF003",  # ambiguous unicode in strings/comments
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B", "SIM", "RUF", "E501"]
+"__init__.py" = ["F401"]
 

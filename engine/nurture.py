@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import uuid
 import logging
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from engine.database import Database
 
@@ -26,7 +26,7 @@ class Sequence:
     completed: bool = False
 
 
-_DEFAULT_SCHEDULING_CONFIG: Dict[str, Any] = {
+_DEFAULT_SCHEDULING_CONFIG: dict[str, Any] = {
     "slot_interval_minutes": 60,
     "business_hours_start": 9,
     "business_hours_end": 17,
@@ -47,9 +47,9 @@ _TIME_SLOTS = [
 
 class NurtureEngine:
     def __init__(self) -> None:
-        self._sequences: Dict[str, Sequence] = {}
-        self._scheduling_config: Dict[str, Any] = dict(_DEFAULT_SCHEDULING_CONFIG)
-        self._appointments: List[Dict[str, Any]] = []
+        self._sequences: dict[str, Sequence] = {}
+        self._scheduling_config: dict[str, Any] = dict(_DEFAULT_SCHEDULING_CONFIG)
+        self._appointments: list[dict[str, Any]] = []
         Database.initialize()
         self._load_from_db()
 
@@ -88,7 +88,7 @@ class NurtureEngine:
         except Exception as e:
             logger.error("Failed to load nurture engine data from database: %s", e)
 
-    def _load_sequence_by_id(self, sequence_id: str) -> Optional[Sequence]:
+    def _load_sequence_by_id(self, sequence_id: str) -> Sequence | None:
         """Load or refresh a single sequence from the database."""
         try:
             with Database.get_connection() as conn:
@@ -243,10 +243,10 @@ class NurtureEngine:
 
     # ─── Action Processing ──────────────────────────────────────────
 
-    def get_due_actions(self, refresh: bool = True) -> List[dict]:
+    def get_due_actions(self, refresh: bool = True) -> list[dict]:
         if refresh:
             self._load_from_db()
-        due: List[dict] = []
+        due: list[dict] = []
         now = datetime.now()
 
         for seq in self._sequences.values():
@@ -315,7 +315,7 @@ class NurtureEngine:
         self._record_opt_out("sms", phone, "STOP")
         return True
 
-    def mark_action_sent(self, sequence_id: str, action_index: int, result: Dict[str, Any] | None = None) -> bool:
+    def mark_action_sent(self, sequence_id: str, action_index: int, result: dict[str, Any] | None = None) -> bool:
         seq = self._load_sequence_by_id(sequence_id)
         if not seq:
             return False
@@ -343,7 +343,7 @@ class NurtureEngine:
         self._save_sequence_to_db(seq)
         return True
 
-    async def execute_due_actions(self) -> List[Dict[str, Any]]:
+    async def execute_due_actions(self) -> list[dict[str, Any]]:
         """Find due actions and dispatch them via real providers."""
         from engine.messaging import MessagingOrchestrator
         messenger = MessagingOrchestrator()
@@ -365,7 +365,7 @@ class NurtureEngine:
                 results.append({"sequence_id": seq_id, "action": atype, "result": {"ok": True, "skipped": True, "reason": "opt-out"}})
                 continue
 
-            result: Dict[str, Any] = {"ok": False, "error": "unknown action type"}
+            result: dict[str, Any] = {"ok": False, "error": "unknown action type"}
             try:
                 if atype == "sms":
                     result = await messenger.send_sms(seq.lead_phone, template)
@@ -409,7 +409,7 @@ class NurtureEngine:
 
     # ─── Queries ─────────────────────────────────────────────────────
 
-    def get_sequences(self, limit: int = 50) -> List[dict]:
+    def get_sequences(self, limit: int = 50) -> list[dict]:
         sorted_seqs = sorted(
             self._sequences.values(),
             key=lambda s: s.created_at,
@@ -417,7 +417,7 @@ class NurtureEngine:
         )
         return [self._sequence_to_dict(s) for s in sorted_seqs[:limit]]
 
-    def get_sequence(self, sequence_id: str) -> Optional[dict]:
+    def get_sequence(self, sequence_id: str) -> dict | None:
         seq = self._load_sequence_by_id(sequence_id)
         return self._sequence_to_dict(seq) if seq else None
 
@@ -753,7 +753,7 @@ class NurtureEngine:
             "time_slot": time_slot,
         }
 
-    def get_appointments(self, limit: int = 50) -> List[dict]:
+    def get_appointments(self, limit: int = 50) -> list[dict]:
         return sorted(
             self._appointments,
             key=lambda a: a.get("created_at", ""),
@@ -763,19 +763,19 @@ class NurtureEngine:
     async def handle_incoming_reply(self, sequence_id: str, reply_text: str) -> dict:
         import os
         import urllib.parse
-        
+
         seq = self._load_sequence_by_id(sequence_id)
         if not seq:
             return {"ok": False, "error": "Sequence not found"}
-            
+
         reply_clean = reply_text.strip().lower()
-        
+
         # 1. Opt-out check
         opt_out_triggers = {"stop", "unsubscribe", "cancel", "opt out", "quit", "remove"}
         if any(trigger in reply_clean for trigger in opt_out_triggers):
             seq.completed = True
             self._save_sequence_to_db(seq)
-            
+
             try:
                 with Database.get_connection() as conn:
                     conn.execute(
@@ -785,13 +785,13 @@ class NurtureEngine:
                     conn.commit()
             except Exception as e:
                 logger.error("Failed to update lead consent status: %s", e)
-                
+
             return {
                 "ok": True,
                 "action": "opt_out",
                 "response": "You have been successfully unsubscribed. No further messages will be sent."
             }
-            
+
         # 2. Booking intent check
         booking_triggers = {"book", "schedule", "appointment", "slot", "meet", "time", "calendar", "call"}
         if any(trigger in reply_clean for trigger in booking_triggers):
@@ -801,7 +801,7 @@ class NurtureEngine:
                 f"/api/nurture/schedule/widget?business_name={urllib.parse.quote(seq.industry.capitalize())} "
                 f"or let us know if 10:00 AM, 11:00 AM, or 2:00 PM tomorrow works for you!"
             )
-            
+
             seq.actions.append({
                 "type": "incoming_reply",
                 "message": reply_text,
@@ -813,13 +813,13 @@ class NurtureEngine:
                 "sent_at": datetime.now().isoformat(),
             })
             self._save_sequence_to_db(seq)
-            
+
             return {
                 "ok": True,
                 "action": "booking_prompt",
                 "response": response
             }
-            
+
         # 3. Question / Objection check
         perplexity_key = os.environ.get("PERPLEXITY_API_KEY")
         response = ""
@@ -848,7 +848,7 @@ class NurtureEngine:
                         response = data["choices"][0]["message"]["content"].strip()
             except Exception as e:
                 logger.warning("Perplexity AI request failed, falling back: %s", e)
-                
+
         if not response:
             response = (
                 f"Hi {seq.lead_name}, thank you for reaching out! We received your message: '{reply_text}'. "
@@ -856,7 +856,7 @@ class NurtureEngine:
                 f"If you'd like to connect sooner, you can schedule a call here: "
                 f"/api/nurture/schedule/widget?business_name={urllib.parse.quote(seq.industry.capitalize())}"
             )
-            
+
         seq.actions.append({
             "type": "incoming_reply",
             "message": reply_text,
@@ -868,7 +868,7 @@ class NurtureEngine:
             "sent_at": datetime.now().isoformat(),
         })
         self._save_sequence_to_db(seq)
-        
+
         return {
             "ok": True,
             "action": "ai_response",

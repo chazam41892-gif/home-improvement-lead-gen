@@ -139,7 +139,15 @@ def verify_api_key(request: Request):
         if payload:
             request.state.user = payload
             return True
-        info = auth_manager.verify_api_key(token)
+        # An unprovisioned or unreachable auth store (missing api_keys table,
+        # locked DB, corrupt row) must not turn an authentication failure into a
+        # 500. verify_api_key raises rather than returning falsy on those, so
+        # contain it here and fall through to the 401 below.
+        try:
+            info = auth_manager.verify_api_key(token)
+        except Exception:
+            logger.exception("auth_manager.verify_api_key failed; treating token as invalid")
+            info = None
         if info:
             request.state.user = info
             return True
@@ -627,8 +635,28 @@ async def search_multi(data: dict[str, Any], request: Request):
 
     if scored:
         async with _engine_lock:
+            # CRITICAL (audit 2026-09-27): engine.search_natural() above ALREADY
+            # wrote each provider's raw hits into engine._leads under their own
+            # fresh ids. This block then minted a SECOND id for every merged lead
+            # (`lead.get("id", ...)` never fires because the dicts carry the
+            # provider id, but the merge can renumber), so the store ended up
+            # holding both copies: a multi search returned 3 deduped leads while
+            # /api/leads reported 4, with the pre-dedup duplicate still present.
+            # Fix: index what is already stored by URL, and evict the
+            # provider-level rows for URLs the merge kept, before writing the
+            # merged set. Duplicates therefore cannot survive in the store.
+            keep_ids = {lead.get("id") for lead in scored if lead.get("id")}
+            keep_urls = {(lead.get("url") or "").rstrip("/") for lead in scored}
+            for existing_id, existing in list(engine._leads.items()):
+                if existing_id in keep_ids:
+                    continue
+                existing_url = (getattr(existing, "url", "") or "").rstrip("/")
+                if existing_url and existing_url in keep_urls:
+                    del engine._leads[existing_id]
+
             for lead in scored:
-                lid = lead.get("id", uuid.uuid4().hex[:12])
+                # Reuse the id the merge produced; only mint when it is absent.
+                lid = lead.get("id") or uuid.uuid4().hex[:12]
                 ls = score_lead(title=lead.get("title", ""), snippet=lead.get("snippet", ""), url=lead.get("url", ""))
                 lead_obj = LeadResult(
                     id=lid,
@@ -645,6 +673,8 @@ async def search_multi(data: dict[str, Any], request: Request):
                     notes=lead.get("notes", ""),
                 )
                 engine._leads[lid] = lead_obj
+                # Keep the response and the store in agreement about the id.
+                lead["id"] = lid
 
     return merged
 
@@ -857,14 +887,29 @@ async def ads_platform_launch(data: dict[str, Any], request: Request):
     industry = data.get("trade") or data.get("industry") or ""
     platform = data.get("platform", "google")
     location = data.get("location", "")
-    daily_budget = data.get("daily_budget") or data.get("budget_cents", 50)
+    # Accept either spelling of the budget. `daily_budget` is DOLLARS and
+    # `budget_cents` is CENTS, and the two must not be conflated.
+    #
+    # CRITICAL (audit 2026-09-27): this used to be
+    #     budget_cents = int(float(daily_budget) * 100) if float(daily_budget) < 10000
+    #                    else int(daily_budget)
+    # applied to BOTH spellings, so a caller sending the backend spelling
+    # budget_cents=5000 (i.e. $50) got 5000 * 100 = 500000 cents = $5,000/day.
+    # A 100x money error from an ambiguous heuristic. Branch on which key the
+    # caller actually sent.
+    if data.get("budget_cents") is not None and data.get("daily_budget") is None:
+        daily_budget = float(data["budget_cents"]) / 100.0
+    else:
+        daily_budget = float(data.get("daily_budget") or 50)
     objective = data.get("objective", "leads")
     landing_page = data.get("landing_page_url") or data.get("landing_page", "")
 
     if not name or not industry:
         raise HTTPException(400, "name/campaign_name and trade/industry are required")
 
-    budget_cents = int(float(daily_budget) * 100) if isinstance(daily_budget, (int, float, str)) and float(daily_budget) < 10000 else int(daily_budget)
+    # daily_budget is now always normalised to DOLLARS above, so this is a plain
+    # unit conversion with no heuristic.
+    budget_cents = int(round(float(daily_budget) * 100))
 
     copy = ads_gen.generate_ad_copy(
         industry=industry,
@@ -1573,10 +1618,42 @@ async def enrich_batch(request: Request, routing_mode: str = "parallel"):
     if not leads:
         raise HTTPException(400, "leads array is required")
     orch = _get_enrich_orch(routing_mode=routing_mode)
-    results = await orch.enrich_batch(leads)
+    # BUG (audit 2026-09-27): orch.enrich_batch() does
+    #   await asyncio.gather(*(self.enrich(**lead) for lead in leads),
+    #                         return_exceptions=True)
+    # but `business_name` is a REQUIRED positional of enrich(), so a single row
+    # missing that key raises TypeError *inside the generator expression* -- before
+    # gather is ever called. return_exceptions=True therefore never saw it, the
+    # whole request 500'd, and every good row in the batch was lost. Validate the
+    # shape here so a bad row becomes a per-row error entry (which the response
+    # builder below already knows how to render) instead of killing the batch.
+    prepared = []
+    for i, lead in enumerate(leads):
+        if not isinstance(lead, dict):
+            prepared.append({"business_name": "", "trade": "", "_error":
+                             f"row {i} is not an object"})
+            continue
+        if not lead.get("business_name"):
+            prepared.append({**lead, "business_name": "", "trade": lead.get("trade", ""),
+                             "_error": f"row {i} is missing business_name"})
+            continue
+        prepared.append(lead)
+
+    results = await orch.enrich_batch(prepared)
+    out = []
+    for lead, r in zip(prepared, results):
+        if lead.get("_error"):
+            out.append({"error": lead["_error"],
+                        "business_name": lead.get("business_name", ""),
+                        "trade": lead.get("trade", "")})
+        elif isinstance(r, EnrichmentResult):
+            out.append(r.to_dict())
+        else:
+            out.append({"error": str(r)})
     return {
-        "total": len(results),
-        "results": [r.to_dict() if isinstance(r, EnrichmentResult) else {"error": str(r)} for r in results],
+        "total": len(out),
+        "failed": sum(1 for r in out if "error" in r),
+        "results": out,
     }
 
 
@@ -1587,11 +1664,15 @@ async def enrich_from_lead(lead_id: str, request: Request):
     if not lead:
         raise HTTPException(404, "Lead not found")
     orch = _get_enrich_orch()
+    # BUG (audit 2026-09-27): a search-discovered LeadResult has no
+    # business_name / trade / website attributes, so this call enriched an EMPTY
+    # name against every provider -- a guaranteed no-op that still returned 200
+    # and a "confidence" number. Fall back to the fields LeadResult does carry.
     result = await orch.enrich(
-        business_name=lead.get("business_name", ""),
-        trade=lead.get("trade", ""),
+        business_name=lead.get("business_name") or lead.get("title", ""),
+        trade=lead.get("trade") or lead.get("industry", ""),
         location=lead.get("location"),
-        website=lead.get("website"),
+        website=lead.get("website") or lead.get("url"),
         phone=lead.get("phone"),
     )
     enriched = result.to_dict()

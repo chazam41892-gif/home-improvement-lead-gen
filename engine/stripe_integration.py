@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import stripe
 
@@ -252,7 +251,7 @@ class StripeIntegration:
             "stripe_subscription_id": subscription_id,
             "plan": plan,
             "status": "active",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         })
         logger.info(
             "Checkout completed: account=%s customer=%s sub=%s",
@@ -285,7 +284,7 @@ class StripeIntegration:
                 m["status"] = status
                 if reason:
                     m["status_reason"] = reason
-                m["status_updated_at"] = datetime.now(timezone.utc).isoformat()
+                m["status_updated_at"] = datetime.now(UTC).isoformat()
                 updated = True
         if updated:
             self._write_mappings(mappings)

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import re
-import uuid
 from urllib.parse import urlencode, urlparse, urlunparse
-
 
 _INDUSTRY_DEFAULTS: dict[str, dict[str, list[str]]] = {
     "roofing": {
@@ -673,7 +671,7 @@ class AdCopyGenerator:
                 )
             elif ptype == "facebook_pixel":
                 conversion_scripts += (
-                    f"\n                fbq('track', 'Lead');"
+                    "\n                fbq('track', 'Lead');"
                 )
             elif ptype == "linkedin_insight":
                 conversion_scripts += (

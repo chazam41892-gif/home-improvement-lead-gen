@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
-from typing import Optional, List, Dict, Any
+from typing import Any
 from urllib.parse import urlparse
 
-from .base import EnrichmentProvider, EnrichmentResult
 from ..key_vault import KeyVault
+from .base import EnrichmentProvider, EnrichmentResult
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class ExaEnricher(EnrichmentProvider):
     input_required = []
     priority = 1
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self._exa = None
 
@@ -37,7 +36,7 @@ class ExaEnricher(EnrichmentProvider):
     def is_available(self) -> bool:
         return KeyVault.get("exa") is not None
 
-    async def _find_website(self, business: str, trade: str, location: Optional[str] = None) -> Optional[str]:
+    async def _find_website(self, business: str, trade: str, location: str | None = None) -> str | None:
         exa = self._get_exa()
         if not exa:
             return None
@@ -62,8 +61,8 @@ class ExaEnricher(EnrichmentProvider):
         return None
 
     async def enrich(self, business_name: str, trade: str,
-                     location: Optional[str] = None,
-                     website: Optional[str] = None,
+                     location: str | None = None,
+                     website: str | None = None,
                      **kwargs) -> EnrichmentResult:
         result = EnrichmentResult(business_name=business_name, trade=trade)
         exa = self._get_exa()

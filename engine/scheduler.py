@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import time
 import uuid
-import os
-import json
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from engine.database import Database
 
@@ -28,11 +29,11 @@ class ScanSchedule:
     interval_minutes: int
     enabled: bool
     created_at: str
-    last_run: Optional[str] = None
+    last_run: str | None = None
     last_result_count: int = 0
     total_runs: int = 0
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -53,11 +54,11 @@ class ScanSchedule:
 
 class ScanScheduler:
     def __init__(self):
-        self._schedules: Dict[str, ScanSchedule] = {}
-        self._results: Dict[str, List[Dict[str, Any]]] = {}
-        self._search_fn: Optional[Callable] = None
+        self._schedules: dict[str, ScanSchedule] = {}
+        self._results: dict[str, list[dict[str, Any]]] = {}
+        self._search_fn: Callable | None = None
         self._running = False
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._load_from_db()
 
     def _load_from_db(self):
@@ -102,7 +103,7 @@ class ScanScheduler:
         except Exception as e:
             logger.error("Failed to save schedule to database: %s", e)
 
-    def _save_results(self, schedule_id: str, leads: List[Dict[str, Any]]):
+    def _save_results(self, schedule_id: str, leads: list[dict[str, Any]]):
         os.makedirs("data/schedules", exist_ok=True)
         path = f"data/schedules/{schedule_id}_results.json"
         try:
@@ -111,12 +112,12 @@ class ScanScheduler:
         except Exception as e:
             logger.error("Failed to save schedule results to file: %s", e)
 
-    def _load_results(self, schedule_id: str) -> List[Dict[str, Any]]:
+    def _load_results(self, schedule_id: str) -> list[dict[str, Any]]:
         path = f"data/schedules/{schedule_id}_results.json"
         if not os.path.exists(path):
             return []
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             logger.error("Failed to load schedule results from file: %s", e)
@@ -125,7 +126,7 @@ class ScanScheduler:
     def register_search_fn(self, fn: Callable):
         self._search_fn = fn
 
-    def add_schedule(self, config: Dict[str, Any]) -> ScanSchedule:
+    def add_schedule(self, config: dict[str, Any]) -> ScanSchedule:
         schedule = ScanSchedule(
             id=str(uuid.uuid4())[:12],
             name=config.get("name", "Untitled Scan"),
@@ -144,7 +145,7 @@ class ScanScheduler:
         logger.info(f"Added schedule '{schedule.name}' ({schedule.id}) every {schedule.interval_minutes}min")
         return schedule
 
-    def update_schedule(self, schedule_id: str, updates: Dict[str, Any]) -> Optional[ScanSchedule]:
+    def update_schedule(self, schedule_id: str, updates: dict[str, Any]) -> ScanSchedule | None:
         sched = self._schedules.get(schedule_id)
         if not sched:
             return None
@@ -170,18 +171,18 @@ class ScanScheduler:
                 logger.error("Failed to delete schedule from database: %s", e)
         return ok
 
-    def get_schedule(self, schedule_id: str) -> Optional[ScanSchedule]:
+    def get_schedule(self, schedule_id: str) -> ScanSchedule | None:
         return self._schedules.get(schedule_id)
 
-    def list_schedules(self) -> List[Dict[str, Any]]:
+    def list_schedules(self) -> list[dict[str, Any]]:
         return [s.as_dict() for s in sorted(
             self._schedules.values(), key=lambda s: s.created_at, reverse=True
         )]
 
-    def get_results(self, schedule_id: str) -> List[Dict[str, Any]]:
+    def get_results(self, schedule_id: str) -> list[dict[str, Any]]:
         return self._results.get(schedule_id, [])
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         total = len(self._schedules)
         enabled = sum(1 for s in self._schedules.values() if s.enabled)
         total_runs = sum(s.total_runs for s in self._schedules.values())

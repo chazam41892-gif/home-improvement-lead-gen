@@ -2,7 +2,8 @@ import asyncio
 import json
 import re
 import time
-from typing import Any, Dict, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 from urllib.parse import quote
 
 import aiohttp
@@ -44,35 +45,33 @@ class LinkedInAPIClient:
             "X-Restli-Protocol-Version": "2.0.0",
         }
 
-    async def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        async with aiohttp.ClientSession(headers=self.headers) as session:
-            async with session.get(
-                f"{self.base_url}{path}",
-                params=params,
-                timeout=aiohttp.ClientTimeout(total=self.timeout),
-            ) as response:
-                text = await response.text()
-                if response.status >= 400:
-                    raise ProviderError(f"LinkedIn API {response.status}: {text[:500]}")
-                return json.loads(text) if text else {}
+    async def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        async with aiohttp.ClientSession(headers=self.headers) as session, session.get(
+            f"{self.base_url}{path}",
+            params=params,
+            timeout=aiohttp.ClientTimeout(total=self.timeout),
+        ) as response:
+            text = await response.text()
+            if response.status >= 400:
+                raise ProviderError(f"LinkedIn API {response.status}: {text[:500]}")
+            return json.loads(text) if text else {}
 
-    async def _post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         headers = {**self.headers, "Content-Type": "application/json"}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(
-                f"{self.base_url}{path}",
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=self.timeout),
-            ) as response:
-                text = await response.text()
-                if response.status >= 400:
-                    raise ProviderError(f"LinkedIn API {response.status}: {text[:500]}")
-                data = json.loads(text) if text else {}
-                if response.headers.get("x-restli-id"):
-                    data["id"] = response.headers["x-restli-id"]
-                return data
+        async with aiohttp.ClientSession(headers=headers) as session, session.post(
+            f"{self.base_url}{path}",
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=self.timeout),
+        ) as response:
+            text = await response.text()
+            if response.status >= 400:
+                raise ProviderError(f"LinkedIn API {response.status}: {text[:500]}")
+            data = json.loads(text) if text else {}
+            if response.headers.get("x-restli-id"):
+                data["id"] = response.headers["x-restli-id"]
+            return data
 
-    async def create_text_post(self, author_urn: str, commentary: str) -> Dict[str, Any]:
+    async def create_text_post(self, author_urn: str, commentary: str) -> dict[str, Any]:
         if not author_urn.startswith("urn:li:"):
             raise ValueError("LinkedIn post author must be a LinkedIn URN")
         if not commentary.strip():
@@ -100,7 +99,7 @@ class LinkedInAPIClient:
         )
         return data.get("elements", [])
 
-    async def _get_paged(self, path: str, params: Optional[Dict[str, Any]] = None, count: int = 100):
+    async def _get_paged(self, path: str, params: dict[str, Any] | None = None, count: int = 100):
         records = []
         start = 0
         pages = 0
@@ -117,7 +116,7 @@ class LinkedInAPIClient:
                 break
         return records
 
-    async def collect_post(self, post_url: str) -> Dict[str, Any]:
+    async def collect_post(self, post_url: str) -> dict[str, Any]:
         post_urn = post_urn_from_value(post_url)
         encoded = quote(post_urn, safe="")
         post = await self._get(f"/posts/{encoded}")
@@ -176,22 +175,21 @@ class ApifyLinkedInCollector:
         self.max_pages = max(1, min(max_pages, 50))
         self.timeout = timeout
 
-    async def _run_actor(self, actor: str, payload: Dict[str, Any]):
+    async def _run_actor(self, actor: str, payload: dict[str, Any]):
         url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                params={"token": self.api_token},
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=self.timeout),
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise ProviderError(f"Apify actor {response.status}: {str(data)[:500]}")
-                return data if isinstance(data, list) else data.get("items", [])
+        async with aiohttp.ClientSession() as session, session.post(
+            url,
+            params={"token": self.api_token},
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=self.timeout),
+        ) as response:
+            data = await response.json(content_type=None)
+            if response.status >= 400:
+                raise ProviderError(f"Apify actor {response.status}: {str(data)[:500]}")
+            return data if isinstance(data, list) else data.get("items", [])
 
     @staticmethod
-    def normalize_reaction(item: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_reaction(item: dict[str, Any]) -> dict[str, Any]:
         reactor = item.get("reactor") or item.get("author") or item.get("actor") or {}
         if not isinstance(reactor, dict):
             reactor = {}
@@ -204,7 +202,7 @@ class ApifyLinkedInCollector:
         }
 
     @staticmethod
-    def normalize_comment(item: Dict[str, Any]) -> Dict[str, Any]:
+    def normalize_comment(item: dict[str, Any]) -> dict[str, Any]:
         author = item.get("author") or item.get("commenter") or item.get("actor") or {}
         if not isinstance(author, dict):
             author = {}
@@ -231,7 +229,7 @@ class ApifyLinkedInCollector:
             raise ProviderError("Source-account scheduling requires a LinkedIn developer access token")
         return await self.official_client.list_posts(author_urn, count)
 
-    async def collect_post(self, post_url: str) -> Dict[str, Any]:
+    async def collect_post(self, post_url: str) -> dict[str, Any]:
         official_result = await self.official_client.collect_post(post_url) if self.official_client else None
         reactions = await self._paged(
             self.reactions_actor,
@@ -269,11 +267,11 @@ class ApifyLinkedInCollector:
 
 
 class LLMQualifier:
-    def __init__(self, llm_func, target_profile: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_func, target_profile: dict[str, Any] | None = None):
         self.llm_func = llm_func
         self.target_profile = target_profile or {}
 
-    async def qualify(self, lead: Dict[str, Any], post: Dict[str, Any]) -> Dict[str, Any]:
+    async def qualify(self, lead: dict[str, Any], post: dict[str, Any]) -> dict[str, Any]:
         if not self.llm_func:
             return {
                 "qualified": False,
@@ -312,7 +310,7 @@ class EnrichmentWaterfall:
         message = str(error)
         return " 429" in message or any(f" {status}" in message for status in range(500, 600))
 
-    async def enrich(self, lead: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def enrich(self, lead: dict[str, Any]) -> dict[str, Any] | None:
         for provider in self.providers:
             result = None
             for attempt in range(self.max_attempts):
@@ -340,20 +338,19 @@ class ApolloEnricher:
     def __init__(self, api_key: str):
         self.api_key = api_key
 
-    async def enrich(self, lead: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def enrich(self, lead: dict[str, Any]) -> dict[str, Any] | None:
         if not self.api_key or not lead.get("profile_url"):
             return None
         payload = {"linkedin_url": lead["profile_url"], "reveal_personal_emails": False}
         headers = {"x-api-key": self.api_key, "Content-Type": "application/json", "Cache-Control": "no-cache"}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(
-                "https://api.apollo.io/api/v1/people/match",
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=45),
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise ProviderError(f"Apollo API {response.status}: {str(data)[:500]}")
+        async with aiohttp.ClientSession(headers=headers) as session, session.post(
+            "https://api.apollo.io/api/v1/people/match",
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=45),
+        ) as response:
+            data = await response.json(content_type=None)
+            if response.status >= 400:
+                raise ProviderError(f"Apollo API {response.status}: {str(data)[:500]}")
         person = data.get("person") or {}
         if not person.get("email"):
             return None
@@ -374,20 +371,19 @@ class ProspeoEnricher:
     def __init__(self, api_key: str):
         self.api_key = api_key
 
-    async def enrich(self, lead: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def enrich(self, lead: dict[str, Any]) -> dict[str, Any] | None:
         if not self.api_key or not lead.get("profile_url"):
             return None
         headers = {"X-KEY": self.api_key, "Content-Type": "application/json"}
         payload = {"only_verified_email": True, "data": {"linkedin_url": lead["profile_url"]}}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(
-                "https://api.prospeo.io/enrich-person",
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=45),
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise ProviderError(f"Prospeo API {response.status}: {str(data)[:500]}")
+        async with aiohttp.ClientSession(headers=headers) as session, session.post(
+            "https://api.prospeo.io/enrich-person",
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=45),
+        ) as response:
+            data = await response.json(content_type=None)
+            if response.status >= 400:
+                raise ProviderError(f"Prospeo API {response.status}: {str(data)[:500]}")
         person = data.get("person") or {}
         email_record = person.get("email") or {}
         email = email_record.get("email", "") if isinstance(email_record, dict) else str(email_record or "")
@@ -412,20 +408,19 @@ class LeadMagicEnricher:
         self.api_key = api_key
         self.base_url = "https://api.leadmagic.io/v1/people"
 
-    async def _post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         headers = {"X-API-Key": self.api_key, "Content-Type": "application/json"}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(
-                f"{self.base_url}/{path}",
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=45),
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise ProviderError(f"LeadMagic API {response.status}: {str(data)[:500]}")
-                return data
+        async with aiohttp.ClientSession(headers=headers) as session, session.post(
+            f"{self.base_url}/{path}",
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=45),
+        ) as response:
+            data = await response.json(content_type=None)
+            if response.status >= 400:
+                raise ProviderError(f"LeadMagic API {response.status}: {str(data)[:500]}")
+            return data
 
-    async def enrich(self, lead: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def enrich(self, lead: dict[str, Any]) -> dict[str, Any] | None:
         profile_url = lead.get("profile_url", "")
         if not self.api_key or not profile_url:
             return None
@@ -439,7 +434,7 @@ class LeadMagicEnricher:
             "profile_url": data.get("profile_url", profile_url),
         }
 
-    async def find_mobile(self, lead: Dict[str, Any]) -> str:
+    async def find_mobile(self, lead: dict[str, Any]) -> str:
         if not self.api_key:
             return ""
         payload = {
@@ -460,18 +455,17 @@ class MillionVerifier:
     def __init__(self, api_key: str):
         self.api_key = api_key
 
-    async def verify(self, email: str) -> Dict[str, Any]:
+    async def verify(self, email: str) -> dict[str, Any]:
         if not self.api_key:
             return {"status": "unconfigured", "email": email}
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://api.millionverifier.com/api/v3/",
-                params={"api": self.api_key, "email": email, "timeout": 10},
-                timeout=aiohttp.ClientTimeout(total=20),
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise ProviderError(f"MillionVerifier API {response.status}: {str(data)[:500]}")
+        async with aiohttp.ClientSession() as session, session.get(
+            "https://api.millionverifier.com/api/v3/",
+            params={"api": self.api_key, "email": email, "timeout": 10},
+            timeout=aiohttp.ClientTimeout(total=20),
+        ) as response:
+            data = await response.json(content_type=None)
+            if response.status >= 400:
+                raise ProviderError(f"MillionVerifier API {response.status}: {str(data)[:500]}")
         return {"status": str(data.get("result", "unknown")).lower(), "email": email, "details": data}
 
 
@@ -482,7 +476,7 @@ class InstantlyClient:
         self.api_key = api_key
 
     @staticmethod
-    def build_payload(campaign_id: str, lead: Dict[str, Any]) -> Dict[str, Any]:
+    def build_payload(campaign_id: str, lead: dict[str, Any]) -> dict[str, Any]:
         name_parts = str(lead.get("name", "")).strip().split(maxsplit=1)
         first_name = lead.get("first_name") or (name_parts[0] if name_parts else "")
         last_name = lead.get("last_name") or (name_parts[1] if len(name_parts) > 1 else "")
@@ -502,18 +496,17 @@ class InstantlyClient:
             "skip_if_in_campaign": True,
         }
 
-    async def add_lead(self, campaign_id: str, lead: Dict[str, Any]) -> Dict[str, Any]:
+    async def add_lead(self, campaign_id: str, lead: dict[str, Any]) -> dict[str, Any]:
         if not self.api_key:
             raise ProviderError("Instantly API key is not configured")
         payload = self.build_payload(campaign_id, lead)
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(
-                "https://api.instantly.ai/api/v2/leads",
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise ProviderError(f"Instantly API {response.status}: {str(data)[:500]}")
-                return data
+        async with aiohttp.ClientSession(headers=headers) as session, session.post(
+            "https://api.instantly.ai/api/v2/leads",
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=30),
+        ) as response:
+            data = await response.json(content_type=None)
+            if response.status >= 400:
+                raise ProviderError(f"Instantly API {response.status}: {str(data)[:500]}")
+            return data

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import csv
-import json
 import io
+import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 
-def export_to_csv(leads: List[Dict[str, Any]]) -> str:
+def export_to_csv(leads: list[dict[str, Any]]) -> str:
     if not leads:
         return ""
 
@@ -45,7 +45,7 @@ def export_to_csv(leads: List[Dict[str, Any]]) -> str:
     return output.getvalue()
 
 
-def export_to_json(leads: List[Dict[str, Any]]) -> str:
+def export_to_json(leads: list[dict[str, Any]]) -> str:
     clean = []
     for lead in leads:
         clean.append({

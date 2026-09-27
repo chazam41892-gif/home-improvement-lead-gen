@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any, Dict
+from typing import Any
 
 
 class ContentEngine:
@@ -9,7 +9,7 @@ class ContentEngine:
         self.workflow = workflow
 
     async def ingest(self, source_type: str, source_text: str,
-                     metadata: Dict[str, Any] | None = None) -> Dict[str, Any]:
+                     metadata: dict[str, Any] | None = None) -> dict[str, Any]:
         asset = {
             "source_type": source_type,
             "source_text": source_text,
@@ -30,7 +30,7 @@ class ContentEngine:
                     draft_ids.append(self.store.create_content_draft(asset_id, draft))
         return {"asset_id": asset_id, "ideas": len(insights.get("ideas", [])), "drafts_created": len(draft_ids), "draft_ids": draft_ids}
 
-    def approve_draft(self, draft_id: int) -> Dict[str, Any]:
+    def approve_draft(self, draft_id: int) -> dict[str, Any]:
         current = self.store.get_content_draft(draft_id)
         if not current:
             raise ValueError("Content draft was not found")
@@ -42,13 +42,13 @@ class ContentEngine:
             raise ValueError("Content draft was not found")
         return draft
 
-    def reject_draft(self, draft_id: int) -> Dict[str, Any]:
+    def reject_draft(self, draft_id: int) -> dict[str, Any]:
         draft = self.store.update_content_draft(draft_id, status="rejected")
         if not draft:
             raise ValueError("Content draft was not found")
         return draft
 
-    async def learn(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
+    async def learn(self, metrics: dict[str, Any]) -> dict[str, Any]:
         draft_id = metrics.get("draft_id")
         if draft_id is not None:
             self.store.update_content_draft(int(draft_id), metrics=metrics)

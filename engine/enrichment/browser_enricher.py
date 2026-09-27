@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 import urllib.parse
-from typing import Optional, Dict, Any, List
-from urllib.parse import urlparse, parse_qs
+from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 
 from .base import EnrichmentProvider, EnrichmentResult
-from ..key_vault import KeyVault
 
 logger = logging.getLogger("BrowserEnricher")
 
@@ -38,7 +36,7 @@ class BrowserEnricher(EnrichmentProvider):
     input_required = []
     priority = 3
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.playwright_available = False
         try:
@@ -51,12 +49,12 @@ class BrowserEnricher(EnrichmentProvider):
         # Key-less scraper is always available!
         return True
 
-    async def _resolve_website_ddg(self, name: str, location: Optional[str]) -> Optional[str]:
+    async def _resolve_website_ddg(self, name: str, location: str | None) -> str | None:
         """Query DDG to find the primary business website if website URL is missing."""
         query = f"{name} {location or ''}".strip()
         url = "https://html.duckduckgo.com/html/"
         params = {"q": query}
-        
+
         try:
             html = await self._fetch_url(url, params=params)
             if not html:
@@ -83,11 +81,11 @@ class BrowserEnricher(EnrichmentProvider):
 
                 parsed_href = urlparse(href)
                 domain = parsed_href.netloc.lower()
-                
+
                 # Skip common business directories/aggregators
                 if any(skip in domain for skip in ("yelp.com", "yellowpages.com", "bbb.org", "angi.com", "homeadvisor.com", "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "duckduckgo.com")):
                     continue
-                    
+
                 if domain:
                     return href
         except Exception as e:
@@ -95,22 +93,22 @@ class BrowserEnricher(EnrichmentProvider):
         return None
 
     async def enrich(self, business_name: str, trade: str,
-                      location: Optional[str] = None,
-                      website: Optional[str] = None,
+                      location: str | None = None,
+                      website: str | None = None,
                       **kwargs) -> EnrichmentResult:
         result = EnrichmentResult(business_name=business_name, trade=trade)
-        
+
         target_url = website
         if not target_url:
             logger.debug("Website missing for enrichment. Resolving website for: %s", business_name)
             target_url = await self._resolve_website_ddg(business_name, location)
-            
+
         if not target_url:
             result.error = "Could not resolve business website for crawling"
             return result
 
         result.website = target_url
-        
+
         # Crawl the home page
         home_html = await self._fetch_url(target_url)
         if not home_html:
@@ -146,12 +144,12 @@ class BrowserEnricher(EnrichmentProvider):
         fields_filled = sum(1 for f in ("contact_name", "phone", "email", "address", "website") if getattr(result, f))
         result.confidence = min(1.0, 0.3 + 0.15 * fields_filled)
         result.sources.append("browser_enricher")
-        
+
         return result
 
     def _populate_from_soup(self, soup: BeautifulSoup, result: EnrichmentResult, url: str):
         text = soup.get_text(" ", strip=True)
-        
+
         emails = list(set(EMAIL_RE.findall(text)))
         phones = list(set(PHONE_RE.findall(text)))
 
@@ -214,7 +212,7 @@ class BrowserEnricher(EnrichmentProvider):
             if paragraphs:
                 result.raw_data["about_snippet"] = " ".join(paragraphs[:2])[:400]
 
-    async def _fetch_url(self, url: str, params: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    async def _fetch_url(self, url: str, params: dict[str, Any] | None = None) -> str | None:
         if params:
             url = f"{url}?{urllib.parse.urlencode(params)}"
 

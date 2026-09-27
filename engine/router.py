@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 logger = logging.getLogger("SmartRouter")
 
 
-DEFAULT_ROUTING_CONFIG: Dict[str, Any] = {
+DEFAULT_ROUTING_CONFIG: dict[str, Any] = {
     "steps": [
         {
             "name": "dedup",
@@ -68,11 +68,11 @@ class RoutingStep:
     label: str
     description: str
     enabled: bool
-    config: Dict[str, Any]
-    keys_required: List[str] = field(default_factory=list)
-    results: Dict[str, Any] = field(default_factory=dict)
+    config: dict[str, Any]
+    keys_required: list[str] = field(default_factory=list)
+    results: dict[str, Any] = field(default_factory=dict)
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "label": self.label,
@@ -84,16 +84,16 @@ class RoutingStep:
 
 
 class SmartRouter:
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        self._steps: Dict[str, RoutingStep] = {}
-        self._env: Dict[str, str] = {}
-        self._routing_history: List[Dict[str, Any]] = []
+    def __init__(self, config: dict[str, Any] | None = None):
+        self._steps: dict[str, RoutingStep] = {}
+        self._env: dict[str, str] = {}
+        self._routing_history: list[dict[str, Any]] = []
         self._enrich_fn = None
         self._llm_score_fn = None
         self._notify_fn = None
         self.load_config(config or DEFAULT_ROUTING_CONFIG)
 
-    def load_config(self, config: Dict[str, Any]):
+    def load_config(self, config: dict[str, Any]):
         self._steps.clear()
         for step_data in config.get("steps", []):
             step = RoutingStep(
@@ -106,12 +106,12 @@ class SmartRouter:
             )
             self._steps[step.name] = step
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         return {
             "steps": [s.as_dict() for s in self._steps.values()],
         }
 
-    def update_step(self, name: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_step(self, name: str, updates: dict[str, Any]) -> dict[str, Any] | None:
         step = self._steps.get(name)
         if not step:
             return None
@@ -121,7 +121,7 @@ class SmartRouter:
             step.config.update(updates["config"])
         return step.as_dict()
 
-    def set_env(self, env: Dict[str, str]):
+    def set_env(self, env: dict[str, str]):
         self._env = env
 
     def register_enrichment_fn(self, fn):
@@ -133,7 +133,7 @@ class SmartRouter:
     def register_crm_push_fn(self, fn):
         self._crm_push_fn = fn
 
-    def _check_keys(self, step: RoutingStep) -> List[str]:
+    def _check_keys(self, step: RoutingStep) -> list[str]:
         if step.name == "llm_score":
             provider = step.config.get("provider", "anthropic")
             if provider == "cometapi":
@@ -151,10 +151,10 @@ class SmartRouter:
                 missing.append(key)
         return missing
 
-    async def route_leads(self, leads: List[Dict[str, Any]],
-                          search_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def route_leads(self, leads: list[dict[str, Any]],
+                          search_config: dict[str, Any] | None = None) -> dict[str, Any]:
         t0 = time.time()
-        pipeline_log: Dict[str, Any] = {
+        pipeline_log: dict[str, Any] = {
             "input_count": len(leads),
             "steps_run": [],
             "steps_skipped": [],
@@ -206,8 +206,8 @@ class SmartRouter:
             "pipeline": pipeline_log,
         }
 
-    def _run_dedup(self, leads: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        seen: Set[str] = set()
+    def _run_dedup(self, leads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        seen: set[str] = set()
         deduped = []
         for lead in leads:
             url = (lead.get("url") or "").rstrip("/")
@@ -219,13 +219,13 @@ class SmartRouter:
             deduped.append(lead)
         return deduped
 
-    async def _run_score(self, leads: List[Dict[str, Any]], step: RoutingStep,
-                         search_config: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    async def _run_score(self, leads: list[dict[str, Any]], step: RoutingStep,
+                         search_config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         min_score = step.config.get("min_score", 0)
         filtered = [l for l in leads if (l.get("score") or 0) >= min_score]
         return filtered
 
-    async def _run_enrich(self, leads: List[Dict[str, Any]], step: RoutingStep) -> List[Dict[str, Any]]:
+    async def _run_enrich(self, leads: list[dict[str, Any]], step: RoutingStep) -> list[dict[str, Any]]:
         if not self._enrich_fn:
             logger.warning("Enrich step enabled but no enrichment function registered")
             return leads
@@ -245,7 +245,7 @@ class SmartRouter:
                 enriched.append(lead)
         return enriched
 
-    async def _run_llm_score(self, leads: List[Dict[str, Any]], step: RoutingStep) -> List[Dict[str, Any]]:
+    async def _run_llm_score(self, leads: list[dict[str, Any]], step: RoutingStep) -> list[dict[str, Any]]:
         if not self._llm_score_fn:
             logger.warning("LLM scoring enabled but no llm_score function registered")
             return leads
@@ -271,7 +271,7 @@ class SmartRouter:
 
         return leads
 
-    async def _run_crm_push(self, leads: List[Dict[str, Any]], step: RoutingStep) -> List[Dict[str, Any]]:
+    async def _run_crm_push(self, leads: list[dict[str, Any]], step: RoutingStep) -> list[dict[str, Any]]:
         min_score = step.config.get("min_score", 70)
         max_per = step.config.get("max_per_batch", 25)
         provider = step.config.get("provider", "hubspot")
@@ -291,10 +291,10 @@ class SmartRouter:
 
         return leads
 
-    def get_routing_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_routing_history(self, limit: int = 20) -> list[dict[str, Any]]:
         return self._routing_history[-limit:]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         total_input = sum(h.get("input_count", 0) for h in self._routing_history)
         total_output = sum(h.get("output_count", 0) for h in self._routing_history)
         total_errors = sum(len(h.get("errors", [])) for h in self._routing_history)

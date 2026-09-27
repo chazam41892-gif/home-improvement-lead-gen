@@ -6,9 +6,9 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .base import SearchProvider, SearchResult, SearchHit
+from .base import SearchHit, SearchProvider, SearchResult
 
 PERPLEXITY_BASE = "https://api.perplexity.ai"
 
@@ -16,7 +16,7 @@ PERPLEXITY_BASE = "https://api.perplexity.ai"
 class PerplexitySearchProvider(SearchProvider):
     name = "perplexity"
 
-    def __init__(self, *, api_key: Optional[str] = None, timeout: float = 30.0,
+    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0,
                  base_url: str = PERPLEXITY_BASE):
         super().__init__(
             api_key=api_key or os.environ.get("PERPLEXITY_API_KEY"),
@@ -24,7 +24,7 @@ class PerplexitySearchProvider(SearchProvider):
         )
         self.base_url = base_url.rstrip("/")
 
-    def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(url, data=data, method="POST", headers={
@@ -52,7 +52,7 @@ class PerplexitySearchProvider(SearchProvider):
                                 elapsed_sec=time.time() - t0,
                                 error="PERPLEXITY_API_KEY not set. Add your key in Settings.")
 
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "model": "sonar-pro",
             "messages": [{"role": "user", "content": query}],
             "max_tokens": 1024,
@@ -66,7 +66,7 @@ class PerplexitySearchProvider(SearchProvider):
 
         choices = resp.get("choices", [])
         citations = resp.get("citations", [])
-        hits: List[SearchHit] = []
+        hits: list[SearchHit] = []
 
         from urllib.parse import urlparse
         for url in citations[:num_results]:

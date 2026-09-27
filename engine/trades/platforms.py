@@ -1,7 +1,4 @@
-import asyncio
-import json
 import logging
-import os
 from typing import Optional
 
 from .base import TradeLead
@@ -283,8 +280,9 @@ async def search_linkedin(trade: str, location: str, max_results: int = 25) -> l
 
 
 async def search_apollo(trade: str, location: str, max_results: int = 25) -> list[TradeLead]:
-    from ..key_vault import KeyVault
     import httpx
+
+    from ..key_vault import KeyVault
 
     api_key = KeyVault.get("apollo")
     if not api_key:

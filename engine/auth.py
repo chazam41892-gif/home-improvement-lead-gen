@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import logging
 import os
 import secrets
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from datetime import UTC, datetime
+from typing import Any
 
 import bcrypt
 import jwt as pyjwt
@@ -108,7 +107,7 @@ class AuthManager:
                 pass
             conn.commit()
 
-    def register(self, email: str, password: str, name: str, org_name: str) -> Dict[str, Any]:
+    def register(self, email: str, password: str, name: str, org_name: str) -> dict[str, Any]:
         email = email.strip().lower()
         with Database.get_connection() as conn:
             existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
@@ -128,7 +127,7 @@ class AuthManager:
                     break
                 suffix += 1
                 slug = f"{base_slug}-{suffix}"[:50]
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             conn.execute(
                 "INSERT INTO orgs (id, name, slug, created_at) VALUES (?, ?, ?, ?)",
                 (org_id, org_name, slug, now),
@@ -207,7 +206,7 @@ class AuthManager:
                 (vid, org_id, name, slug, json.dumps(config), now),
             )
 
-    def login(self, email: str, password: str) -> Dict[str, Any]:
+    def login(self, email: str, password: str) -> dict[str, Any]:
         email = email.strip().lower()
         with Database.get_connection() as conn:
             row = conn.execute("SELECT id, email, password_hash, name, org_id, role FROM users WHERE email = ?", (email,)).fetchone()
@@ -235,14 +234,14 @@ class AuthManager:
         }
         return pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-    def verify_jwt(self, token: str) -> Optional[Dict[str, Any]]:
+    def verify_jwt(self, token: str) -> dict[str, Any] | None:
         try:
             return pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         except (pyjwt.ExpiredSignatureError, pyjwt.InvalidTokenError) as e:
             logger.debug("JWT verification failed: %s", e)
             return None
 
-    def verify_api_key(self, key: str) -> Optional[Dict[str, Any]]:
+    def verify_api_key(self, key: str) -> dict[str, Any] | None:
         key_hash = _hash_api_key(key)
         with Database.get_connection() as conn:
             row = conn.execute("""
@@ -254,26 +253,26 @@ class AuthManager:
             """, (key_hash,)).fetchone()
             if row:
                 conn.execute("UPDATE api_keys SET last_used = ? WHERE key_hash = ?",
-                             (datetime.now(timezone.utc).isoformat(), key_hash))
+                             (datetime.now(UTC).isoformat(), key_hash))
                 conn.commit()
                 return {"user_id": row["user_id"], "org_id": row["org_id"], "role": row["role"], "plan": row["plan"]}
             return None
 
-    def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get_user(self, user_id: str) -> dict[str, Any] | None:
         with Database.get_connection() as conn:
             row = conn.execute("SELECT id, email, name, org_id, role, created_at FROM users WHERE id = ?", (user_id,)).fetchone()
             if row:
                 return dict(row)
             return None
 
-    def get_org(self, org_id: str) -> Optional[Dict[str, Any]]:
+    def get_org(self, org_id: str) -> dict[str, Any] | None:
         with Database.get_connection() as conn:
             row = conn.execute("SELECT * FROM orgs WHERE id = ?", (org_id,)).fetchone()
             if row:
                 return dict(row)
             return None
 
-    def list_api_keys(self, user_id: str) -> List[Dict[str, Any]]:
+    def list_api_keys(self, user_id: str) -> list[dict[str, Any]]:
         with Database.get_connection() as conn:
             rows = conn.execute("SELECT id, name, created_at, last_used FROM api_keys WHERE user_id = ?", (user_id,)).fetchall()
             return [dict(r) for r in rows]
@@ -282,7 +281,7 @@ class AuthManager:
         api_key = _generate_api_key()
         key_hash = _hash_api_key(api_key)
         key_id = uuid.uuid4().hex[:16]
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with Database.get_connection() as conn:
             conn.execute(
                 "INSERT INTO api_keys (id, user_id, org_id, key_hash, name, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -297,7 +296,7 @@ class AuthManager:
             conn.commit()
             return cursor.rowcount > 0
 
-    def get_org_verticals(self, org_id: str) -> List[Dict[str, Any]]:
+    def get_org_verticals(self, org_id: str) -> list[dict[str, Any]]:
         with Database.get_connection() as conn:
             rows = conn.execute("SELECT id, name, slug, config, enabled FROM org_verticals WHERE org_id = ? ORDER BY name", (org_id,)).fetchall()
             result = []
@@ -310,9 +309,9 @@ class AuthManager:
                 result.append(d)
             return result
 
-    def add_vertical(self, org_id: str, name: str, slug: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    def add_vertical(self, org_id: str, name: str, slug: str, config: dict[str, Any]) -> dict[str, Any]:
         vid = uuid.uuid4().hex[:16]
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with Database.get_connection() as conn:
             conn.execute(
                 "INSERT INTO org_verticals (id, org_id, name, slug, config, enabled, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)",
@@ -321,7 +320,7 @@ class AuthManager:
             conn.commit()
         return {"id": vid, "name": name, "slug": slug, "config": config, "enabled": True}
 
-    def update_vertical(self, vertical_id: str, org_id: str, data: Dict[str, Any]) -> bool:
+    def update_vertical(self, vertical_id: str, org_id: str, data: dict[str, Any]) -> bool:
         allowed_columns = {"name": "name", "slug": "slug", "enabled": "enabled", "config": "config"}
         set_clauses = []
         values = []
@@ -348,7 +347,7 @@ class AuthManager:
             conn.commit()
             return cursor.rowcount > 0
 
-    def get_user_by_google_id(self, google_id: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_google_id(self, google_id: str) -> dict[str, Any] | None:
         with Database.get_connection() as conn:
             row = conn.execute(
                 "SELECT id, email, name, org_id, role, google_id, created_at FROM users WHERE google_id = ?",
@@ -358,7 +357,7 @@ class AuthManager:
                 return dict(row)
             return None
 
-    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_email(self, email: str) -> dict[str, Any] | None:
         email = email.strip().lower()
         with Database.get_connection() as conn:
             row = conn.execute(
@@ -374,7 +373,7 @@ class AuthManager:
             conn.execute("UPDATE users SET google_id = ? WHERE id = ?", (google_id, user_id))
             conn.commit()
 
-    def register_google_user(self, email: str, name: str, google_id: str) -> Dict[str, Any]:
+    def register_google_user(self, email: str, name: str, google_id: str) -> dict[str, Any]:
         email = email.strip().lower()
         with Database.get_connection() as conn:
             existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
@@ -394,7 +393,7 @@ class AuthManager:
                     break
                 suffix += 1
                 slug = f"{base_slug}-{suffix}"[:50]
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             conn.execute(
                 "INSERT INTO orgs (id, name, slug, created_at) VALUES (?, ?, ?, ?)",
                 (org_id, org_name, slug, now),
@@ -428,7 +427,7 @@ class AuthManager:
                 "token": token,
             }
 
-    def get_user_by_api_key(self, api_key: str) -> Optional[Dict[str, Any]]:
+    def get_user_by_api_key(self, api_key: str) -> dict[str, Any] | None:
         info = self.verify_api_key(api_key)
         if info:
             return self.get_user(info["user_id"])

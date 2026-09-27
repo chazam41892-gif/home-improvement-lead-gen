@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from .trades import TRADE_REGISTRY, get_trade_config
 from .base import TradeLead
 from .platforms import PLATFORM_SEARCHERS, set_exa_provider
 from .scoring import score_trade_leads
+from .trades import TRADE_REGISTRY, get_trade_config
 
 if TYPE_CHECKING:
     from ..search.exa import ExaSearchProvider
@@ -24,7 +24,7 @@ class TradeLeadDiscovery:
         self,
         trade: str,
         location: str,
-        platforms: Optional[list[str]] = None,
+        platforms: list[str] | None = None,
         max_per_platform: int = 15,
     ) -> list[TradeLead]:
         config = get_trade_config(trade)
@@ -68,7 +68,7 @@ class TradeLeadDiscovery:
 
     async def discover_all(
         self,
-        trades: Optional[list[str]] = None,
+        trades: list[str] | None = None,
         location: str = "",
         max_per_trade: int = 20,
     ) -> dict[str, list[TradeLead]]:

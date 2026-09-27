@@ -5,7 +5,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger("SourceMerger")
@@ -16,7 +16,7 @@ class MergedResult:
     source_count: int = 0
     dedup_removed: int = 0
     total_before_dedup: int = 0
-    sources_used: List[str] = field(default_factory=list)
+    sources_used: list[str] = field(default_factory=list)
     elapsed_sec: float = 0.0
 
 
@@ -45,16 +45,16 @@ def _title_similarity(a: str, b: str) -> float:
 MERGE_SIMILARITY_THRESHOLD = 0.78
 
 
-def merge_leads(results: List[Dict[str, Any]],
-                sources: List[str],
-                merge_threshold: float = MERGE_SIMILARITY_THRESHOLD) -> Dict[str, Any]:
+def merge_leads(results: list[dict[str, Any]],
+                sources: list[str],
+                merge_threshold: float = MERGE_SIMILARITY_THRESHOLD) -> dict[str, Any]:
     t0 = time.time()
-    merged: List[Dict[str, Any]] = []
-    seen_domains: Set[str] = set()
-    seen_titles: List[str] = []
+    merged: list[dict[str, Any]] = []
+    seen_domains: set[str] = set()
+    seen_titles: list[str] = []
     dedup_count = 0
 
-    all_leads: List[Tuple[str, Dict[str, Any]]] = []
+    all_leads: list[tuple[str, dict[str, Any]]] = []
     for lead in results:
         src = lead.get("source", "unknown")
         all_leads.append((src, lead))

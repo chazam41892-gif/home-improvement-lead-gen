@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 _CLOSE_RATE_ESTIMATE = 4.0
 _APPROX_CVR = 0.1
 

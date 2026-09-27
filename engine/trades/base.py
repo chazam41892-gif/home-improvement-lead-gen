@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
 class TradeLead:
@@ -15,7 +15,7 @@ class TradeLead:
         trade: str = "",
         rating: float = 0.0,
         review_count: int = 0,
-        platforms_found: Optional[list[str]] = None,
+        platforms_found: list[str] | None = None,
         notes: str = "",
     ):
         self.id = uuid.uuid4().hex[:12]

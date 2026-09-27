@@ -1,5 +1,5 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 
@@ -21,7 +21,7 @@ class Engagement:
     actor_urn: str = ""
     profile_url: str = ""
     action: str = ""
-    actions: List[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
     name: str = ""
     headline: str = ""
     comment_text: str = ""
@@ -44,14 +44,14 @@ class ViralScore:
     is_viral: bool
 
 
-def score_post(reactions: int, comments: int, reposts: int, age_hours: Optional[float]) -> ViralScore:
+def score_post(reactions: int, comments: int, reposts: int, age_hours: float | None) -> ViralScore:
     weighted = max(reactions, 0) + max(comments, 0) * 3 + max(reposts, 0) * 4
     velocity = round(weighted / max(float(age_hours), 1.0), 2) if age_hours is not None else 0.0
     return ViralScore(weighted, velocity, weighted >= 150 or velocity >= 50.0)
 
 
-def deduplicate_engagements(engagements: Iterable[Engagement]) -> List[Engagement]:
-    indexed: Dict[str, Engagement] = {}
+def deduplicate_engagements(engagements: Iterable[Engagement]) -> list[Engagement]:
+    indexed: dict[str, Engagement] = {}
     for engagement in engagements:
         key = engagement.identity_key
         if not key:

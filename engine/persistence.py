@@ -26,7 +26,7 @@ def save_leads(leads: dict) -> int:
                             status, first_name, last_name, address, project_description,
                             utm_source, utm_medium, utm_campaign,
                             sms_consent, email_consent, call_consent, consent_source
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         lid,
                         d.get("title", ""),

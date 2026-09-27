@@ -2,13 +2,13 @@ import json
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def _now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class AcquisitionStore:
@@ -93,7 +93,7 @@ class AcquisitionStore:
                 """
             )
 
-    def get_idempotent(self, tenant_id: str, operation: str, key: str) -> Optional[Dict[str, Any]]:
+    def get_idempotent(self, tenant_id: str, operation: str, key: str) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT response_json FROM idempotency_records WHERE tenant_id=? AND operation=? AND idempotency_key=?",
@@ -101,14 +101,14 @@ class AcquisitionStore:
             ).fetchone()
             return json.loads(row["response_json"]) if row else None
 
-    def record_idempotent(self, tenant_id: str, operation: str, key: str, response: Dict[str, Any]):
+    def record_idempotent(self, tenant_id: str, operation: str, key: str, response: dict[str, Any]):
         with self._connect() as connection:
             connection.execute(
                 "INSERT INTO idempotency_records VALUES (?, ?, ?, ?, ?)",
                 (tenant_id, operation, key, json.dumps(response, separators=(",", ":")), _now()),
             )
 
-    def create_workspace(self, tenant_id: str, name: str, settings: Dict[str, Any]) -> Dict[str, Any]:
+    def create_workspace(self, tenant_id: str, name: str, settings: dict[str, Any]) -> dict[str, Any]:
         workspace = {
             "id": uuid.uuid4().hex,
             "tenant_id": tenant_id,
@@ -123,7 +123,7 @@ class AcquisitionStore:
             )
         return workspace
 
-    def get_workspace(self, tenant_id: str, workspace_id: str) -> Optional[Dict[str, Any]]:
+    def get_workspace(self, tenant_id: str, workspace_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT * FROM acquisition_workspaces WHERE tenant_id=? AND id=?", (tenant_id, workspace_id)
@@ -134,7 +134,7 @@ class AcquisitionStore:
             item["settings"] = json.loads(item.pop("settings_json"))
             return item
 
-    def add_prospect(self, tenant_id: str, workspace_id: str, prospect: Dict[str, Any]) -> bool:
+    def add_prospect(self, tenant_id: str, workspace_id: str, prospect: dict[str, Any]) -> bool:
         now = _now()
         with self._connect() as connection:
             cursor = connection.execute(
@@ -150,7 +150,7 @@ class AcquisitionStore:
             )
             return cursor.rowcount == 1
 
-    def list_prospects(self, tenant_id: str, workspace_id: str) -> List[Dict[str, Any]]:
+    def list_prospects(self, tenant_id: str, workspace_id: str) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM prospects WHERE tenant_id=? AND workspace_id=? ORDER BY created_at, id",
@@ -163,7 +163,7 @@ class AcquisitionStore:
                 result.append(item)
             return result
 
-    def suppress(self, tenant_id: str, workspace_id: str, channel: str, recipient: str, reason: str) -> Dict[str, Any]:
+    def suppress(self, tenant_id: str, workspace_id: str, channel: str, recipient: str, reason: str) -> dict[str, Any]:
         record = {"id": uuid.uuid4().hex, "channel": channel, "recipient": recipient, "reason": reason, "created_at": _now()}
         with self._connect() as connection:
             connection.execute(
@@ -183,7 +183,7 @@ class AcquisitionStore:
             ).fetchone()
             return row is not None
 
-    def list_suppressions(self, tenant_id: str, workspace_id: str) -> List[Dict[str, Any]]:
+    def list_suppressions(self, tenant_id: str, workspace_id: str) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
                 """SELECT id, channel, normalized_recipient AS recipient, reason, created_at
@@ -192,14 +192,14 @@ class AcquisitionStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def audit(self, tenant_id: str, workspace_id: str, event_type: str, payload: Dict[str, Any]):
+    def audit(self, tenant_id: str, workspace_id: str, event_type: str, payload: dict[str, Any]):
         with self._connect() as connection:
             connection.execute(
                 "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?, ?)",
                 (uuid.uuid4().hex, tenant_id, workspace_id, event_type, json.dumps(payload, separators=(",", ":")), _now()),
             )
 
-    def list_audit(self, tenant_id: str, workspace_id: str) -> List[Dict[str, Any]]:
+    def list_audit(self, tenant_id: str, workspace_id: str) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM audit_events WHERE tenant_id=? AND workspace_id=? ORDER BY created_at, id",

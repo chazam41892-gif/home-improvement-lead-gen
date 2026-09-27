@@ -1,11 +1,11 @@
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class WorkspaceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    settings: Dict[str, Any] = Field(default_factory=dict)
+    settings: dict[str, Any] = Field(default_factory=dict)
 
 
 class ProspectInput(BaseModel):
@@ -15,7 +15,7 @@ class ProspectInput(BaseModel):
     profile_url: str = Field(min_length=1, max_length=2000)
     source_type: Literal["user_upload", "authorized_connector"]
     source_timestamp: str = Field(min_length=1, max_length=100)
-    provenance: Dict[str, Any]
+    provenance: dict[str, Any]
     verification_status: Literal["unverified", "pending", "verified", "stale"]
     lawful_or_authorized_basis: str = Field(min_length=1, max_length=500)
 
@@ -28,7 +28,7 @@ class ProspectInput(BaseModel):
 
 
 class ProspectImport(BaseModel):
-    prospects: List[ProspectInput] = Field(min_length=1, max_length=1000)
+    prospects: list[ProspectInput] = Field(min_length=1, max_length=1000)
 
 
 class SuppressionCreate(BaseModel):

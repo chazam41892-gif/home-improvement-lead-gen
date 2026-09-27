@@ -3,7 +3,7 @@ import sqlite3
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class SignalStore:
@@ -164,7 +164,7 @@ class SignalStore:
             row = connection.execute("SELECT id FROM source_accounts WHERE linkedin_urn = ?", (linkedin_urn,)).fetchone()
             return int(row["id"])
 
-    def list_sources(self) -> List[Dict[str, Any]]:
+    def list_sources(self) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute("SELECT * FROM source_accounts ORDER BY id").fetchall()
             return [dict(row) for row in rows]
@@ -173,8 +173,8 @@ class SignalStore:
         with self._connect() as connection:
             connection.execute("UPDATE source_accounts SET last_scanned_at = ? WHERE id = ?", (time.time(), source_id))
 
-    def upsert_post(self, post_urn: str, source_id: Optional[int], post_url: str, text: str,
-                    weighted_engagement: int, velocity: float, raw: Optional[Dict[str, Any]] = None):
+    def upsert_post(self, post_urn: str, source_id: int | None, post_url: str, text: str,
+                    weighted_engagement: int, velocity: float, raw: dict[str, Any] | None = None):
         with self._connect() as connection:
             connection.execute(
                 """INSERT INTO posts(post_urn, source_id, post_url, text, weighted_engagement, velocity, raw_json, discovered_at)
@@ -226,12 +226,12 @@ class SignalStore:
         with self._connect() as connection:
             connection.execute(f"UPDATE signal_leads SET {clause} WHERE id = ?", values)
 
-    def get_lead(self, lead_id: int) -> Optional[Dict[str, Any]]:
+    def get_lead(self, lead_id: int) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute("SELECT * FROM signal_leads WHERE id = ?", (lead_id,)).fetchone()
             return dict(row) if row else None
 
-    def list_leads(self, limit: int = 500) -> List[Dict[str, Any]]:
+    def list_leads(self, limit: int = 500) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM signal_leads ORDER BY updated_at DESC LIMIT ?", (max(1, min(limit, 5000)),)
@@ -256,7 +256,7 @@ class SignalStore:
             row = connection.execute("SELECT 1 FROM suppressions WHERE email = ?", (normalized,)).fetchone()
             return row is not None
 
-    def record_run(self, source: str, status: str, stats: Dict[str, Any], error: str = "") -> int:
+    def record_run(self, source: str, status: str, stats: dict[str, Any], error: str = "") -> int:
         with self._connect() as connection:
             cursor = connection.execute(
                 "INSERT INTO runs(source, status, stats_json, error, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -298,7 +298,7 @@ class SignalStore:
             return cursor.rowcount == 1
 
     def record_event(self, provider: str, provider_event_id: str, event_type: str,
-                     email: str, payload: Dict[str, Any]) -> bool:
+                     email: str, payload: dict[str, Any]) -> bool:
         with self._connect() as connection:
             cursor = connection.execute(
                 """INSERT OR IGNORE INTO provider_events(
@@ -316,7 +316,7 @@ class SignalStore:
             return cursor.rowcount == 1
 
     def create_content_asset(self, source_type: str, source_text: str,
-                             metadata: Dict[str, Any], insights: Dict[str, Any]) -> int:
+                             metadata: dict[str, Any], insights: dict[str, Any]) -> int:
         with self._connect() as connection:
             cursor = connection.execute(
                 """INSERT INTO content_assets(source_type, source_text, metadata_json, insights_json, created_at)
@@ -331,7 +331,7 @@ class SignalStore:
             )
             return int(cursor.lastrowid)
 
-    def create_content_draft(self, asset_id: int, draft: Dict[str, Any]) -> int:
+    def create_content_draft(self, asset_id: int, draft: dict[str, Any]) -> int:
         now = time.time()
         with self._connect() as connection:
             cursor = connection.execute(
@@ -351,7 +351,7 @@ class SignalStore:
             )
             return int(cursor.lastrowid)
 
-    def list_content_drafts(self, limit: int = 200) -> List[Dict[str, Any]]:
+    def list_content_drafts(self, limit: int = 200) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM content_drafts ORDER BY updated_at DESC LIMIT ?",
@@ -359,9 +359,9 @@ class SignalStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def update_content_draft(self, draft_id: int, status: Optional[str] = None,
-                             metrics: Optional[Dict[str, Any]] = None,
-                             published_post_urn: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def update_content_draft(self, draft_id: int, status: str | None = None,
+                             metrics: dict[str, Any] | None = None,
+                             published_post_urn: str | None = None) -> dict[str, Any] | None:
         fields = []
         values = []
         if status is not None:
@@ -383,17 +383,17 @@ class SignalStore:
             row = connection.execute("SELECT * FROM content_drafts WHERE id = ?", (draft_id,)).fetchone()
             return dict(row) if row else None
 
-    def get_content_draft(self, draft_id: int) -> Optional[Dict[str, Any]]:
+    def get_content_draft(self, draft_id: int) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute("SELECT * FROM content_drafts WHERE id = ?", (draft_id,)).fetchone()
             return dict(row) if row else None
 
-    def latest_run(self) -> Optional[Dict[str, Any]]:
+    def latest_run(self) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone()
             return dict(row) if row else None
 
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> dict[str, int]:
         with self._connect() as connection:
             return {
                 "sources": connection.execute("SELECT COUNT(*) FROM source_accounts").fetchone()[0],

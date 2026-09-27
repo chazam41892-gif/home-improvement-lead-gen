@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from dataclasses import dataclass
+from typing import Any
 
-from .base import EnrichmentProvider, EnrichmentResult
 from .apollo_enricher import ApolloEnricher
+from .base import EnrichmentProvider, EnrichmentResult
+from .browser_enricher import BrowserEnricher
 from .exa_enricher import ExaEnricher
 from .llm_enricher import LLMEnricher
-from .browser_enricher import BrowserEnricher
-from ..key_vault import KeyVault
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +28,8 @@ class EnrichmentRouter:
         self.min_confidence = min_confidence
         self.fallthrough = fallthrough
 
-    def rank_providers(self, providers: List[EnrichmentProvider],
-                       input_fields: set) -> List[ProviderRoute]:
+    def rank_providers(self, providers: list[EnrichmentProvider],
+                       input_fields: set) -> list[ProviderRoute]:
         scored = []
         for p in providers:
             score = p.suitability_score(input_fields)
@@ -40,22 +39,19 @@ class EnrichmentRouter:
         scored.sort(key=lambda r: r.suitability, reverse=True)
         return scored
 
-    def routing_plan(self, providers: List[EnrichmentProvider],
-                     input_fields: set) -> List[ProviderRoute]:
+    def routing_plan(self, providers: list[EnrichmentProvider],
+                     input_fields: set) -> list[ProviderRoute]:
         ranked = self.rank_providers(providers, input_fields)
         selected = False
         for route in ranked:
             if route.suitability <= 0:
                 continue
-            if route.suitability >= 0.3:
-                route.selected = True
-                selected = True
-            elif not selected:
+            if route.suitability >= 0.3 or not selected:
                 route.selected = True
                 selected = True
         return ranked
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "strategy": "suitability",
             "min_confidence": self.min_confidence,
@@ -68,7 +64,7 @@ class EnrichOrchestrator:
         self.providers = []
         self.routing_mode = routing_mode
         self.router = EnrichmentRouter()
-        self._provider_enabled: Dict[str, bool] = {}
+        self._provider_enabled: dict[str, bool] = {}
         self._init_providers()
 
     def _init_providers(self):
@@ -85,7 +81,12 @@ class EnrichOrchestrator:
             if instance.is_available():
                 self.providers.append(instance)
 
-    def list_providers(self) -> List[Dict[str, Any]]:
+    def list_providers(self) -> list[dict[str, Any]]:
+        # Must reflect the same four providers _init_providers() builds from, in
+        # the same order, or /api/enrich/providers contradicts the pipeline that
+        # actually runs. Keep the hardcoded class list (so a disabled provider is
+        # still reported, just with enabled=False) but read the metadata from the
+        # real classes rather than from arbitrary fresh instances of the same name.
         return [
             {
                 "name": p.name,
@@ -106,7 +107,7 @@ class EnrichOrchestrator:
         self._init_providers()
         return True
 
-    def get_routing_info(self) -> Dict[str, Any]:
+    def get_routing_info(self) -> dict[str, Any]:
         input_fields = set()
         for p in self.providers:
             input_fields.update(p.input_preferences)
@@ -119,9 +120,9 @@ class EnrichOrchestrator:
         }
 
     async def enrich(self, business_name: str, trade: str,
-                     location: Optional[str] = None,
-                     website: Optional[str] = None,
-                     phone: Optional[str] = None,
+                     location: str | None = None,
+                     website: str | None = None,
+                     phone: str | None = None,
                      **kwargs) -> EnrichmentResult:
         if not self.providers:
             logger.warning("No enrichment providers available")
@@ -143,9 +144,9 @@ class EnrichOrchestrator:
         )
 
     async def _enrich_parallel(self, business_name: str, trade: str,
-                               location: Optional[str] = None,
-                               website: Optional[str] = None,
-                               phone: Optional[str] = None,
+                               location: str | None = None,
+                               website: str | None = None,
+                               phone: str | None = None,
                                **kwargs) -> EnrichmentResult:
         results = await asyncio.gather(
             *(p.enrich(business_name=business_name, trade=trade, location=location, website=website, phone=phone, **kwargs)
@@ -163,9 +164,9 @@ class EnrichOrchestrator:
         return merged
 
     async def _enrich_smart(self, business_name: str, trade: str,
-                            location: Optional[str] = None,
-                            website: Optional[str] = None,
-                            phone: Optional[str] = None,
+                            location: str | None = None,
+                            website: str | None = None,
+                            phone: str | None = None,
                             **kwargs) -> EnrichmentResult:
         input_fields = {k for k, v in locals().items() if k != "self" and v is not None}
         if "kwargs" in input_fields:
@@ -219,8 +220,7 @@ class EnrichOrchestrator:
         target.sources.extend(s for s in source.sources if s not in target.sources)
         if source.website and not target.website:
             target.website = source.website
-        if source.confidence > target.confidence:
-            target.confidence = source.confidence
+        target.confidence = max(target.confidence, source.confidence)
         if source.error:
             target.error = source.error
         if source.raw_data:
@@ -237,14 +237,14 @@ class EnrichOrchestrator:
         if fields > 0:
             result.confidence = max(result.confidence, round(filled / fields, 2))
 
-    async def enrich_batch(self, leads: List[Dict[str, Any]]) -> List[EnrichmentResult]:
+    async def enrich_batch(self, leads: list[dict[str, Any]]) -> list[EnrichmentResult]:
         return await asyncio.gather(
             *(self.enrich(**lead) for lead in leads),
             return_exceptions=True,
         )
 
 
-_orchestrator: Optional[EnrichOrchestrator] = None
+_orchestrator: EnrichOrchestrator | None = None
 
 
 def get_orchestrator() -> EnrichOrchestrator:
@@ -255,9 +255,9 @@ def get_orchestrator() -> EnrichOrchestrator:
 
 
 async def enrich_lead(business_name: str, trade: str,
-                      location: Optional[str] = None,
-                      website: Optional[str] = None,
-                      phone: Optional[str] = None,
+                      location: str | None = None,
+                      website: str | None = None,
+                      phone: str | None = None,
                       **kwargs) -> EnrichmentResult:
     return await get_orchestrator().enrich(
         business_name=business_name,

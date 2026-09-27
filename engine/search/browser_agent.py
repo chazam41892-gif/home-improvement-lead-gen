@@ -4,13 +4,13 @@ import asyncio
 import logging
 import re
 import urllib.parse
-from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse, parse_qs
+from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 
-from .base import SearchProvider, SearchResult, SearchHit
+from .base import SearchHit, SearchProvider, SearchResult
 
 logger = logging.getLogger("BrowserAgentSearch")
 
@@ -33,7 +33,7 @@ HEADERS = {
 class BrowserSearchProvider(SearchProvider):
     name = "browser"
 
-    def __init__(self, *, api_key: Optional[str] = None, timeout: float = 30.0):
+    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0):
         super().__init__(api_key=api_key, timeout=timeout)
         self.playwright_available = False
         try:
@@ -51,7 +51,7 @@ class BrowserSearchProvider(SearchProvider):
 
         # 1. Search DuckDuckGo HTML without API keys
         hits = await self._search_duckduckgo(query, num_results)
-        
+
         # 2. Enrich found leads by crawling their websites concurrently (throttled)
         sem = asyncio.Semaphore(3)
         tasks = []
@@ -81,11 +81,11 @@ class BrowserSearchProvider(SearchProvider):
         # Just return directories as-is
         return hit
 
-    async def _search_duckduckgo(self, query: str, num_results: int) -> List[SearchHit]:
+    async def _search_duckduckgo(self, query: str, num_results: int) -> list[SearchHit]:
         url = "https://html.duckduckgo.com/html/"
         params = {"q": query}
-        hits: List[SearchHit] = []
-        
+        hits: list[SearchHit] = []
+
         html = await self._fetch_url(url, params=params)
         if not html:
             logger.warning("Failed to retrieve DuckDuckGo search results")
@@ -93,15 +93,15 @@ class BrowserSearchProvider(SearchProvider):
 
         soup = BeautifulSoup(html, "html.parser")
         results = soup.find_all("div", class_="result")
-        
+
         seen_urls = set()
         for r in results:
             if len(hits) >= num_results:
                 break
-                
+
             a = r.find("a", class_="result__url")
             snippet_el = r.find("a", class_="result__snippet")
-            
+
             title = a.get_text(strip=True) if a else ""
             href = a["href"] if a else ""
             snippet = snippet_el.get_text(strip=True) if snippet_el else ""
@@ -140,7 +140,7 @@ class BrowserSearchProvider(SearchProvider):
                 score=0.95 if has_intent else 0.8,
                 extras={"high_intent": 1 if has_intent else 0}
             ))
-            
+
         return hits
 
     async def _enrich_website_task(self, hit: SearchHit, sem: asyncio.Semaphore) -> SearchHit:
@@ -167,7 +167,7 @@ class BrowserSearchProvider(SearchProvider):
                 logger.debug("Failed to crawl website %s: %s", hit.url, e)
             return hit
 
-    async def _crawl_website(self, url: str) -> Dict[str, Any]:
+    async def _crawl_website(self, url: str) -> dict[str, Any]:
         """Crawl the website, fetching home page and optionally contact page."""
         home_html = await self._fetch_url(url)
         if not home_html:
@@ -215,9 +215,9 @@ class BrowserSearchProvider(SearchProvider):
 
         return data
 
-    def _extract_data_from_soup(self, soup: BeautifulSoup, url: str) -> Dict[str, Any]:
+    def _extract_data_from_soup(self, soup: BeautifulSoup, url: str) -> dict[str, Any]:
         text = soup.get_text(" ", strip=True)
-        
+
         emails = list(set(EMAIL_RE.findall(text)))
         phones = list(set(PHONE_RE.findall(text)))
 
@@ -251,7 +251,7 @@ class BrowserSearchProvider(SearchProvider):
             "social_links": social_links,
         }
 
-    async def _fetch_url(self, url: str, params: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    async def _fetch_url(self, url: str, params: dict[str, Any] | None = None) -> str | None:
         """Fetch URL content using Playwright if available, otherwise fallback to HTTPX."""
         if params:
             url = f"{url}?{urllib.parse.urlencode(params)}"

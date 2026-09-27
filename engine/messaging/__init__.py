@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .providers import SMSProvider, EmailProvider, CallProvider
 from .orchestrator import MessagingOrchestrator
+from .providers import CallProvider, EmailProvider, SMSProvider
 
-__all__ = ["SMSProvider", "EmailProvider", "CallProvider", "MessagingOrchestrator"]
+__all__ = ["CallProvider", "EmailProvider", "MessagingOrchestrator", "SMSProvider"]

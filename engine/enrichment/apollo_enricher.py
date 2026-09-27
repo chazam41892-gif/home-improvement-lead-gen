@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-from typing import Optional, Dict, Any, List
-from urllib.parse import urlencode
+from typing import Any
 
 import httpx
 
-from .base import EnrichmentProvider, EnrichmentResult
 from ..key_vault import KeyVault
+from .base import EnrichmentProvider, EnrichmentResult
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +19,11 @@ class ApolloEnricher(EnrichmentProvider):
     input_required = []
     priority = 0
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
-        self._api_key: Optional[str] = None
+        self._api_key: str | None = None
 
-    def _get_key(self) -> Optional[str]:
+    def _get_key(self) -> str | None:
         if self._api_key:
             return self._api_key
         key = KeyVault.get("apollo")
@@ -38,14 +35,14 @@ class ApolloEnricher(EnrichmentProvider):
         return bool(self._get_key())
 
     async def _mixed_people_search(self, keywords: str,
-                                    organization_name: Optional[str] = None,
+                                    organization_name: str | None = None,
                                     page: int = 1,
-                                    per_page: int = 5) -> List[Dict[str, Any]]:
+                                    per_page: int = 5) -> list[dict[str, Any]]:
         api_key = self._get_key()
         if not api_key:
             return []
 
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "api_key": api_key,
             "q_keywords": keywords,
             "page": page,
@@ -72,7 +69,7 @@ class ApolloEnricher(EnrichmentProvider):
             logger.warning("Apollo people search error: %s", e)
             return []
 
-    async def _organization_enrich(self, domain: str) -> Optional[Dict[str, Any]]:
+    async def _organization_enrich(self, domain: str) -> dict[str, Any] | None:
         api_key = self._get_key()
         if not api_key:
             return None
@@ -96,8 +93,8 @@ class ApolloEnricher(EnrichmentProvider):
             return None
 
     async def enrich(self, business_name: str, trade: str,
-                     location: Optional[str] = None,
-                     website: Optional[str] = None,
+                     location: str | None = None,
+                     website: str | None = None,
                      **kwargs) -> EnrichmentResult:
         result = EnrichmentResult(business_name=business_name, trade=trade)
         if not self._get_key():

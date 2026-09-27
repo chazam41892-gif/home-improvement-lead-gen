@@ -4,8 +4,8 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/track", tags=["tracking"])
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _ensure_table():
@@ -52,12 +52,12 @@ _ensure_table()
 @router.get("/pixel.gif")
 async def tracking_pixel(
     request: Request,
-    lead_id: Optional[str] = None,
-    utm_source: Optional[str] = None,
-    utm_medium: Optional[str] = None,
-    utm_campaign: Optional[str] = None,
-    utm_term: Optional[str] = None,
-    utm_content: Optional[str] = None,
+    lead_id: str | None = None,
+    utm_source: str | None = None,
+    utm_medium: str | None = None,
+    utm_campaign: str | None = None,
+    utm_term: str | None = None,
+    utm_content: str | None = None,
     event_type: str = "page_view",
 ):
     """1x1 transparent pixel for conversion tracking in emails/lander."""
@@ -101,7 +101,7 @@ async def get_attribution(lead_id: str):
         }
 
 
-def _record_event(request: Request, data: Dict[str, Any]):
+def _record_event(request: Request, data: dict[str, Any]):
     event_id = uuid.uuid4().hex[:12]
     headers = request.headers
     with Database.get_connection() as conn:

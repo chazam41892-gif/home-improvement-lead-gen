@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class CrmPush:
                 results.append({"ok": False, "provider": provider, "lead_id": lead_id, "error": "Below min score", "skipped": True})
                 continue
 
-            result: Dict[str, Any] = {"ok": False, "provider": provider, "lead_id": lead_id}
+            result: dict[str, Any] = {"ok": False, "provider": provider, "lead_id": lead_id}
 
             if provider == "hubspot":
                 api_key = self._get_key("hubspot", "HUBSPOT_API_KEY")
@@ -203,7 +203,7 @@ class CrmPush:
                 result["error"] = f"Unknown CRM provider: {provider}"
 
             self._history.append({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "provider": provider,
                 "lead_id": lead_id,
                 "ok": result.get("ok", False),
@@ -249,5 +249,5 @@ class CrmPush:
             "name": name,
             "email": [{"value": lead.get("email", ""), "primary": True}] if lead.get("email") else [],
             "phone": [{"value": lead.get("phone", ""), "primary": True}] if lead.get("phone") else [],
-            "add_time": datetime.now(timezone.utc).isoformat(),
+            "add_time": datetime.now(UTC).isoformat(),
         }

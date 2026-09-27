@@ -83,6 +83,12 @@ def test_lead_result_as_dict():
         "source", "score", "contact_score", "business_score",
         "industry_score", "location_score", "enrichment_score",
         "score_breakdown", "found_at", "email", "phone", "notes",
+        # Added 2026-09-27: LeadResult gained the fields LeadScoutEngine.update_lead
+        # already allowed but previously silently dropped (status, names, address,
+        # UTM, consent). See the CRITICAL note on the LeadResult dataclass.
+        "first_name", "last_name", "address", "project_description",
+        "utm_source", "utm_medium", "utm_campaign", "status",
+        "sms_consent", "email_consent", "call_consent", "consent_source",
     }
     assert set(d.keys()) == expected_keys
     assert d["id"] == "test123"

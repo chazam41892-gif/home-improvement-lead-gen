@@ -60,6 +60,17 @@ from engine.database import Database  # noqa: E402
 Database.set_db_file(TEST_DB)
 Database.initialize()
 
+# Database.initialize() owns leads/ads/nurture/etc. but NOT the auth tables, which
+# engine/auth.py's AuthManager owns. main.verify_api_key falls through to
+# auth_manager.verify_api_key() for any non-static bearer token, so a DB without
+# `api_keys` makes every auth test 500 with "no such table: api_keys".
+try:
+    from engine.auth import auth_manager
+
+    auth_manager._ensure_tables()
+except Exception:  # pragma: no cover - auth is optional at import time
+    pass
+
 # Fail loudly at collection time if isolation did not take effect, rather than
 # letting a whole suite quietly mutate production data.
 _REAL_DB = str((Path(project_root) / "data" / "lead_gen.db").resolve())

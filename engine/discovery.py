@@ -25,9 +25,9 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
-from urllib.parse import quote, urlparse
+from dataclasses import asdict, dataclass, field
+from typing import Any
+from urllib.parse import quote
 
 logger = logging.getLogger("leadgen.discovery")
 
@@ -52,15 +52,15 @@ class LeadSource:
     source: str
     text: str
     url: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class TargetProfile:
     """What the user is looking for."""
     customer_description: str = ""
-    keywords: List[str] = field(default_factory=list)
-    locations: List[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
+    locations: list[str] = field(default_factory=list)
     industry: str = ""
     target_count: int = 25
 
@@ -69,16 +69,16 @@ class TargetProfile:
 class ScrapeJob:
     id: str
     profile: TargetProfile
-    sources_used: List[str] = field(default_factory=list)
+    sources_used: list[str] = field(default_factory=list)
     status: str = "pending"
     created_at: float = 0.0
     completed_at: float = 0.0
-    raw_results: List[LeadSource] = field(default_factory=list)
-    leads: List[Dict[str, Any]] = field(default_factory=list)
+    raw_results: list[LeadSource] = field(default_factory=list)
+    leads: list[dict[str, Any]] = field(default_factory=list)
     crm_pushed: int = 0
     error: str = ""
-    skipped: List[str] = field(default_factory=list)
-    api_keys_used: Dict[str, str] = field(default_factory=dict)
+    skipped: list[str] = field(default_factory=list)
+    api_keys_used: dict[str, str] = field(default_factory=dict)
 
 
 _HEADERS = {
@@ -88,7 +88,7 @@ _HEADERS = {
 }
 
 
-def generate_search_queries(profile: TargetProfile) -> Dict[str, List[str]]:
+def generate_search_queries(profile: TargetProfile) -> dict[str, list[str]]:
     """Generate search queries for each source based on the target profile.
 
     Every key produced here MUST be consumed by run_discovery, and every source
@@ -98,7 +98,7 @@ def generate_search_queries(profile: TargetProfile) -> Dict[str, List[str]]:
     keywords = profile.keywords or ([desc] if desc else [])
     locations = profile.locations or [""]
 
-    result: Dict[str, List[str]] = {}
+    result: dict[str, list[str]] = {}
 
     # Google Maps
     gm_queries = [f"{kw} {loc}".strip() for kw in keywords[:3] for loc in locations[:2]]
@@ -120,7 +120,7 @@ def generate_search_queries(profile: TargetProfile) -> Dict[str, List[str]]:
     # Craigslist want-ads.
     # AUDIT 2026-09-27: the SIOS original built cl_queries and then never stored it,
     # so the Craigslist scraper was dead code that always received []. Stored now.
-    cl_queries: List[str] = []
+    cl_queries: list[str] = []
     for kw in keywords[:3]:
         cl_queries.append(f"need {kw}")
         cl_queries.append(f"looking for {kw}")
@@ -128,7 +128,7 @@ def generate_search_queries(profile: TargetProfile) -> Dict[str, List[str]]:
     result["craigslist"] = cl_queries or ([desc] if desc else ["contractor"])
 
     # GitHub — user + repo search
-    gh_queries: List[str] = []
+    gh_queries: list[str] = []
     for kw in keywords[:3]:
         gh_queries.append(kw)
         gh_queries.append(f"looking for {kw}")
@@ -145,7 +145,7 @@ last_reddit_error: str = ""
 
 # ── Google Maps Scraper ────────────────────────────────────────────────────
 
-async def scrape_google_maps(queries: List[str]) -> List[LeadSource]:
+async def scrape_google_maps(queries: list[str]) -> list[LeadSource]:
     """Scrape Google Maps search results for potential leads.
 
     KNOWN LIMITATION (verified live 2026-09-27): the /maps/search HTML page is
@@ -158,7 +158,7 @@ async def scrape_google_maps(queries: List[str]) -> List[LeadSource]:
     caller reports a real fetch instead of pretending the source was empty. For
     reliable Maps data use the official Places API via a keyed source.
     """
-    results: List[LeadSource] = []
+    results: list[LeadSource] = []
     if not _BS4:
         logger.warning("bs4 not installed — skipping google_maps source")
         return results
@@ -196,7 +196,7 @@ _SUBREDDITS = ["HomeImprovement", "Contractor", "RealEstate", "smallbusiness",
                "DIY", "HomeDecorating"]
 
 
-async def scrape_reddit(queries: List[str], subreddits: Optional[List[str]] = None) -> List[LeadSource]:
+async def scrape_reddit(queries: list[str], subreddits: list[str] | None = None) -> list[LeadSource]:
     """Scrape Reddit for people seeking services matching the queries.
 
     KNOWN LIMITATION (verified live 2026-09-27): Reddit's /search.json endpoint
@@ -210,7 +210,7 @@ async def scrape_reddit(queries: List[str], subreddits: Optional[List[str]] = No
     """
     global last_reddit_error
     last_reddit_error = ""
-    results: List[LeadSource] = []
+    results: list[LeadSource] = []
     subs = subreddits or _SUBREDDITS
     # Reddit rejects generic/browser-spoofing UAs on the JSON API; be identifiable.
     headers = {
@@ -250,9 +250,9 @@ async def scrape_reddit(queries: List[str], subreddits: Optional[List[str]] = No
 
 # ── GitHub Lead Scraper ────────────────────────────────────────────────────
 
-async def scrape_github(queries: List[str], api_key: str = "") -> List[LeadSource]:
+async def scrape_github(queries: list[str], api_key: str = "") -> list[LeadSource]:
     """Scrape GitHub user + repo search for developer/company leads."""
-    results: List[LeadSource] = []
+    results: list[LeadSource] = []
     headers = dict(_HEADERS)
     token = api_key or os.environ.get("GITHUB_TOKEN", "")
     if token:
@@ -319,13 +319,13 @@ _CRAIGSLIST_CITIES = {"eugene": "eugene", "portland": "portland", "salem": "sale
                       "seattle": "seattle", "losangeles": "losangeles"}
 
 
-async def scrape_craigslist(queries: List[str], cities: Optional[List[str]] = None) -> List[LeadSource]:
+async def scrape_craigslist(queries: list[str], cities: list[str] | None = None) -> list[LeadSource]:
     """Scrape Craigslist want-ads matching the queries.
 
     Now reachable: run_discovery previously got [] here because
     generate_search_queries never stored cl_queries (see the fix above).
     """
-    results: List[LeadSource] = []
+    results: list[LeadSource] = []
     if not _BS4:
         logger.warning("bs4 not installed — skipping craigslist source")
         return results
@@ -356,9 +356,9 @@ async def scrape_craigslist(queries: List[str], cities: Optional[List[str]] = No
 
 # ── Exa / Tavily / URL ────────────────────────────────────────────────────
 
-async def scrape_exa(queries: List[str], api_key: str = "") -> List[LeadSource]:
+async def scrape_exa(queries: list[str], api_key: str = "") -> list[LeadSource]:
     """Search Exa's AI web index for prospect pages matching the queries."""
-    results: List[LeadSource] = []
+    results: list[LeadSource] = []
     api_key = (api_key or os.environ.get("EXA_API_KEY", "")).strip().strip('"')
     if not api_key:
         logger.warning("EXA_API_KEY not set — skipping exa source")
@@ -384,9 +384,9 @@ async def scrape_exa(queries: List[str], api_key: str = "") -> List[LeadSource]:
     return results
 
 
-async def scrape_tavily(queries: List[str], api_key: str = "") -> List[LeadSource]:
+async def scrape_tavily(queries: list[str], api_key: str = "") -> list[LeadSource]:
     """Search Tavily's AI web index for prospect pages matching the queries."""
-    results: List[LeadSource] = []
+    results: list[LeadSource] = []
     api_key = (api_key or os.environ.get("TAVILY_API_KEY", "")).strip().strip('"')
     if not api_key:
         logger.warning("TAVILY_API_KEY not set — skipping tavily source")
@@ -412,7 +412,7 @@ async def scrape_tavily(queries: List[str], api_key: str = "") -> List[LeadSourc
     return results
 
 
-async def scrape_url(target_url: str) -> Optional[LeadSource]:
+async def scrape_url(target_url: str) -> LeadSource | None:
     """Scrape a single URL for lead information."""
     try:
         async with aiohttp.ClientSession(headers=_HEADERS) as session:
@@ -434,7 +434,7 @@ async def scrape_url(target_url: str) -> Optional[LeadSource]:
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 
-async def verify_lead_email(email: str) -> Dict[str, Any]:
+async def verify_lead_email(email: str) -> dict[str, Any]:
     """Verify email syntax and check domain deliverability via DNS MX."""
     if not email or not EMAIL_REGEX.match(email.strip()):
         return {"email": email, "valid_syntax": False, "domain_has_mx": False,
@@ -469,9 +469,9 @@ class DiscoveryEngine:
 
     def __init__(self, llm_func=None):
         self.llm_func = llm_func
-        self.jobs: Dict[str, ScrapeJob] = {}
-        self._leads_db: List[Dict[str, Any]] = []
-        self._api_keys: Dict[str, str] = {}
+        self.jobs: dict[str, ScrapeJob] = {}
+        self._leads_db: list[dict[str, Any]] = []
+        self._api_keys: dict[str, str] = {}
 
     def set_llm(self, llm_func):
         self.llm_func = llm_func
@@ -479,7 +479,7 @@ class DiscoveryEngine:
     def set_api_key(self, source: str, key: str):
         self._api_keys[source] = key
 
-    async def verify_and_enrich(self, leads: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def verify_and_enrich(self, leads: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Cascading email verification and deliverability scoring."""
         for lead in leads:
             if lead.get("email"):
@@ -489,8 +489,8 @@ class DiscoveryEngine:
         return leads
 
     async def ingest_webhook_leads(
-        self, raw_leads: List[Dict[str, Any]], source_name: str = "webhook_apollo"
-    ) -> List[Dict[str, Any]]:
+        self, raw_leads: list[dict[str, Any]], source_name: str = "webhook_apollo"
+    ) -> list[dict[str, Any]]:
         """Ingest raw CSV/JSON lead exports from Apollo.io, LinkedIn, or Hunter.io."""
         ingested = []
         for item in raw_leads:
@@ -512,7 +512,7 @@ class DiscoveryEngine:
         logger.info("Ingested %d webhook leads from %s", len(ingested), source_name)
         return ingested
 
-    async def run_discovery(self, profile: TargetProfile, sources: List[str]) -> ScrapeJob:
+    async def run_discovery(self, profile: TargetProfile, sources: list[str]) -> ScrapeJob:
         """Run discovery for a target profile across the selected sources.
 
         A source that is unavailable (missing key, missing dep) is recorded in
@@ -537,7 +537,7 @@ class DiscoveryEngine:
             return job
 
         try:
-            all_sources: List[LeadSource] = []
+            all_sources: list[LeadSource] = []
 
             for name in sources:
                 if name in KEYED_SOURCES and not (
@@ -591,10 +591,10 @@ class DiscoveryEngine:
 
         return job
 
-    def get_leads(self) -> List[Dict[str, Any]]:
+    def get_leads(self) -> list[dict[str, Any]]:
         return list(self._leads_db)
 
-    def get_jobs(self) -> List[Dict[str, Any]]:
+    def get_jobs(self) -> list[dict[str, Any]]:
         return [asdict(j) for j in self.jobs.values()]
 
 
@@ -622,10 +622,10 @@ TEXT:
 """
 
 
-async def extract_leads_with_ai(sources: List[LeadSource], profile: TargetProfile,
-                                llm_func) -> List[Dict[str, Any]]:
+async def extract_leads_with_ai(sources: list[LeadSource], profile: TargetProfile,
+                                llm_func) -> list[dict[str, Any]]:
     """Use an LLM to extract structured leads matching the target profile."""
-    all_leads: List[Dict[str, Any]] = []
+    all_leads: list[dict[str, Any]] = []
     profile_desc = profile.customer_description or "general contractor services"
     for src in sources:
         if not src.text or len(src.text) < 50:
@@ -665,9 +665,20 @@ async def extract_leads_with_ai(sources: List[LeadSource], profile: TargetProfil
 
 
 __all__ = [
-    "DiscoveryEngine", "TargetProfile", "ScrapeJob", "LeadSource",
-    "generate_search_queries", "scrape_google_maps", "scrape_reddit",
-    "scrape_github", "scrape_craigslist", "scrape_exa", "scrape_tavily",
-    "scrape_url", "verify_lead_email", "extract_leads_with_ai",
-    "FREE_SOURCES", "KEYED_SOURCES",
+    "FREE_SOURCES",
+    "KEYED_SOURCES",
+    "DiscoveryEngine",
+    "LeadSource",
+    "ScrapeJob",
+    "TargetProfile",
+    "extract_leads_with_ai",
+    "generate_search_queries",
+    "scrape_craigslist",
+    "scrape_exa",
+    "scrape_github",
+    "scrape_google_maps",
+    "scrape_reddit",
+    "scrape_tavily",
+    "scrape_url",
+    "verify_lead_email",
 ]

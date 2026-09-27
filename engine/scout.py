@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-import os
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
-from .search.base import SearchProvider, SearchResult
+from .router import SmartRouter
+from .search.browser_agent import BrowserSearchProvider
 from .search.exa import ExaSearchProvider
 from .search.perplexity import PerplexitySearchProvider
-from .search.browser_agent import BrowserSearchProvider
-from .utils.scoring import score_lead, LeadScore
 from .utils.export import export_to_csv, export_to_json
-from .router import SmartRouter, DEFAULT_ROUTING_CONFIG
+from .utils.scoring import LeadScore, score_lead
 
 logger = logging.getLogger("LeadScout")
 
@@ -33,11 +29,11 @@ class SearchConfig:
     min_score: float = 30.0
     search_type: str = "auto"
     provider: str = "exa"
-    include_domains: List[str] = field(default_factory=lambda: [
+    include_domains: list[str] = field(default_factory=lambda: [
         "yelp.com", "bbb.org", "angi.com", "homeadvisor.com",
         "maps.google.com", "linkedin.com", "facebook.com",
     ])
-    exclude_domains: List[str] = field(default_factory=lambda: [
+    exclude_domains: list[str] = field(default_factory=lambda: [
         "pinterest.com", "amazon.com", "wikipedia.org",
         "instagram.com", "tiktok.com",
     ])
@@ -60,7 +56,7 @@ class SearchConfig:
             parts.append(f"near {self.zip_code}")
         return " ".join(parts)
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "query": self.query,
             "industry": self.industry,
@@ -88,8 +84,26 @@ class LeadResult:
     email: str = ""
     phone: str = ""
     notes: str = ""
+    # CRITICAL (audit 2026-09-27): these fields were missing here, but
+    # LeadScoutEngine.update_lead() admits them in its allowlist and then gates on
+    # `hasattr(lead, key)`. A search-discovered lead therefore silently DISCARDED
+    # every PATCH of status / first_name / consent fields and answered 200, so the
+    # UI showed the new value and a reload lost it. They mirror _CaptureLead in
+    # engine/capture.py, which is the shape the leads table was written for.
+    first_name: str = ""
+    last_name: str = ""
+    address: str = ""
+    project_description: str = ""
+    utm_source: str = ""
+    utm_medium: str = ""
+    utm_campaign: str = ""
+    status: str = "new"
+    sms_consent: int = 1
+    email_consent: int = 1
+    call_consent: int = 1
+    consent_source: str = "form"
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "title": self.title,
@@ -109,23 +123,35 @@ class LeadResult:
             "email": self.email,
             "phone": self.phone,
             "notes": self.notes,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "address": self.address,
+            "project_description": self.project_description,
+            "utm_source": self.utm_source,
+            "utm_medium": self.utm_medium,
+            "utm_campaign": self.utm_campaign,
+            "status": self.status,
+            "sms_consent": self.sms_consent,
+            "email_consent": self.email_consent,
+            "call_consent": self.call_consent,
+            "consent_source": self.consent_source,
         }
 
 
 class LeadScoutEngine:
-    def __init__(self, exa_api_key: Optional[str] = None,
-                 perplexity_api_key: Optional[str] = None):
-        self._exa: Optional[ExaSearchProvider] = None
-        self._perplexity: Optional[PerplexitySearchProvider] = None
+    def __init__(self, exa_api_key: str | None = None,
+                 perplexity_api_key: str | None = None):
+        self._exa: ExaSearchProvider | None = None
+        self._perplexity: PerplexitySearchProvider | None = None
         self._browser = BrowserSearchProvider()
         if exa_api_key:
             self._exa = ExaSearchProvider(api_key=exa_api_key)
         if perplexity_api_key:
             self._perplexity = PerplexitySearchProvider(api_key=perplexity_api_key)
-        self._leads: Dict[str, LeadResult] = {}
-        self._search_history: List[Dict[str, Any]] = []
+        self._leads: dict[str, LeadResult] = {}
+        self._search_history: list[dict[str, Any]] = []
         self._router = SmartRouter()
-        self._env: Dict[str, str] = {}
+        self._env: dict[str, str] = {}
         self._router.set_env(self._env)
 
     def set_exa_key(self, api_key: str):
@@ -134,23 +160,23 @@ class LeadScoutEngine:
     def set_perplexity_key(self, api_key: str):
         self._perplexity = PerplexitySearchProvider(api_key=api_key)
 
-    def set_env(self, env: Dict[str, str]):
+    def set_env(self, env: dict[str, str]):
         self._env.update(env)
         self._router.set_env(self._env)
 
-    def set_routing_config(self, config: Dict[str, Any]):
+    def set_routing_config(self, config: dict[str, Any]):
         self._router.load_config(config)
 
-    def get_routing_config(self) -> Dict[str, Any]:
+    def get_routing_config(self) -> dict[str, Any]:
         return self._router.get_config()
 
-    def update_routing_step(self, name: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_routing_step(self, name: str, updates: dict[str, Any]) -> dict[str, Any] | None:
         return self._router.update_step(name, updates)
 
-    def get_routing_stats(self) -> Dict[str, Any]:
+    def get_routing_stats(self) -> dict[str, Any]:
         return self._router.get_stats()
 
-    def get_routing_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_routing_history(self, limit: int = 20) -> list[dict[str, Any]]:
         return self._router.get_routing_history(limit=limit)
 
     def register_enrichment_fn(self, fn):
@@ -167,7 +193,7 @@ class LeadScoutEngine:
     def has_perplexity_key(self) -> bool:
         return self._perplexity is not None and bool(self._perplexity.api_key)
 
-    async def search(self, config: SearchConfig) -> Dict[str, Any]:
+    async def search(self, config: SearchConfig) -> dict[str, Any]:
         provider_name = config.provider or "exa"
 
         if provider_name == "perplexity":
@@ -199,8 +225,8 @@ class LeadScoutEngine:
             logger.error(f"Search error: {result.error}")
             return {"ok": False, "error": result.error, "leads": [], "count": 0, "elapsed_sec": elapsed}
 
-        leads: List[LeadResult] = []
-        seen_urls: Set[str] = set()
+        leads: list[LeadResult] = []
+        seen_urls: set[str] = set()
 
         for hit in result.hits:
             clean_url = hit.url.rstrip("/")
@@ -277,7 +303,7 @@ class LeadScoutEngine:
         }
 
     async def search_natural(self, natural_query: str, num_results: int = 25,
-                             min_score: float = 30.0, provider: str = "exa") -> Dict[str, Any]:
+                             min_score: float = 30.0, provider: str = "exa") -> dict[str, Any]:
         parsed = self._parse_natural_query(natural_query)
 
         config = SearchConfig(
@@ -294,9 +320,9 @@ class LeadScoutEngine:
 
         return await self.search(config)
 
-    def _parse_natural_query(self, text: str) -> Dict[str, str]:
+    def _parse_natural_query(self, text: str) -> dict[str, str]:
         lower = text.lower()
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
 
         industry_keywords = {
             "roofing": ["roof", "roofing", "roofer", "shingle"],
@@ -385,7 +411,7 @@ class LeadScoutEngine:
 
         return result
 
-    def get_leads(self, limit: int = 100, min_score: float = 0) -> List[Dict[str, Any]]:
+    def get_leads(self, limit: int = 100, min_score: float = 0) -> list[dict[str, Any]]:
         sorted_leads = sorted(
             self._leads.values(),
             key=lambda l: l.score.total,
@@ -394,11 +420,11 @@ class LeadScoutEngine:
         filtered = [l for l in sorted_leads if l.score.total >= min_score]
         return [l.as_dict() for l in filtered[:limit]]
 
-    def get_lead_by_id(self, lead_id: str) -> Optional[Dict[str, Any]]:
+    def get_lead_by_id(self, lead_id: str) -> dict[str, Any] | None:
         lead = self._leads.get(lead_id)
         return lead.as_dict() if lead else None
 
-    def update_lead(self, lead_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_lead(self, lead_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
         lead = self._leads.get(lead_id)
         if not lead:
             return None
@@ -413,7 +439,6 @@ class LeadScoutEngine:
                 setattr(lead, key, val)
         # Persist updated lead to DB
         try:
-            from engine.database import Database
             from engine.persistence import save_leads
             save_leads({lead_id: lead})
         except Exception as e:
@@ -449,12 +474,12 @@ class LeadScoutEngine:
         leads = self.get_leads(min_score=min_score)
         return export_to_json(leads)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         if not self._leads:
             return {"total": 0, "avg_score": 0, "by_industry": {}, "searches_run": len(self._search_history)}
 
         scores = [l.score.total for l in self._leads.values()]
-        by_industry: Dict[str, int] = {}
+        by_industry: dict[str, int] = {}
         for lead in self._leads.values():
             ind = lead.industry or "unknown"
             by_industry[ind] = by_industry.get(ind, 0) + 1
@@ -467,5 +492,5 @@ class LeadScoutEngine:
             "searches_run": len(self._search_history),
         }
 
-    def get_search_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_search_history(self, limit: int = 20) -> list[dict[str, Any]]:
         return self._search_history[-limit:]

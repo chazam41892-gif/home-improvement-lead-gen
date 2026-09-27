@@ -7,7 +7,7 @@ simulated result so the nurture engine keeps working in local/dev mode.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
@@ -29,7 +29,7 @@ class SMSProvider:
     def is_configured(self) -> bool:
         return bool(self.account_sid and self.auth_token and self.from_number)
 
-    async def send(self, to: str, body: str) -> Dict[str, Any]:
+    async def send(self, to: str, body: str) -> dict[str, Any]:
         if not self.is_configured:
             logger.warning("Twilio not configured — SMS not sent to %s", to)
             return {"ok": False, "provider": self.name, "simulated": True, "error": "Twilio not configured"}
@@ -64,7 +64,7 @@ class EmailProvider:
     def is_configured(self) -> bool:
         return bool(self.api_key and self.from_email)
 
-    async def send(self, to: str, subject: str, body: str, html: Optional[str] = None) -> Dict[str, Any]:
+    async def send(self, to: str, subject: str, body: str, html: str | None = None) -> dict[str, Any]:
         if not self.is_configured:
             logger.warning("SendGrid not configured — email not sent to %s", to)
             return {"ok": False, "provider": self.name, "simulated": True, "error": "SendGrid not configured"}
@@ -109,7 +109,7 @@ class CallProvider:
     def is_configured(self) -> bool:
         return bool(self.account_sid and self.auth_token and self.from_number)
 
-    async def queue(self, to: str, message: str) -> Dict[str, Any]:
+    async def queue(self, to: str, message: str) -> dict[str, Any]:
         """Queue a manual call reminder rather than auto-dialing."""
         if not self.is_configured:
             logger.warning("Twilio not configured — call reminder not queued for %s", to)

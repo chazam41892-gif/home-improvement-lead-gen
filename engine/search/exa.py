@@ -7,9 +7,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .base import SearchProvider, SearchResult, SearchHit
+from .base import SearchHit, SearchProvider, SearchResult
 
 EXA_BASE = "https://api.exa.ai"
 
@@ -20,7 +20,7 @@ _search_semaphore = asyncio.Semaphore(5)
 class ExaSearchProvider(SearchProvider):
     name = "exa"
 
-    def __init__(self, *, api_key: Optional[str] = None, timeout: float = 30.0,
+    def __init__(self, *, api_key: str | None = None, timeout: float = 30.0,
                  base_url: str = EXA_BASE):
         super().__init__(
             api_key=api_key or os.environ.get("EXA_API_KEY"),
@@ -28,7 +28,7 @@ class ExaSearchProvider(SearchProvider):
         )
         self.base_url = base_url.rstrip("/")
 
-    def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(url, data=data, method="POST", headers={
@@ -49,13 +49,13 @@ class ExaSearchProvider(SearchProvider):
     async def search(self, query: str, *,
                      num_results: int = 10,
                      search_type: str = "auto",
-                     category: Optional[str] = None,
+                     category: str | None = None,
                      text: bool = False,
                      highlights: bool = False,
-                     start_published_date: Optional[str] = None,
-                     end_published_date: Optional[str] = None,
-                     include_domains: Optional[List[str]] = None,
-                     exclude_domains: Optional[List[str]] = None,
+                     start_published_date: str | None = None,
+                     end_published_date: str | None = None,
+                     include_domains: list[str] | None = None,
+                     exclude_domains: list[str] | None = None,
                      **kwargs) -> SearchResult:
         t0 = time.time()
         if not self.api_key:
@@ -63,7 +63,7 @@ class ExaSearchProvider(SearchProvider):
                                 elapsed_sec=time.time() - t0,
                                 error="EXA_API_KEY not set. Add your key in Settings.")
 
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "query": query,
             "numResults": num_results,
             "type": search_type,
@@ -86,7 +86,7 @@ class ExaSearchProvider(SearchProvider):
                                 elapsed_sec=time.time() - t0,
                                 error=resp["error"])
 
-        hits: List[SearchHit] = []
+        hits: list[SearchHit] = []
         for r in resp.get("results", [])[:num_results]:
             hits.append(SearchHit(
                 title=r.get("title", "") or "",
@@ -102,20 +102,20 @@ class ExaSearchProvider(SearchProvider):
                             elapsed_sec=time.time() - t0,
                             raw=resp)
 
-    async def contents(self, urls: List[str], *,
+    async def contents(self, urls: list[str], *,
                        text: bool = True,
                        highlights: bool = False,
                        summary: bool = False,
-                       livecrawl: str = "fallback") -> Dict[str, Any]:
+                       livecrawl: str = "fallback") -> dict[str, Any]:
         if not self.api_key:
             return {"ok": False, "error": "EXA_API_KEY not set"}
-        body: Dict[str, Any] = {"ids": urls, "livecrawl": livecrawl}
+        body: dict[str, Any] = {"ids": urls, "livecrawl": livecrawl}
         if text: body["text"] = True
         if highlights: body["highlights"] = {"numSentences": 3}
         if summary: body["summary"] = {"query": "summarize"}
         return await asyncio.to_thread(self._post, "/contents", body)
 
-    async def answer(self, query: str, *, text: bool = True) -> Dict[str, Any]:
+    async def answer(self, query: str, *, text: bool = True) -> dict[str, Any]:
         if not self.api_key:
             return {"ok": False, "error": "EXA_API_KEY not set"}
         body = {"query": query, "text": text}

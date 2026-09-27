@@ -1,7 +1,7 @@
 import hashlib
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from engine.linkedin.linkedin_signals.models import canonicalize_linkedin_url
 
@@ -148,5 +148,5 @@ class LinkedInAcquisitionService:
         return {"events": events, "count": len(events)}
 
 
-def capability_catalog() -> Dict[str, Any]:
+def capability_catalog() -> dict[str, Any]:
     return get_catalog()

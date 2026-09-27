@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .models import Engagement, deduplicate_engagements, score_post
 
@@ -19,7 +19,7 @@ class SignalPipeline:
         self.offers = offers or []
         self.max_engagers = max(1, int(max_engagers))
 
-    async def run_post(self, post_url: str, source_id: Optional[int] = None) -> Dict[str, Any]:
+    async def run_post(self, post_url: str, source_id: int | None = None) -> dict[str, Any]:
         result = await self.linkedin.collect_post(post_url)
         post = result["post"]
         viral = score_post(

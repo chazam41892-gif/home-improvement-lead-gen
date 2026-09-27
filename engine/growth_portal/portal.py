@@ -5,28 +5,25 @@ module, create a profile, subscribe via Stripe, then access the module.
 """
 from __future__ import annotations
 
+import html as _html
 import json
 import logging
-import os
-import uuid
 import urllib.parse
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
-import httpx
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+import httpx
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr
 
-import html as _html
-
 from ..auth import auth_manager
-from ..stripe_integration import StripeIntegration
 from ..database import Database
 from ..key_vault import KeyVault
-from .modules import list_modules, get_module, can_access_module
-from .tracking import _record_event
+from ..stripe_integration import StripeIntegration
+from .modules import can_access_module, get_module, list_modules
 
 logger = logging.getLogger(__name__)
 
@@ -88,11 +85,11 @@ def _page(title: str, body: str, extra_head: str = "") -> str:
 </html>"""
 
 
-def _get_cookie_token(request: Request) -> Optional[str]:
+def _get_cookie_token(request: Request) -> str | None:
     return request.cookies.get("growth_token")
 
 
-def _current_user(request: Request) -> Optional[Dict[str, Any]]:
+def _current_user(request: Request) -> dict[str, Any] | None:
     token = _get_cookie_token(request)
     if not token:
         return None
@@ -108,7 +105,7 @@ def _current_user(request: Request) -> Optional[Dict[str, Any]]:
     return payload
 
 
-def _require_user(request: Request) -> Dict[str, Any]:
+def _require_user(request: Request) -> dict[str, Any]:
     user = _current_user(request)
     if not user:
         raise HTTPException(401, "Unauthorized")
@@ -361,7 +358,7 @@ async def module_landing(request: Request, module_slug: str):
     return _page(module.name, body)
 
 
-def _leadgen_module_html(user: Dict[str, Any]) -> str:
+def _leadgen_module_html(user: dict[str, Any]) -> str:
     return f"""
     <header class="border-b border-gray-800">
       <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -442,11 +439,11 @@ async def google_login(request: Request):
     client_id = KeyVault.get("google_oauth_client_id")
     if not client_id:
         raise HTTPException(status_code=503, detail="Google OAuth client ID is not configured in KeyVault.")
-    
+
     base_url = str(request.base_url).rstrip("/")
     redirect_uri = f"{base_url}/growth/auth/google/callback"
     state = request.query_params.get("next", "/growth/")
-    
+
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
@@ -466,15 +463,15 @@ async def google_callback(request: Request):
     state = request.query_params.get("state", "/growth/")
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code from Google.")
-    
+
     client_id = KeyVault.get("google_oauth_client_id")
     client_secret = KeyVault.get("google_oauth_client_secret")
     if not client_id or not client_secret:
         raise HTTPException(status_code=503, detail="Google OAuth credentials are not fully configured in KeyVault.")
-    
+
     base_url = str(request.base_url).rstrip("/")
     redirect_uri = f"{base_url}/growth/auth/google/callback"
-    
+
     token_url = "https://oauth2.googleapis.com/token"
     data = {
         "code": code,
@@ -483,7 +480,7 @@ async def google_callback(request: Request):
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code"
     }
-    
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(token_url, data=data)
@@ -492,27 +489,27 @@ async def google_callback(request: Request):
                 raise HTTPException(status_code=400, detail=f"Google token exchange failed: {resp.text[:200]}")
             token_data = resp.json()
             access_token = token_data.get("access_token")
-            
+
             userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo"
             userinfo_resp = await client.get(userinfo_url, headers={"Authorization": f"Bearer {access_token}"})
             if userinfo_resp.status_code != 200:
                 logger.error("Failed to fetch Google userinfo: %s", userinfo_resp.text)
                 raise HTTPException(status_code=400, detail="Google userinfo request failed.")
-            
+
             user_info = userinfo_resp.json()
     except Exception as e:
         logger.exception("Google OAuth callback exception occurred: %s", e)
-        raise HTTPException(status_code=500, detail=f"OAuth login failed: {str(e)}")
-        
+        raise HTTPException(status_code=500, detail=f"OAuth login failed: {e!s}")
+
     email = user_info.get("email")
     name = user_info.get("name") or user_info.get("given_name") or "Google User"
     google_id = user_info.get("sub")
-    
+
     if not email or not google_id:
         raise HTTPException(status_code=400, detail="OAuth response did not include email and google ID.")
-    
+
     user = auth_manager.get_user_by_google_id(google_id)
-    
+
     if not user:
         user = auth_manager.get_user_by_email(email)
         if user:
@@ -521,13 +518,13 @@ async def google_callback(request: Request):
             reg_result = auth_manager.register_google_user(email=email, name=name, google_id=google_id)
             user = reg_result["user"]
             token = reg_result["token"]
-            
+
     if "token" not in locals():
         token = auth_manager._create_jwt(user["id"], user["org_id"], user["email"], user.get("role", "member"))
-        
+
     if not state.startswith("/growth/"):
         state = "/growth/"
-    
+
     resp = RedirectResponse(state, status_code=302)
     resp.set_cookie("growth_token", token, httponly=True, max_age=604800, samesite="lax")
     return resp
@@ -631,7 +628,7 @@ async def api_capture(request: Request):
     body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else dict(await request.form())
 
     lead_id = uuid.uuid4().hex[:12]
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     lead = {
         "lead_id": lead_id,
@@ -711,7 +708,7 @@ async def thank_you_page(request: Request):
     return _page("Thank you", body)
 
 
-async def _push_to_crm(lead: Dict[str, Any]):
+async def _push_to_crm(lead: dict[str, Any]):
     """Push captured lead to CRM via existing crm_push + internal webhook."""
     from ..crm_push import CrmPush
     try:
@@ -731,7 +728,7 @@ async def _push_to_crm(lead: Dict[str, Any]):
             logger.warning("Lead webhook POST failed: %s", e)
 
 
-async def _queue_followup(lead: Dict[str, Any]):
+async def _queue_followup(lead: dict[str, Any]):
     """Queue immediate follow-up sequence."""
     from ..nurture import NurtureEngine
     try:

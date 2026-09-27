@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 import httpx
 
-from .base import EnrichmentProvider, EnrichmentResult
 from ..key_vault import KeyVault
+from .base import EnrichmentProvider, EnrichmentResult
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class LLMEnricher(EnrichmentProvider):
     input_required = ["business_name"]
     priority = 2
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self._provider = None
         self._api_key = None
@@ -47,7 +47,7 @@ class LLMEnricher(EnrichmentProvider):
             return self.config.get("anthropic_model", "claude-sonnet-4-20250514")
         return self.config.get("openai_model", "gpt-4o-mini")
 
-    async def _call_llm(self, system: str, prompt: str) -> Optional[str]:
+    async def _call_llm(self, system: str, prompt: str) -> str | None:
         self._setup()
         if not self._provider:
             return None
@@ -103,9 +103,9 @@ class LLMEnricher(EnrichmentProvider):
         return None
 
     async def enrich(self, business_name: str, trade: str,
-                     location: Optional[str] = None,
-                     website: Optional[str] = None,
-                     raw_text: Optional[str] = None,
+                     location: str | None = None,
+                     website: str | None = None,
+                     raw_text: str | None = None,
                      **kwargs) -> EnrichmentResult:
         result = EnrichmentResult(business_name=business_name, trade=trade)
         if not self.is_available():
