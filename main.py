@@ -5,20 +5,20 @@ import json
 import logging
 import os
 import time
+import time as _time_module
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import time as _time_module
 from dataclasses import asdict
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
 _start_time: float = _time_module.time()
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 # CRITICAL (audit 2026-09-27, C-6): the .env file MUST be loaded before ANY engine
@@ -26,32 +26,42 @@ from fastapi.staticfiles import StaticFiles
 # RuntimeError if it is missing, so importing it before load_dotenv() made the whole
 # app un-bootable on a clean checkout (`uvicorn main:app` -> RuntimeError, exit 1)
 # even though .env contained a valid JWT_SECRET.
-load_dotenv()
+#
+# override=False under test: an already-set environment variable wins. Without
+# this, load_dotenv() would silently clobber the DATABASE_FILE the test suite
+# exported before importing main, and tests would write into the production
+# data/lead_gen.db. In production nothing pre-sets it, so behavior is unchanged.
+if os.environ.get("LEADGEN_TESTING"):
+    load_dotenv(override=False)
+else:
+    load_dotenv()
 
-from engine.scout import LeadScoutEngine, SearchConfig, LeadResult
-from engine.utils.scoring import score_lead, LeadScore
-from engine.merger import merge_leads
-from engine.scheduler import ScanScheduler
-from engine.landing import LandingPageGenerator
-from engine.capture import LeadCaptureProcessor
-from engine.ads import AdCopyGenerator
-from engine.ad_apis import AdPlatformManager, AdCampaignPlan
-from engine.nurture import NurtureEngine
-from engine.business_config import BusinessConfig
-from engine.crm_push import CrmPush
-from engine.trades import TradeLeadDiscovery, ConversionPipeline
-from engine.trades.trades import list_trades, get_trade_config
-from engine.trades.base import TradeLead
-from engine.stripe_integration import StripeIntegration
+from crm_plus.crm_plus_routes import router as crm_plus_router
+from crm_plus.crm_plus_routes import set_conversion as set_crm_conversion
+from crm_plus.crm_plus_routes import set_engine as set_crm_engine
 from engine import persistence
-from engine.key_vault import KeyVault, SERVICE_KEYS
-from engine.enrichment import enrich_lead, EnrichOrchestrator
-from engine.enrichment.base import EnrichmentResult
+from engine.ad_apis import AdCampaignPlan, AdPlatformManager
+from engine.ads import AdCopyGenerator
 from engine.auth import auth_manager
-from engine.simulator import CampaignSimulator
-from crm_plus.crm_plus_routes import router as crm_plus_router, set_engine as set_crm_engine, set_conversion as set_crm_conversion
+from engine.business_config import BusinessConfig
+from engine.capture import LeadCaptureProcessor
+from engine.crm_push import CrmPush
+from engine.discovery import FREE_SOURCES, KEYED_SOURCES, DiscoveryEngine, TargetProfile
+from engine.enrichment import EnrichOrchestrator
+from engine.enrichment.base import EnrichmentResult
 from engine.growth_portal import growth_router, tracking_router
-from engine.discovery import DiscoveryEngine, TargetProfile, FREE_SOURCES, KEYED_SOURCES
+from engine.key_vault import SERVICE_KEYS, KeyVault
+from engine.landing import LandingPageGenerator
+from engine.merger import merge_leads
+from engine.nurture import NurtureEngine
+from engine.scheduler import ScanScheduler
+from engine.scout import LeadResult, LeadScoutEngine, SearchConfig
+from engine.simulator import CampaignSimulator
+from engine.stripe_integration import StripeIntegration
+from engine.trades import ConversionPipeline, TradeLeadDiscovery
+from engine.trades.base import TradeLead
+from engine.trades.trades import get_trade_config, list_trades
+from engine.utils.scoring import score_lead
 
 # NOTE: load_dotenv() is called above the engine imports (see the CRITICAL comment
 # there). Do not call it again here.
@@ -61,7 +71,7 @@ from engine.discovery import DiscoveryEngine, TargetProfile, FREE_SOURCES, KEYED
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         log_entry = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),
@@ -251,7 +261,7 @@ async def _nurture_loop():
     while _nurture_loop_running:
         try:
             await nurture.execute_due_actions()
-        except Exception as e:
+        except Exception:
             logger.error("Nurture action error", exc_info=True)
         await asyncio.sleep(30)
 
@@ -310,7 +320,7 @@ async def health():
     return {
         "status": "ok",
         "version": "3.2.0",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "uptime_sec": round(time.time() - _start_time),
         "auth_enabled": _AUTH_ENABLED,
         "stripe_configured": stripe_integration.is_configured,
@@ -333,7 +343,7 @@ async def get_settings(request: Request):
     }
 
 @app.post("/api/settings/key")
-async def set_api_key(data: Dict[str, str], request: Request):
+async def set_api_key(data: dict[str, str], request: Request):
     verify_api_key(request)
     key = data.get("key", "").strip()
     service = data.get("service", "exa").strip().lower()
@@ -355,7 +365,7 @@ async def get_routing_config():
     return engine.get_routing_config()
 
 @app.put("/api/routing/config")
-async def update_routing_config(data: Dict[str, Any]):
+async def update_routing_config(data: dict[str, Any]):
     config = data.get("config")
     if config:
         engine.set_routing_config(config)
@@ -393,7 +403,7 @@ async def search_leads(config: SearchConfig, request: Request):
     return result
 
 @app.post("/api/search/natural")
-async def search_natural(data: Dict[str, Any], request: Request):
+async def search_natural(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     query = data.get("query", "").strip()
@@ -427,7 +437,7 @@ async def discovery_sources(request: Request):
     }
 
 @app.post("/api/discovery/run")
-async def discovery_run(data: Dict[str, Any], request: Request):
+async def discovery_run(data: dict[str, Any], request: Request):
     """Run multi-source discovery for a target profile.
 
     Returns the job including `raw_results`, `leads`, and `skipped` so a caller can
@@ -472,7 +482,7 @@ async def discovery_leads(request: Request):
     return {"leads": discovery_engine.get_leads()}
 
 @app.post("/api/discovery/ingest")
-async def discovery_ingest(data: Dict[str, Any], request: Request):
+async def discovery_ingest(data: dict[str, Any], request: Request):
     """Ingest raw Apollo/Hunter/LinkedIn CSV/JSON lead exports."""
     verify_api_key(request)
     rate_limit(request)
@@ -509,7 +519,7 @@ async def get_lead(lead_id: str, request: Request):
     return lead
 
 @app.patch("/api/leads/{lead_id}")
-async def update_lead(lead_id: str, data: Dict[str, Any], request: Request):
+async def update_lead(lead_id: str, data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     lead = engine.update_lead(lead_id, data)
@@ -573,7 +583,7 @@ async def get_history(limit: int = Query(20, le=100)):
 # ─── Multi-Source Merge Search ─────────────────────────────────────
 
 @app.post("/api/search/multi")
-async def search_multi(data: Dict[str, Any], request: Request):
+async def search_multi(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request, tokens=2)
     query = data.get("query", "").strip()
@@ -641,7 +651,7 @@ async def search_multi(data: Dict[str, Any], request: Request):
 # ─── Scan Scheduler ────────────────────────────────────────────────
 
 @app.post("/api/schedules")
-async def create_schedule(data: Dict[str, Any], request: Request):
+async def create_schedule(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     if not data.get("query"):
@@ -661,7 +671,7 @@ async def get_schedule(schedule_id: str):
     return sched.as_dict()
 
 @app.put("/api/schedules/{schedule_id}")
-async def update_schedule(schedule_id: str, data: Dict[str, Any], request: Request):
+async def update_schedule(schedule_id: str, data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     sched = scheduler.update_schedule(schedule_id, data)
@@ -687,7 +697,7 @@ async def get_schedule_results(schedule_id: str):
 # ─── Landing Pages ─────────────────────────────────────────────────
 
 @app.post("/api/landing/generate")
-async def create_landing_page(data: Dict[str, Any], request: Request):
+async def create_landing_page(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     if not data.get("business_name"):
@@ -718,7 +728,7 @@ async def delete_landing_page(page_id: str, request: Request):
 # ─── Lead Capture ──────────────────────────────────────────────────
 
 @app.post("/api/capture/lead", dependencies=[])
-async def capture_lead(data: Dict[str, Any]):
+async def capture_lead(data: dict[str, Any]):
     source = data.pop("_source_page_id", "")
     result = capture_processor.process_submission(data, source_page_id=source)
     if not result.get("ok"):
@@ -732,7 +742,7 @@ async def capture_lead(data: Dict[str, Any]):
                 lead_dict["business_name"] = business_config.get_config().get("business_name", "Our Business")
                 nurture.create_sequence(lead_dict)
                 logger.info("Nurture sequence created", extra={"lead_id": lead_id})
-    except Exception as e:
+    except Exception:
         logger.warning("Failed to create nurture sequence", exc_info=True)
     return result
 
@@ -750,7 +760,7 @@ async def capture_stats():
 # ─── Ad Copy Generation ────────────────────────────────────────────
 
 @app.post("/api/ads/generate-copy")
-async def generate_ad_copy(data: Dict[str, Any], request: Request):
+async def generate_ad_copy(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     industry = data.get("industry", "").strip()
@@ -766,7 +776,7 @@ async def generate_ad_copy(data: Dict[str, Any], request: Request):
     return {"ok": True, "ads": result}
 
 @app.post("/api/ads/generate-keywords")
-async def generate_keywords(data: Dict[str, Any], request: Request):
+async def generate_keywords(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     industry = data.get("industry", "").strip()
@@ -776,7 +786,7 @@ async def generate_keywords(data: Dict[str, Any], request: Request):
     return {"ok": True, "keywords": result}
 
 @app.post("/api/ads/generate-pixel")
-async def generate_pixel(data: Dict[str, Any], request: Request):
+async def generate_pixel(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     ptype = data.get("type", "").strip()
@@ -790,7 +800,7 @@ async def generate_pixel(data: Dict[str, Any], request: Request):
         raise HTTPException(400, str(e))
 
 @app.post("/api/ads/inject-pixels")
-async def inject_pixels(data: Dict[str, Any], request: Request):
+async def inject_pixels(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     page_id = data.get("page_id", "")
@@ -805,7 +815,7 @@ async def inject_pixels(data: Dict[str, Any], request: Request):
     return {"ok": True, "page_id": page_id, "injected": len(pixels)}
 
 @app.post("/api/ads/utm")
-async def generate_utm(data: Dict[str, Any], request: Request):
+async def generate_utm(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     url = data.get("url", "").strip()
@@ -839,7 +849,7 @@ async def ads_list_campaigns(request: Request):
 
 
 @app.post("/api/ads/platforms/launch")
-async def ads_platform_launch(data: Dict[str, Any], request: Request):
+async def ads_platform_launch(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request, tokens=3)
     # Accept frontend field names (campaign_name, trade, daily_budget) or backend names (name, industry, budget_cents)
@@ -926,7 +936,7 @@ async def ads_platform_launch(data: Dict[str, Any], request: Request):
 # ─── Nurture Engine ────────────────────────────────────────────────
 
 @app.post("/api/nurture/sequence")
-async def create_nurture_sequence(data: Dict[str, Any], request: Request):
+async def create_nurture_sequence(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     lead_data = data.get("lead", data)
@@ -935,7 +945,7 @@ async def create_nurture_sequence(data: Dict[str, Any], request: Request):
 
 
 @app.post("/api/nurture/incoming-reply")
-async def nurture_incoming_reply(data: Dict[str, Any], request: Request):
+async def nurture_incoming_reply(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     sequence_id = data.get("sequence_id", "").strip()
@@ -972,7 +982,7 @@ async def get_due_actions():
     return {"actions": nurture.get_due_actions()}
 
 @app.post("/api/nurture/mark-sent")
-async def mark_action_sent(data: Dict[str, Any], request: Request):
+async def mark_action_sent(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     seq_id = data.get("sequence_id", "")
@@ -983,7 +993,7 @@ async def mark_action_sent(data: Dict[str, Any], request: Request):
     return {"ok": True}
 
 @app.post("/api/nurture/schedule")
-async def schedule_appointment(data: Dict[str, Any], request: Request):
+async def schedule_appointment(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     result = nurture.handle_scheduling(data)
@@ -1011,7 +1021,7 @@ async def get_business_config():
     return business_config.get_config()
 
 @app.put("/api/business/config")
-async def update_business_config(data: Dict[str, Any], request: Request):
+async def update_business_config(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     return business_config.update_config(data)
@@ -1038,7 +1048,7 @@ async def evaluate_lead_economics(request: Request):
 
 
 @app.post("/api/simulator/project-roi")
-async def simulator_project_roi(data: Dict[str, Any], request: Request):
+async def simulator_project_roi(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     trade = data.get("trade", "").strip()
@@ -1054,14 +1064,14 @@ async def simulator_project_roi(data: Dict[str, Any], request: Request):
 
 
 @app.post("/api/chat/collaborate")
-async def chat_collaborate(data: Dict[str, Any], request: Request):
+async def chat_collaborate(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     user_message = data.get("message", "").strip()
     history = data.get("history", [])
     if not user_message:
         raise HTTPException(400, "message is required")
-        
+
     system_prompt = (
         "You are LeadForge Copilot, a helpful B2B growth and lead generation assistant. "
         "You help users configure verticals, search for local contractor/trade leads, setup campaigns, "
@@ -1158,7 +1168,7 @@ async def get_crm_stats():
 # ─── Multi-Tenant Auth ──────────────────────────────────────────────
 
 @app.post("/api/auth/register", dependencies=[])
-async def auth_register(data: Dict[str, Any]):
+async def auth_register(data: dict[str, Any]):
     email = data.get("email", "").strip()
     password = data.get("password", "")
     name = data.get("name", "").strip()
@@ -1175,7 +1185,7 @@ async def auth_register(data: Dict[str, Any]):
 
 
 @app.post("/api/auth/login", dependencies=[])
-async def auth_login(data: Dict[str, Any]):
+async def auth_login(data: dict[str, Any]):
     email = data.get("email", "").strip()
     password = data.get("password", "")
     if not email or not password:
@@ -1214,7 +1224,7 @@ async def auth_list_keys(request: Request):
 
 
 @app.post("/api/auth/api-keys")
-async def auth_create_key(data: Dict[str, Any], request: Request):
+async def auth_create_key(data: dict[str, Any], request: Request):
     verify_api_key(request)
     user = getattr(request.state, "user", None)
     user_id = user.get("sub") or user.get("user_id")
@@ -1250,7 +1260,7 @@ async def auth_list_verticals(request: Request):
 
 
 @app.post("/api/auth/verticals")
-async def auth_add_vertical(data: Dict[str, Any], request: Request):
+async def auth_add_vertical(data: dict[str, Any], request: Request):
     verify_api_key(request)
     user = getattr(request.state, "user", None)
     org_id = user.get("org_id")
@@ -1266,7 +1276,7 @@ async def auth_add_vertical(data: Dict[str, Any], request: Request):
 
 
 @app.put("/api/auth/verticals/{vertical_id}")
-async def auth_update_vertical(vertical_id: str, data: Dict[str, Any], request: Request):
+async def auth_update_vertical(vertical_id: str, data: dict[str, Any], request: Request):
     verify_api_key(request)
     user = getattr(request.state, "user", None)
     org_id = user.get("org_id")
@@ -1325,7 +1335,7 @@ async def get_trade(trade_id: str):
     return {"trade_id": trade_id, "config": config}
 
 @app.post("/api/trades/discover")
-async def discover_trade_leads(data: Dict[str, Any], request: Request):
+async def discover_trade_leads(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request, tokens=3)
     trade = data.get("trade", "").strip()
@@ -1342,7 +1352,7 @@ async def discover_trade_leads(data: Dict[str, Any], request: Request):
     return {"ok": True, "trade": trade, "location": location, "leads": scored, "count": len(scored)}
 
 @app.post("/api/trades/discover-all")
-async def discover_all_trades(data: Dict[str, Any], request: Request):
+async def discover_all_trades(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request, tokens=5)
     location = data.get("location", "").strip()
@@ -1358,7 +1368,7 @@ async def discover_all_trades(data: Dict[str, Any], request: Request):
 # ─── Lead → Account → Payment Pipeline ────────────────────────────
 
 @app.post("/api/trades/convert")
-async def convert_lead(data: Dict[str, Any], request: Request):
+async def convert_lead(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     lead_id = data.get("lead_id", "")
@@ -1396,7 +1406,7 @@ async def convert_lead(data: Dict[str, Any], request: Request):
 # ─── Billing / Stripe ──────────────────────────────────────────────
 
 @app.post("/api/billing/create-checkout-session")
-async def create_checkout_session(data: Dict[str, Any], request: Request):
+async def create_checkout_session(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     if not stripe_integration.is_configured:
@@ -1414,7 +1424,7 @@ async def create_checkout_session(data: Dict[str, Any], request: Request):
         raise HTTPException(400, str(e))
 
 @app.post("/api/billing/portal")
-async def billing_portal(data: Dict[str, Any], request: Request):
+async def billing_portal(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     if not stripe_integration.is_configured:
@@ -1450,7 +1460,7 @@ async def get_subscription(account_id: str, request: Request):
     return result
 
 @app.post("/api/billing/cancel")
-async def cancel_subscription(data: Dict[str, Any], request: Request):
+async def cancel_subscription(data: dict[str, Any], request: Request):
     verify_api_key(request)
     rate_limit(request)
     if not stripe_integration.is_configured:
@@ -1498,7 +1508,7 @@ async def vault_delete_key(service: str, request: Request):
 
 # ─── Enrichment ────────────────────────────────────────────────────
 
-_orchestrator: Optional[EnrichOrchestrator] = None
+_orchestrator: EnrichOrchestrator | None = None
 
 
 def _get_enrich_orch(routing_mode: str = "parallel") -> EnrichOrchestrator:

@@ -1,10 +1,9 @@
-import json
 import logging
 from datetime import datetime
-from typing import Any, Optional
+
+from engine.database import Database
 
 from .base import TradeLead
-from engine.database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +17,15 @@ class ConversionPipeline:
     def __init__(self, data_dir: str = "data"):
         self.data_dir = data_dir
         import os
-        db_path = os.path.join(data_dir, "lead_gen.db")
-        Database.set_db_file(db_path)
+        # CRITICAL (audit 2026-09-27): this used to call
+        # Database.set_db_file(os.path.join(data_dir, "lead_gen.db")) unconditionally,
+        # silently discarding the DATABASE_FILE override that engine.database reads
+        # at import time. Two consequences: merely importing main repointed the whole
+        # app at the hardcoded production file, and the test suite's isolation guard
+        # tripped on every collection. Only honour data_dir when it was explicitly
+        # passed; otherwise leave the already-resolved Database.db_file alone.
+        if data_dir != "data" or not os.environ.get("DATABASE_FILE"):
+            Database.set_db_file(os.path.join(data_dir, "lead_gen.db"))
         Database.initialize()
 
     async def convert_to_account(self, lead: TradeLead, plan: str = "starter") -> dict:
