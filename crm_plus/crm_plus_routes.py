@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime, timezone
 import logging
 import uuid
+from datetime import UTC, datetime
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from engine.database import Database
 from engine.scout import LeadResult
@@ -30,21 +31,21 @@ def set_conversion(conversion):
 class OutreachSwarmRequest(BaseModel):
     target_count: int = 50
     campaign_name: str = "Auto Campaign"
-    channels: List[str] = ["email", "sms", "linkedin"]
+    channels: list[str] = ["email", "sms", "linkedin"]
 
 
 class TalonAuditRequest(BaseModel):
-    message_sample: Optional[str] = None
+    message_sample: str | None = None
 
 
 class LeadSyncRequest(BaseModel):
     lead_name: str
     business: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    city: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
+    city: str | None = None
     source: str = "crm_plus"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 def _persist_lead(lead: LeadResult) -> None:
@@ -65,7 +66,7 @@ def _persist_lead(lead: LeadResult) -> None:
                 getattr(lead, "location", ""),
                 getattr(lead, "source", ""),
                 float(getattr(lead, "score", LeadScore(50.0)).total) if hasattr(lead, "score") else 50.0,
-                getattr(lead, "found_at", datetime.now(timezone.utc).isoformat()),
+                getattr(lead, "found_at", datetime.now(UTC).isoformat()),
                 getattr(lead, "email", ""),
                 getattr(lead, "phone", ""),
                 getattr(lead, "notes", ""),
@@ -80,7 +81,9 @@ def _persist_lead(lead: LeadResult) -> None:
 async def launch_outreach_swarm(req: OutreachSwarmRequest):
     """Launch an outreach swarm campaign and persist it for tracking."""
     campaign_id = uuid.uuid4().hex[:12]
-    swarm_agents = [
+    # Heterogeneous values: some entries carry an int (targets) or a list
+    # (channels), so the element type is Any, not str.
+    swarm_agents: list[dict[str, Any]] = [
         {"agent": "Lead Ingestion Agent", "status": "active", "targets": req.target_count},
         {"agent": "Personalization Agent", "status": "active", "channels": req.channels},
         {"agent": "Sequencing Agent", "status": "active", "sequences": 7},
@@ -104,7 +107,7 @@ async def launch_outreach_swarm(req: OutreachSwarmRequest):
                 ",".join(req.channels),
                 active_count,
                 req.target_count * len(req.channels),
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ))
             conn.commit()
     except Exception as e:
@@ -117,7 +120,7 @@ async def launch_outreach_swarm(req: OutreachSwarmRequest):
         "agents_active": active_count,
         "swarm_agents": swarm_agents,
         "estimated_reach": req.target_count * len(req.channels),
-        "launched_at": datetime.now(timezone.utc).isoformat(),
+        "launched_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -153,8 +156,7 @@ async def run_talon_audit(req: TalonAuditRequest):
             tcpa_status = "WARNING"
             tcpa_details = "TCPA Warning: Mobile-length sample should include 'Reply STOP' instructions."
 
-        if not has_physical_address:
-            if can_spam_status == "PASS":
+        if not has_physical_address and can_spam_status == "PASS":
                 can_spam_status = "WARNING"
                 can_spam_details = "CAN-SPAM Warning: Message sample lacks a physical business address or PO Box reference."
 
@@ -188,7 +190,7 @@ async def run_talon_audit(req: TalonAuditRequest):
         "checks": checks,
         "violations": violations,
         "badge": badge,
-        "certified_at": datetime.now(timezone.utc).isoformat(),
+        "certified_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -239,7 +241,7 @@ async def get_crm_analytics():
                 "perplexity": getattr(engine, "has_perplexity_key", False) if engine else False,
             },
         },
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -260,7 +262,7 @@ async def sync_lead_to_pipeline(req: LeadSyncRequest):
         location=req.city or "",
         source=req.source,
         score=score,
-        found_at=datetime.now(timezone.utc).isoformat(),
+        found_at=datetime.now(UTC).isoformat(),
         email=req.email or "",
         phone=req.phone or "",
         notes=req.notes or "",
@@ -282,9 +284,9 @@ import json
 
 
 class CrmPushRequest(BaseModel):
-    lead_ids: List[str]
+    lead_ids: list[str]
     provider: str = "hubspot"
-    config: Optional[dict] = None
+    config: dict | None = None
 
 
 @router.post("/push")
@@ -296,21 +298,21 @@ async def push_leads_to_crm(req: CrmPushRequest):
     if provider not in ("hubspot", "gohighlevel", "pipedrive", "salesforce", "zoho"):
         raise HTTPException(400, f"Unsupported CRM provider: {provider}")
     leads = [engine._leads.get(lid) for lid in req.lead_ids]
-    leads = [l for l in leads if l is not None]
+    leads = [lead for lead in leads if lead is not None]
     if not leads:
         raise HTTPException(404, "No valid leads found for given IDs")
     lead_dicts = []
-    for l in leads:
+    for lead in leads:
         d = {
-            "id": l.id,
-            "title": getattr(l, "title", ""),
-            "name": getattr(l, "name", ""),
-            "email": getattr(l, "email", ""),
-            "phone": getattr(l, "phone", ""),
-            "source": getattr(l, "source", ""),
-            "score": float(getattr(l, "score", LeadScore(50)).total),
-            "notes": getattr(l, "notes", ""),
-            "company": getattr(l, "company", getattr(l, "business_name", "")),
+            "id": lead.id,
+            "title": getattr(lead, "title", ""),
+            "name": getattr(lead, "name", ""),
+            "email": getattr(lead, "email", ""),
+            "phone": getattr(lead, "phone", ""),
+            "source": getattr(lead, "source", ""),
+            "score": float(getattr(lead, "score", LeadScore(50)).total),
+            "notes": getattr(lead, "notes", ""),
+            "company": getattr(lead, "company", getattr(lead, "business_name", "")),
         }
         lead_dicts.append(d)
 

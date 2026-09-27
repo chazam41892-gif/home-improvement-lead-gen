@@ -47,7 +47,11 @@ class TradeLeadDiscovery:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for result in results:
-            if isinstance(result, Exception):
+            # gather(return_exceptions=True) types each element as list[TradeLead]
+            # | BaseException; the Exception arm already `continue`s, so anything
+            # left that is still not a list is a non-Exception BaseException
+            # (CancelledError) and must not be iterated.
+            if not isinstance(result, list):
                 logger.warning("Platform search failed: %s", result)
                 continue
             for lead in result:
@@ -109,7 +113,6 @@ class TradeLeadDiscovery:
     def get_leads_for_trade(self, trade: str, location: str = "") -> list[TradeLead]:
         combined = []
         for key, leads in self._results.items():
-            if key.startswith(f"{trade}:"):
-                if not location or location in key:
-                    combined.extend(leads)
+            if key.startswith(f"{trade}:") and (not location or location in key):
+                combined.extend(leads)
         return combined

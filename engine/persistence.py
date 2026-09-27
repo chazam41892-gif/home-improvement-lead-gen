@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ def save_leads(leads: dict) -> int:
 
 def load_leads(engine=None) -> dict:
     from engine.database import Database
-    leads = {}
+    # Values are LeadResult objects on the primary path and plain dicts on the
+    # legacy schema-drift fallback further down, so the value type is a union.
+    leads: dict[str, Any] = {}
     try:
         with Database.get_connection() as conn:
             cursor = conn.execute("SELECT * FROM leads")

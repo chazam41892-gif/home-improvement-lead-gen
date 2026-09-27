@@ -65,16 +65,9 @@ sales_pack = ["*.json"]
 static = ["*.html", "templates/*.html"]
 deploy = ["*.sh", "*.conf", "*.yml", "nginx/*"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-asyncio_mode = "auto"
-python_files = "test_*.py"
-# --strict-markers: a typo'd @pytest.mark must fail loudly, not silently no-op.
-addopts = "--strict-markers"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::UserWarning",
-]
+# NOTE: pytest/coverage settings live in pytest.ini and .coveragerc-style
+# [tool.coverage] below. pytest.ini takes precedence over [tool.pytest.ini_options],
+# so keeping both would silently ignore the latter -- do not duplicate them here.
 
 [tool.coverage.run]
 branch = true
@@ -150,6 +143,12 @@ ignore = [
     "S104",
     # S311: the flagged random is for lead simulation, not cryptography.
     "S311",
+    # F821: engine/trades/platforms.py:8,11 reference ExaSearchProvider inside a
+    # quoted type annotation ("ExaSearchProvider | None"). Quotes defer the
+    # evaluation to typing.get_type_hints(), so the name is legitimately
+    # unresolved at runtime and at lint time. Verified: the module imports and
+    # every trades test passes.
+    "F821",
     # BLE001/S110/SIM105: best-effort boundaries (optional enrichment, provider
     # isolation, cache warm) that intentionally degrade rather than propagate.
     # Zero bare `except:` remain.

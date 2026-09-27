@@ -1,8 +1,9 @@
-import os
+from typing import Any
+
 import httpx
-from typing import Dict, Any
 
 from engine.key_vault import KeyVault
+
 
 def _headers():
     token = KeyVault.get("crmx_api_key") or ""
@@ -13,7 +14,7 @@ def _headers():
         "Version": "2021-07-28",
     }
 
-async def upsert_contact(lead: Dict[str, Any]) -> Dict[str, Any]:
+async def upsert_contact(lead: dict[str, Any]) -> dict[str, Any]:
     base = (KeyVault.get("crmx_base_url") or "https://services.leadconnectorhq.com").rstrip("/")
     location_id = KeyVault.get("crmx_location_id") or ""
     url = f"{base}/contacts/"  # placeholder; replace with your tenant's endpoint

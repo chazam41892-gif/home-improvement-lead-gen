@@ -3,12 +3,11 @@ CRMTools — Customer Relationship Management for Metanoia Unlimited
 CRM+ Integration for lead management, sales tracking, customer support
 """
 
-import asyncio
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-import json
+from typing import Any
 
 logger = logging.getLogger("talon.crm")
 
@@ -18,18 +17,18 @@ class CRMTools:
     CRM+ System for Metanoia Unlimited LLC
     Complete customer lifecycle management
     """
-    
+
     def __init__(self, db_path: str = "./data/crm"):
         self.db_path = db_path
-        self.leads = []
-        self.customers = []
-        self.interactions = []
-        self.opportunities = []
-        
-    async def create_lead(self, name: str, email: str, source: str, 
-                         phone: Optional[str] = None, company: Optional[str] = None) -> Dict:
+        self.leads: list[dict[str, Any]] = []
+        self.customers: list[dict[str, Any]] = []
+        self.interactions: list[dict[str, Any]] = []
+        self.opportunities: list[dict[str, Any]] = []
+
+    async def create_lead(self, name: str, email: str, source: str,
+                         phone: str | None = None, company: str | None = None) -> dict:
         """Create a new lead"""
-        lead = {
+        lead: dict[str, Any] = {
             'id': f"LEAD-{len(self.leads)+1:05d}",
             'name': name,
             'email': email,
@@ -45,8 +44,8 @@ class CRMTools:
         self.leads.append(lead)
         logger.info(f"Created lead: {name} ({email})")
         return {'success': True, 'lead': lead}
-    
-    async def qualify_lead(self, lead_id: str, score: int, status: str) -> Dict:
+
+    async def qualify_lead(self, lead_id: str, score: int, status: str) -> dict:
         """Qualify a lead with scoring"""
         for lead in self.leads:
             if lead['id'] == lead_id:
@@ -56,14 +55,14 @@ class CRMTools:
                     lead['status'] = 'qualified'
                 return {'success': True, 'lead': lead}
         return {'success': False, 'error': 'Lead not found'}
-    
-    async def convert_to_customer(self, lead_id: str, deal_value: float = 0.0) -> Dict:
+
+    async def convert_to_customer(self, lead_id: str, deal_value: float = 0.0) -> dict:
         """Convert qualified lead to customer"""
         for lead in self.leads:
             if lead['id'] == lead_id:
                 if lead['status'] != 'qualified':
                     return {'success': False, 'error': 'Lead not qualified'}
-                
+
                 customer = {
                     'id': f"CUST-{len(self.customers)+1:05d}",
                     'lead_id': lead_id,
@@ -84,10 +83,10 @@ class CRMTools:
                 logger.info(f"Converted lead to customer: {customer['name']}")
                 return {'success': True, 'customer': customer}
         return {'success': False, 'error': 'Lead not found'}
-    
+
     async def log_interaction(self, contact_id: str, contact_type: str,
                              interaction_type: str, notes: str,
-                             outcome: Optional[str] = None) -> Dict:
+                             outcome: str | None = None) -> dict:
         """Log customer/lead interaction"""
         interaction = {
             'id': f"INT-{len(self.interactions)+1:06d}",
@@ -99,18 +98,18 @@ class CRMTools:
             'timestamp': datetime.now().isoformat()
         }
         self.interactions.append(interaction)
-        
+
         # Update last contact
         for lead in self.leads:
             if lead['id'] == contact_id:
                 lead['last_contact'] = interaction['timestamp']
                 lead['notes'].append(notes)
                 break
-        
+
         return {'success': True, 'interaction': interaction}
-    
+
     async def create_opportunity(self, customer_id: str, name: str,
-                                  value: float, stage: str = 'prospecting') -> Dict:
+                                  value: float, stage: str = 'prospecting') -> dict:
         """Create sales opportunity"""
         opportunity = {
             'id': f"OPP-{len(self.opportunities)+1:05d}",
@@ -125,7 +124,7 @@ class CRMTools:
         }
         self.opportunities.append(opportunity)
         return {'success': True, 'opportunity': opportunity}
-    
+
     def _stage_probability(self, stage: str) -> int:
         """Get probability for stage"""
         probabilities = {
@@ -137,8 +136,8 @@ class CRMTools:
             'closed_lost': 0
         }
         return probabilities.get(stage, 10)
-    
-    async def update_opportunity_stage(self, opp_id: str, new_stage: str) -> Dict:
+
+    async def update_opportunity_stage(self, opp_id: str, new_stage: str) -> dict:
         """Update opportunity stage"""
         for opp in self.opportunities:
             if opp['id'] == opp_id:
@@ -148,8 +147,8 @@ class CRMTools:
                     await self._process_win(opp)
                 return {'success': True, 'opportunity': opp}
         return {'success': False, 'error': 'Opportunity not found'}
-    
-    async def _process_win(self, opportunity: Dict):
+
+    async def _process_win(self, opportunity: dict):
         """Process won opportunity"""
         # Update customer lifetime value
         for customer in self.customers:
@@ -158,13 +157,13 @@ class CRMTools:
                 customer['last_purchase'] = datetime.now().isoformat()
                 logger.info(f"Deal won: ${opportunity['value']} from {customer['name']}")
                 break
-    
-    async def get_pipeline(self) -> Dict:
+
+    async def get_pipeline(self) -> dict:
         """Get sales pipeline overview"""
         pipeline = {}
         total_value = 0
         weighted_value = 0
-        
+
         for opp in self.opportunities:
             stage = opp['stage']
             if stage not in pipeline:
@@ -173,7 +172,7 @@ class CRMTools:
             pipeline[stage]['value'] += opp['value']
             total_value += opp['value']
             weighted_value += opp['value'] * (opp['probability'] / 100)
-        
+
         return {
             'success': True,
             'pipeline': pipeline,
@@ -181,14 +180,14 @@ class CRMTools:
             'weighted_value': weighted_value,
             'active_opportunities': len([o for o in self.opportunities if o['stage'] not in ['closed_won', 'closed_lost']])
         }
-    
-    async def get_dashboard(self) -> Dict:
+
+    async def get_dashboard(self) -> dict:
         """Get CRM dashboard metrics"""
-        active_leads = len([l for l in self.leads if l['status'] == 'new'])
-        qualified_leads = len([l for l in self.leads if l['status'] == 'qualified'])
+        active_leads = len([lead for lead in self.leads if lead['status'] == 'new'])
+        qualified_leads = len([lead for lead in self.leads if lead['status'] == 'qualified'])
         customers = len(self.customers)
         total_revenue = sum(c['lifetime_value'] for c in self.customers)
-        
+
         return {
             'success': True,
             'metrics': {
@@ -197,12 +196,12 @@ class CRMTools:
                 'customers': customers,
                 'total_revenue': total_revenue,
                 'opportunities': len(self.opportunities),
-                'interactions_today': len([i for i in self.interactions 
+                'interactions_today': len([i for i in self.interactions
                                           if i['timestamp'].startswith(datetime.now().strftime('%Y-%m-%d'))])
             }
         }
-    
-    async def ai_lead_scoring(self, lead_id: str) -> Dict:
+
+    async def ai_lead_scoring(self, lead_id: str) -> dict:
         """AI-powered lead scoring"""
         for lead in self.leads:
             if lead['id'] == lead_id:
@@ -216,17 +215,17 @@ class CRMTools:
                     score += 25
                 if lead['source'] in ['referral', 'organic']:
                     score += 20
-                
+
                 lead['score'] = min(100, score)
-                
+
                 # Auto-qualify high scores
                 if lead['score'] >= 70:
                     lead['status'] = 'qualified'
-                
+
                 return {'success': True, 'lead': lead, 'score': lead['score']}
         return {'success': False, 'error': 'Lead not found'}
-    
-    async def export_data(self, format: str = 'json') -> Dict:
+
+    async def export_data(self, format: str = 'json') -> dict:
         """Export CRM data"""
         data = {
             'leads': self.leads,
@@ -235,12 +234,12 @@ class CRMTools:
             'opportunities': self.opportunities,
             'exported_at': datetime.now().isoformat()
         }
-        
+
         if format == 'json':
             export_path = f"./exports/crm_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             Path(export_path).parent.mkdir(parents=True, exist_ok=True)
             with open(export_path, 'w') as f:
                 json.dump(data, f, indent=2)
             return {'success': True, 'path': export_path}
-        
+
         return {'success': True, 'data': data}

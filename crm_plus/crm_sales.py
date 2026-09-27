@@ -1,8 +1,7 @@
 """CRM & Sales integrations — 50 manifests."""
 from __future__ import annotations
 
-from leviathantalon_catalog.integrations.base import AuthScheme, manifest, IntegrationManifest
-from typing import List
+from leviathantalon_catalog.integrations.base import AuthScheme, IntegrationManifest, manifest
 
 
 def _bearer(env: str) -> AuthScheme:
@@ -794,7 +793,7 @@ _gong_io = manifest(
 )
 
 
-ALL_CRM_SALES_INTEGRATIONS: List[IntegrationManifest] = [
+ALL_CRM_SALES_INTEGRATIONS: list[IntegrationManifest] = [
     _salesforce,
     _hubspot,
     _pipedrive,

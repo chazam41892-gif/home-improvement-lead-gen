@@ -30,6 +30,17 @@ HEADERS = {
     "Connection": "keep-alive",
 }
 
+def _attr_str(value: object) -> str:
+    """Narrow a BeautifulSoup attribute value to str.
+
+    bs4 types ``tag[key]`` as ``str | AttributeValueList`` because a handful of
+    HTML attributes (class, rel, headers, ...) are whitespace-separated lists.
+    Every attribute read here is href, which is never multi-valued, so this is
+    a pure typing narrowing: a str passes through as the same object.
+    """
+    return value if isinstance(value, str) else str(value)
+
+
 class BrowserSearchProvider(SearchProvider):
     name = "browser"
 
@@ -37,7 +48,9 @@ class BrowserSearchProvider(SearchProvider):
         super().__init__(api_key=api_key, timeout=timeout)
         self.playwright_available = False
         try:
-            from playwright.async_api import async_playwright
+            # Availability probe, not a use: importing the symbol proves the
+            # package is installed. Annotated so the intent survives lint.
+            from playwright.async_api import async_playwright as _  # noqa: F401
             self.playwright_available = True
         except ImportError:
             pass
@@ -103,7 +116,7 @@ class BrowserSearchProvider(SearchProvider):
             snippet_el = r.find("a", class_="result__snippet")
 
             title = a.get_text(strip=True) if a else ""
-            href = a["href"] if a else ""
+            href = _attr_str(a["href"]) if a else ""
             snippet = snippet_el.get_text(strip=True) if snippet_el else ""
 
             if not href or not title:
@@ -180,7 +193,7 @@ class BrowserSearchProvider(SearchProvider):
         desc = ""
         meta_desc = soup.find("meta", attrs={"name": "description"})
         if meta_desc and meta_desc.get("content"):
-            desc = meta_desc.get("content")
+            desc = _attr_str(meta_desc.get("content"))
         else:
             # Fallback: extract first couple of paragraphs
             paragraphs = [p.get_text(strip=True) for p in soup.find_all("p") if len(p.get_text(strip=True)) > 20]
@@ -194,10 +207,11 @@ class BrowserSearchProvider(SearchProvider):
         # Look for contact or about links to crawl as a secondary page
         contact_url = None
         for a in soup.find_all("a", href=True):
-            href = a["href"].lower()
+            raw_href = _attr_str(a["href"])
+            href = raw_href.lower()
             text = a.get_text(strip=True).lower()
             if any(k in href or k in text for k in ("contact", "about", "info", "services", "contact-us", "about-us")):
-                contact_url = urllib.parse.urljoin(url, a["href"])
+                contact_url = urllib.parse.urljoin(url, raw_href)
                 break
 
         if contact_url and contact_url != url:
@@ -234,15 +248,16 @@ class BrowserSearchProvider(SearchProvider):
         addresses = list(set(STREET_RE.findall(temp_text)))
 
         # Extract social links
-        social_links = {}
+        social_links: dict[str, str] = {}
         for a in soup.find_all("a", href=True):
-            href = a["href"].lower()
+            raw_href = _attr_str(a["href"])
+            href = raw_href.lower()
             if "facebook.com/" in href:
-                social_links["facebook"] = a["href"]
+                social_links["facebook"] = raw_href
             elif "instagram.com/" in href:
-                social_links["instagram"] = a["href"]
+                social_links["instagram"] = raw_href
             elif "linkedin.com/" in href:
-                social_links["linkedin"] = a["href"]
+                social_links["linkedin"] = raw_href
 
         return {
             "email": emails[0] if emails else "",

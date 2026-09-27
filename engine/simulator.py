@@ -39,7 +39,6 @@ class CampaignSimulator:
         projected_cpl = round(cpl_ceiling * loc_mult * budget_scale, 2)
 
         monthly_spend = daily_budget * 30
-        simulated_leads = int(monthly_spend / max(10.0, projected_cpl))
 
         # 4. Run daily stochastic simulation for 30 days
         total_leads = 0

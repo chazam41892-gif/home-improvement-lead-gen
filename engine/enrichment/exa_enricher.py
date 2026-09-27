@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from ..key_vault import KeyVault
 from .base import EnrichmentProvider, EnrichmentResult
+
+if TYPE_CHECKING:  # lazy at runtime (see _get_exa) — typing only, no import cost
+    from ..search.exa import ExaSearchProvider
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +26,9 @@ class ExaEnricher(EnrichmentProvider):
 
     def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
-        self._exa = None
+        self._exa: ExaSearchProvider | None = None
 
-    def _get_exa(self):
+    def _get_exa(self) -> ExaSearchProvider | None:
         if self._exa is not None:
             return self._exa
         from ..search.exa import ExaSearchProvider
@@ -63,7 +66,10 @@ class ExaEnricher(EnrichmentProvider):
     async def enrich(self, business_name: str, trade: str,
                      location: str | None = None,
                      website: str | None = None,
+                     phone: str | None = None,
                      **kwargs) -> EnrichmentResult:
+        # `phone` is declared for LSP compliance with EnrichmentProvider.enrich
+        # (this provider resolves a website, not a phone number).
         result = EnrichmentResult(business_name=business_name, trade=trade)
         exa = self._get_exa()
         if not exa:

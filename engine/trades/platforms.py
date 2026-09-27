@@ -21,7 +21,6 @@ def _get_provider():
 
 
 async def search_google_maps(trade: str, location: str, max_results: int = 25) -> list[TradeLead]:
-    base_query = f"{trade} {location}"
     leads = []
     seen = set()
     queries = [
@@ -327,7 +326,6 @@ async def search_apollo(trade: str, location: str, max_results: int = 25) -> lis
             if name in seen:
                 continue
             seen.add(name)
-            contact_name = " ".join(filter(None, [person.get("first_name", ""), person.get("last_name", "")]))
             lead = TradeLead(
                 business_name=name,
                 website=org.get("primary_domain") or org.get("website_url") or "",

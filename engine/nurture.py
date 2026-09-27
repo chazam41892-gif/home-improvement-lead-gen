@@ -442,9 +442,8 @@ class NurtureEngine:
         for seq in self._sequences.values():
             if seq.completed:
                 continue
-            if seq.current_step < len(seq.actions):
-                if not seq.actions[seq.current_step].get("sent"):
-                    pending += 1
+            if seq.current_step < len(seq.actions) and not seq.actions[seq.current_step].get("sent"):
+                pending += 1
         return {
             "total_sequences": total,
             "active": active,

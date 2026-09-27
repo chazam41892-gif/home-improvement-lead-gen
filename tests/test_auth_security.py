@@ -127,6 +127,12 @@ def test_configured_constants():
 
 
 # ── password hashing ────────────────────────────────────────────────────────
+# bcrypt's own base64 alphabet, per the OpenBSD reference implementation.
+_BCRYPT_ALPHABET = set(
+    "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+)
+
+
 def test_hash_password_is_bcrypt_not_plaintext():
     pw = "hunter2-plaintext-should-never-appear"
     h = _hash_password(pw)
@@ -135,7 +141,20 @@ def test_hash_password_is_bcrypt_not_plaintext():
     # the hash carries only bcrypt salt+digest structure — no fragment of the
     # password survives, and it round-trips only through bcrypt.checkpw
     assert h[7:29] != pw[:22] and h[29:] != pw
-    assert _verify_password(pw, h) and pw not in _b64decode(h.replace("$2b$12$", ""))
+    assert _verify_password(pw, h)
+
+    # The plaintext must not be recoverable from the stored material.
+    # Note: this does NOT decode the hash as base64. bcrypt uses its own
+    # alphabet (./A-Za-z0-9) and a 53-character body, which is not a valid
+    # standard-base64 length -- decoding it raised binascii.Error
+    # intermittently depending on the random salt, making the suite flaky.
+    # Searching the raw string is the correct, deterministic assertion.
+    body = h.split("$")[-1]
+    assert pw not in body
+    assert all(ch in _BCRYPT_ALPHABET for ch in body), "unexpected chars in bcrypt body"
+    # Two hashes of the same password differ (salted), so the stored value is
+    # not a deterministic encoding of the plaintext.
+    assert _hash_password(pw) != h
 
 
 def test_verify_password_accepts_right_and_rejects_wrong():

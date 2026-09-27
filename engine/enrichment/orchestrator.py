@@ -30,7 +30,7 @@ class EnrichmentRouter:
 
     def rank_providers(self, providers: list[EnrichmentProvider],
                        input_fields: set) -> list[ProviderRoute]:
-        scored = []
+        scored: list[ProviderRoute] = []
         for p in providers:
             score = p.suitability_score(input_fields)
             priority_boost = max(0, (10 - p.priority)) / 10.0
@@ -61,7 +61,7 @@ class EnrichmentRouter:
 
 class EnrichOrchestrator:
     def __init__(self, routing_mode: str = "parallel"):
-        self.providers = []
+        self.providers: list[EnrichmentProvider] = []
         self.routing_mode = routing_mode
         self.router = EnrichmentRouter()
         self._provider_enabled: dict[str, bool] = {}
@@ -237,7 +237,12 @@ class EnrichOrchestrator:
         if fields > 0:
             result.confidence = max(result.confidence, round(filled / fields, 2))
 
-    async def enrich_batch(self, leads: list[dict[str, Any]]) -> list[EnrichmentResult]:
+    async def enrich_batch(self, leads: list[dict[str, Any]]) -> list[EnrichmentResult | BaseException]:
+        # return_exceptions=True means a lead that raised comes back as the
+        # exception object, not a result. Callers already branch on
+        # isinstance(r, EnrichmentResult) to render those as error rows
+        # (main.py /api/enrich/batch), so the annotation states what is
+        # actually returned rather than the result type this can never satisfy.
         return await asyncio.gather(
             *(self.enrich(**lead) for lead in leads),
             return_exceptions=True,

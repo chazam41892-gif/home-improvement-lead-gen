@@ -15,6 +15,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -129,9 +130,9 @@ class KeyVault:
         if uv:
             # Load from unified vault
             all_svcs = uv.list_all()
-            for svc_id, info in all_svcs.items():
+            for _svc_id, info in all_svcs.items():
                 if info["configured"]:
-                    for k in info["keys"]:
+                    for _k in info["keys"]:
                         # We don't have the raw key from list_all (masked only),
                         # so we load env keys here and vault keys on-demand via get()
                         pass
@@ -187,11 +188,16 @@ class KeyVault:
         return None
 
     @classmethod
-    def list(cls) -> dict[str, list]:
+    def list(cls) -> dict[str, dict[str, Any]]:
+        """Describe every known service. Value is a per-service info dict
+        (doc/url/env_var/configured/keys), NOT a list -- `keys` is the list.
+        The old `dict[str, list]` annotation was simply wrong and contradicted
+        both the two `return result` statements below and its only caller
+        (`GET /api/vault/keys` -> KeyVault.list()) and every test."""
         uv = _get_unified()
         if uv:
             all_svcs = uv.list_all()
-            result = {}
+            result: dict[str, dict[str, Any]] = {}
             for svc_id, info in all_svcs.items():
                 if svc_id in SERVICE_KEYS:
                     result[svc_id] = {

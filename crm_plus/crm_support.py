@@ -1,5 +1,5 @@
 """CRM + Support + Help-desk integrations."""
-from ..base import manifest, AuthScheme
+from ..base import AuthScheme, manifest
 
 MANIFESTS = [
     manifest("hubspot", "https://api.hubapi.com",

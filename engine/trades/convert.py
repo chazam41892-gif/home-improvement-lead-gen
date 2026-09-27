@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Any
 
 from engine.database import Database
 
@@ -33,7 +34,7 @@ class ConversionPipeline:
         Convert a trade lead into a paying account.
         Returns account record with lead → account → payment info.
         """
-        account = {
+        account: dict[str, Any] = {
             "account_id": f"acc_{lead.id}",
             "lead_id": lead.id,
             "business_name": lead.business_name,

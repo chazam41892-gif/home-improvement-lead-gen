@@ -507,7 +507,6 @@ class AdCopyGenerator:
         base = industry
         loc = location
         loc_prefix = f"{loc} " if loc else ""
-        loc_suffix = f" in {loc}" if loc else ""
 
         service_terms = [
             f"{base} services",

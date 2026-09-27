@@ -112,6 +112,20 @@ def _require_user(request: Request) -> dict[str, Any]:
     return user
 
 
+async def _request_body(request: Request) -> dict[str, Any]:
+    """Parse a JSON or form request body into a plain dict.
+
+    These endpoints serve two callers: `fetch(..., {json: ...})` and the plain
+    HTML forms in this module (method="POST", no enctype). The value type is
+    therefore genuinely heterogeneous — a JSON body carries arbitrary scalars
+    and a multipart body could carry an UploadFile — so callers read values
+    through `.get()` and keep their existing coercion and validation.
+    """
+    if request.headers.get("content-type", "").startswith("application/json"):
+        return await request.json()
+    return dict(await request.form())
+
+
 # ───────────────────────────── Portal pages
 
 @router.get("/", response_class=HTMLResponse)
@@ -483,11 +497,11 @@ async def google_callback(request: Request):
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(token_url, data=data)
-            if resp.status_code != 200:
-                logger.error("Failed to exchange Google OAuth code: %s", resp.text)
-                raise HTTPException(status_code=400, detail=f"Google token exchange failed: {resp.text[:200]}")
-            token_data = resp.json()
+            token_resp = await client.post(token_url, data=data)
+            if token_resp.status_code != 200:
+                logger.error("Failed to exchange Google OAuth code: %s", token_resp.text)
+                raise HTTPException(status_code=400, detail=f"Google token exchange failed: {token_resp.text[:200]}")
+            token_data = token_resp.json()
             access_token = token_data.get("access_token")
 
             userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo"
@@ -532,7 +546,7 @@ async def google_callback(request: Request):
 
 @router.post("/api/register")
 async def api_register(request: Request):
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else dict(await request.form())
+    body = await _request_body(request)
     try:
         result = auth_manager.register(
             email=body.get("email", ""),
@@ -550,7 +564,7 @@ async def api_register(request: Request):
 
 @router.post("/api/login")
 async def api_login(request: Request):
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else dict(await request.form())
+    body = await _request_body(request)
     try:
         result = auth_manager.login(
             email=body.get("email", ""),
@@ -571,7 +585,7 @@ async def api_login(request: Request):
 @router.post("/api/subscribe")
 async def api_subscribe(request: Request):
     user = _require_user(request)
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else dict(await request.form())
+    body = await _request_body(request)
     plan = body.get("plan", "")
     module_id = body.get("module_id", "leadgen")
 
@@ -625,12 +639,15 @@ async def api_modules(request: Request):
 @router.post("/api/capture")
 async def api_capture(request: Request):
     """Public lead capture form → normalized lead → CRM webhook."""
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else dict(await request.form())
+    body = await _request_body(request)
 
     lead_id = uuid.uuid4().hex[:12]
     now = datetime.now(UTC).isoformat()
 
-    lead = {
+    # Values come from an unvalidated request body (JSON scalars or form
+    # strings), so the lead is deliberately typed as a plain value bag rather
+    # than a union of every shape body.get() can return. Consumers coerce.
+    lead: dict[str, Any] = {
         "lead_id": lead_id,
         "source": body.get("source", "growth_portal"),
         "capture_timestamp": now,

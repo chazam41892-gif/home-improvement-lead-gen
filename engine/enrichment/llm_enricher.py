@@ -23,8 +23,8 @@ class LLMEnricher(EnrichmentProvider):
 
     def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
-        self._provider = None
-        self._api_key = None
+        self._provider: str | None = None
+        self._api_key: str | None = None
 
     def is_available(self) -> bool:
         return bool(KeyVault.get("anthropic") or KeyVault.get("openai"))
@@ -49,7 +49,11 @@ class LLMEnricher(EnrichmentProvider):
 
     async def _call_llm(self, system: str, prompt: str) -> str | None:
         self._setup()
-        if not self._provider:
+        # _provider is only ever set in a branch that also assigns a truthy
+        # _api_key, so this guard is a no-op on every reachable path; it exists
+        # to narrow the optional key for the header dicts below.
+        api_key = self._api_key
+        if not self._provider or not api_key:
             return None
 
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -65,7 +69,7 @@ class LLMEnricher(EnrichmentProvider):
                         ANTHROPIC_URL,
                         json=body,
                         headers={
-                            "x-api-key": self._api_key,
+                            "x-api-key": api_key,
                             "anthropic-version": "2023-06-01",
                         },
                     )
@@ -90,7 +94,7 @@ class LLMEnricher(EnrichmentProvider):
                         OPENAI_URL,
                         json=body,
                         headers={
-                            "Authorization": f"Bearer {self._api_key}",
+                            "Authorization": f"Bearer {api_key}",
                         },
                     )
                     resp.raise_for_status()
@@ -105,8 +109,12 @@ class LLMEnricher(EnrichmentProvider):
     async def enrich(self, business_name: str, trade: str,
                      location: str | None = None,
                      website: str | None = None,
+                     phone: str | None = None,
                      raw_text: str | None = None,
                      **kwargs) -> EnrichmentResult:
+        # `phone` is declared for LSP compliance with EnrichmentProvider.enrich
+        # (this provider reads raw page text, not a caller-supplied phone).
+        # `raw_text` is provider-specific and must follow the base's parameters.
         result = EnrichmentResult(business_name=business_name, trade=trade)
         if not self.is_available():
             result.error = "No LLM API key configured (anthropic or openai)"

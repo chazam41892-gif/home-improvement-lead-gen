@@ -95,7 +95,11 @@ class ApolloEnricher(EnrichmentProvider):
     async def enrich(self, business_name: str, trade: str,
                      location: str | None = None,
                      website: str | None = None,
+                     phone: str | None = None,
                      **kwargs) -> EnrichmentResult:
+        # `phone` is declared to match EnrichmentProvider.enrich. Without it the
+        # subclass signature was incompatible with the supertype and callers
+        # passing a phone had it silently absorbed into **kwargs.
         result = EnrichmentResult(business_name=business_name, trade=trade)
         if not self._get_key():
             result.error = "Apollo API key not configured"

@@ -5,6 +5,7 @@ import os
 from datetime import UTC, datetime
 
 import stripe
+from stripe.params.checkout import SessionCreateParamsLineItem
 
 from engine.key_vault import KeyVault
 
@@ -179,6 +180,11 @@ class StripeIntegration:
 
         price_id = self._price_ids.get(plan, "")
 
+        # Typed against the SDK's own TypedDict so the inline-price shape is
+        # checked at compile time. Runtime value is byte-identical to the plain
+        # dict literal it replaces; the two branches are mutually exclusive, so
+        # the declared type has to be the shared supertype of both.
+        line_item: SessionCreateParamsLineItem
         if price_id:
             line_item = {"price": price_id, "quantity": 1}
         else:
@@ -326,13 +332,32 @@ class StripeIntegration:
                     return {"status": "incomplete", "account_id": account_id}
                 try:
                     sub = stripe.Subscription.retrieve(sub_id)
+                    # current_period_start/end moved from the Subscription object
+                    # to its first SubscriptionItem in Stripe API 2025-03-31 (SDK
+                    # pin: 2026-05-27.dahlia), so they are no longer declared on
+                    # Subscription. Read them version-agnostically via the same
+                    # accessor used for webhooks: item-level first, then the legacy
+                    # top-level field. Both keys stay in the response either way.
+                    g = _StripeAccessor(sub)
+                    # Subscription.items is a ListObject (payload under .data) in
+                    # stripe>=9, a bare list on old SDKs / dict payloads -- accept
+                    # both. The accessor already returns the default for a missing
+                    # key, so an absent/None .data collapses to an empty list.
+                    items = g("items")
+                    if isinstance(items, (list, tuple)):
+                        item_list = list(items)
+                    else:
+                        item_list = list(_StripeAccessor(items)("data") or [])
+                    first_item = _StripeAccessor(item_list[0] if item_list else None)
+                    period_start = first_item("current_period_start", g("current_period_start"))
+                    period_end = first_item("current_period_end", g("current_period_end"))
                     return {
                         "account_id": account_id,
                         "subscription_id": sub.id,
                         "status": sub.status,
                         "plan": m.get("plan", "unknown"),
-                        "current_period_start": sub.current_period_start,
-                        "current_period_end": sub.current_period_end,
+                        "current_period_start": period_start,
+                        "current_period_end": period_end,
                         "cancel_at_period_end": sub.cancel_at_period_end,
                     }
                 except stripe.error.StripeError as e:

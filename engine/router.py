@@ -236,7 +236,10 @@ class SmartRouter:
             tasks = [self._enrich_fn(lead) for lead in batch]
             import asyncio
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            for lead, result in zip(batch, results):
+            # strict=True: if enrich_fn ever returns a different number of
+            # results than inputs, that is a bug, and silently zipping would
+            # drop the unpaired leads without a trace.
+            for lead, result in zip(batch, results, strict=True):
                 if isinstance(result, dict):
                     lead["enriched"] = True
                     for k, v in result.items():
@@ -262,7 +265,9 @@ class SmartRouter:
             return leads
 
         scores = await self._llm_score_fn(to_score, provider=provider, model=model)
-        for lead, llm_result in zip(to_score, scores):
+        # strict=True: a short LLM score list would otherwise silently leave
+        # the remaining leads without an llm_score and look like a valid run.
+        for lead, llm_result in zip(to_score, scores, strict=True):
             lead["llm_score"] = llm_result.get("score", 0)
             lead["llm_rationale"] = llm_result.get("rationale", "")
             lead["llm_provider"] = provider

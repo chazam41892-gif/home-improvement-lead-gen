@@ -344,9 +344,13 @@ async def scrape_craigslist(queries: list[str], cities: list[str] | None = None)
                         link_el = item.select_one("a")
                         title = title_el.get_text(strip=True) if title_el else ""
                         if title:
+                            # BeautifulSoup's .get() is typed as
+                            # str | AttributeValueList | None, so narrow it
+                            # rather than passing a union into LeadSource.url.
+                            href = link_el.get("href") if link_el else None
                             results.append(LeadSource(
                                 source="craigslist", text=title,
-                                url=link_el.get("href", "") if link_el else "",
+                                url=str(href) if href else "",
                                 metadata={"city": city, "query": q}))
                 except Exception:
                     pass
@@ -415,9 +419,11 @@ async def scrape_tavily(queries: list[str], api_key: str = "") -> list[LeadSourc
 async def scrape_url(target_url: str) -> LeadSource | None:
     """Scrape a single URL for lead information."""
     try:
-        async with aiohttp.ClientSession(headers=_HEADERS) as session:
-            async with session.get(target_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                html = await resp.text()
+        async with (
+            aiohttp.ClientSession(headers=_HEADERS) as session,
+            session.get(target_url, timeout=aiohttp.ClientTimeout(total=15)) as resp,
+        ):
+            html = await resp.text()
         if _BS4:
             soup = BeautifulSoup(html, "html.parser")
             for tag in soup(["script", "style", "nav", "footer", "header"]):

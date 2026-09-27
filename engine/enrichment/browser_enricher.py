@@ -30,6 +30,18 @@ HEADERS = {
     "Connection": "keep-alive",
 }
 
+
+def _attr_str(value: object) -> str:
+    """Narrow a BeautifulSoup attribute value to str.
+
+    bs4 types ``tag[key]`` as ``str | AttributeValueList`` because a handful of
+    HTML attributes (class, rel, headers, ...) are whitespace-separated lists.
+    Every attribute read here is href/content, which is never multi-valued, so
+    this is a pure typing narrowing: a str passes through as the same object.
+    """
+    return value if isinstance(value, str) else str(value)
+
+
 class BrowserEnricher(EnrichmentProvider):
     name = "browser_enricher"
     input_preferences = ["website", "business_name", "location"]
@@ -40,7 +52,9 @@ class BrowserEnricher(EnrichmentProvider):
         super().__init__(config)
         self.playwright_available = False
         try:
-            from playwright.async_api import async_playwright
+            # Availability probe, not a use: importing the symbol proves the
+            # package is installed. Annotated so the intent survives lint.
+            from playwright.async_api import async_playwright as _  # noqa: F401
             self.playwright_available = True
         except ImportError:
             pass
@@ -66,7 +80,7 @@ class BrowserEnricher(EnrichmentProvider):
                 a = r.find("a", class_="result__url")
                 if not a:
                     continue
-                href = a["href"]
+                href = _attr_str(a["href"])
                 # Resolve redirect
                 if href.startswith("//duckduckgo.com/l/?uddg="):
                     parsed = urlparse("https:" + href)
@@ -95,7 +109,10 @@ class BrowserEnricher(EnrichmentProvider):
     async def enrich(self, business_name: str, trade: str,
                       location: str | None = None,
                       website: str | None = None,
+                      phone: str | None = None,
                       **kwargs) -> EnrichmentResult:
+        # `phone` is declared for LSP compliance with EnrichmentProvider.enrich
+        # (a keyless scraper has no use for it). It is intentionally unused.
         result = EnrichmentResult(business_name=business_name, trade=trade)
 
         target_url = website
@@ -127,10 +144,11 @@ class BrowserEnricher(EnrichmentProvider):
         # Seek out contact or about page for secondary crawl
         secondary_url = None
         for a in soup.find_all("a", href=True):
-            href = a["href"].lower()
+            raw_href = _attr_str(a["href"])
+            href = raw_href.lower()
             text = a.get_text(strip=True).lower()
             if any(k in href or k in text for k in ("contact", "about", "info", "contact-us", "about-us")):
-                secondary_url = urllib.parse.urljoin(target_url, a["href"])
+                secondary_url = urllib.parse.urljoin(target_url, raw_href)
                 break
 
         if secondary_url and secondary_url != target_url:
@@ -195,13 +213,14 @@ class BrowserEnricher(EnrichmentProvider):
 
         # Extract social links
         for a in soup.find_all("a", href=True):
-            href = a["href"].lower()
+            raw_href = _attr_str(a["href"])
+            href = raw_href.lower()
             if "facebook.com/" in href and "facebook" not in result.social_links:
-                result.social_links["facebook"] = a["href"]
+                result.social_links["facebook"] = raw_href
             elif "instagram.com/" in href and "instagram" not in result.social_links:
-                result.social_links["instagram"] = a["href"]
+                result.social_links["instagram"] = raw_href
             elif "linkedin.com/" in href and "linkedin" not in result.social_links:
-                result.social_links["linkedin"] = a["href"]
+                result.social_links["linkedin"] = raw_href
 
         # Parse descriptions/about text as raw data snippet
         meta_desc = soup.find("meta", attrs={"name": "description"})

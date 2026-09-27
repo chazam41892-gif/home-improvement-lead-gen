@@ -222,7 +222,7 @@ class SignalStore:
             return
         updates["updated_at"] = time.time()
         clause = ", ".join(f"{key} = ?" for key in updates)
-        values = list(updates.values()) + [lead_id]
+        values = [*updates.values(), lead_id]
         with self._connect() as connection:
             connection.execute(f"UPDATE signal_leads SET {clause} WHERE id = ?", values)
 
@@ -362,8 +362,10 @@ class SignalStore:
     def update_content_draft(self, draft_id: int, status: str | None = None,
                              metrics: dict[str, Any] | None = None,
                              published_post_urn: str | None = None) -> dict[str, Any] | None:
-        fields = []
-        values = []
+        # values binds heterogeneous SQLite parameters (str, int, float),
+        # so it is a list[Any] rather than a list[str].
+        fields: list[str] = []
+        values: list[Any] = []
         if status is not None:
             fields.append("status = ?")
             values.append(status)

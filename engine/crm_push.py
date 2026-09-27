@@ -49,7 +49,12 @@ class CrmPush:
                     logger.warning(result["error"])
                     results.append(result)
                     continue
-                payload = {"properties": self._build_hubspot_properties(lead)}
+                # Annotate the FIRST `payload` binding in this function; the
+                # salesforce/zoho ones below inherit it. lead.get() returns Any,
+                # so without this mypy pins the first entry's value type to
+                # dict[Any, Any] and then rejects the union-valued (and, for
+                # zoho, list-valued) entries that follow.
+                payload: dict[str, Any] = {"properties": self._build_hubspot_properties(lead)}
                 try:
                     async with httpx.AsyncClient(timeout=10.0) as client:
                         resp = await client.post(

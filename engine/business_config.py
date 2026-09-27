@@ -44,7 +44,7 @@ class BusinessConfig:
                 try:
                     if expected in (int, float):
                         value = expected(value)
-                        if expected == float and value < 0:
+                        if expected is float and value < 0:
                             raise ValueError(f"{key} must be non-negative")
                 except (TypeError, ValueError):
                     raise ValueError(f"Invalid value for {key}: expected {expected.__name__}")

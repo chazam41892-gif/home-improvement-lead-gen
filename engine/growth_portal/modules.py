@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -21,8 +22,9 @@ class Module:
     tags: list[str] = field(default_factory=list)
     route_path: str = ""
     required_plans: list[str] = field(default_factory=list)
-    # Function(module_id, org_plan) -> bool
-    access_check: Callable[[str, str], bool] | None = None
+    # Function(module, org_plan) -> bool. The callable receives the Module
+    # itself (not its id) so custom checks can read min_plan/tags/any field.
+    access_check: Callable[[Module, str], bool] | None = None
 
 
 # Plan hierarchy (lower index = more access)
@@ -54,7 +56,7 @@ MODULE_REGISTRY: dict[str, Module] = {
 }
 
 
-def list_modules() -> list[dict[str, any]]:
+def list_modules() -> list[dict[str, Any]]:
     return [
         {
             "id": m.id,

@@ -137,8 +137,11 @@ def score_industry_relevance(title: str, snippet: str, target_industry: str | No
     for industry, keywords in INDUSTRY_KEYWORDS.items():
         match_count = sum(1 for kw in keywords if kw.lower() in combined)
         weight = INDUSTRY_WEIGHTS.get(industry, 0.5)
-        score = min(match_count * 20, 100) * weight
-        best_score = max(best_score, score)
+        # Distinct name: `score` above is bound to an int (min(...) of ints), so
+        # reusing it here for this float would be a type change, not a widening.
+        # float() documents that the int is immediately promoted by the multiply.
+        industry_score = float(min(match_count * 20, 100)) * weight
+        best_score = max(best_score, industry_score)
 
     return best_score
 

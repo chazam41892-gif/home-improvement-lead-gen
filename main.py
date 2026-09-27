@@ -771,7 +771,12 @@ async def capture_lead(data: dict[str, Any]):
         if lead_id:
             lead_obj = engine._leads.get(lead_id)
             if lead_obj:
-                lead_dict = lead_obj.as_dict() if hasattr(lead_obj, "as_dict") else lead_obj
+                # `Any` on purpose: `engine._leads` is annotated dict[str, LeadResult]
+                # but persistence.load_leads() and capture.py also park plain dicts
+                # and _CaptureLead objects in it, so the as_dict()/raw split below
+                # is load-bearing. Annotating the concrete union here would force a
+                # narrowing that changes which branch runs.
+                lead_dict: Any = lead_obj.as_dict() if hasattr(lead_obj, "as_dict") else lead_obj
                 lead_dict["business_name"] = business_config.get_config().get("business_name", "Our Business")
                 nurture.create_sequence(lead_dict)
                 logger.info("Nurture sequence created", extra={"lead_id": lead_id})
@@ -912,7 +917,9 @@ async def ads_platform_launch(data: dict[str, Any], request: Request):
 
     # daily_budget is now always normalised to DOLLARS above, so this is a plain
     # unit conversion with no heuristic.
-    budget_cents = int(round(float(daily_budget) * 100))
+    # round() with no ndigits already returns an int, so the outer int() was
+    # redundant.
+    budget_cents = round(float(daily_budget) * 100)
 
     copy = ads_gen.generate_ad_copy(
         industry=industry,
@@ -1264,7 +1271,12 @@ async def auth_me(request: Request):
 @app.get("/api/auth/api-keys")
 async def auth_list_keys(request: Request):
     verify_api_key(request)
+    # A caller presenting the server's own static API_KEY passes verify_api_key
+    # but never gets a request.state.user, so the .get() below raised
+    # AttributeError -> 500. 401 is the correct answer, as /api/auth/me already does.
     user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(401, "Not authenticated")
@@ -1274,7 +1286,10 @@ async def auth_list_keys(request: Request):
 @app.post("/api/auth/api-keys")
 async def auth_create_key(data: dict[str, Any], request: Request):
     verify_api_key(request)
+    # See auth_list_keys: no request.state.user (static server key) -> 401, not 500.
     user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     user_id = user.get("sub") or user.get("user_id")
     org_id = user.get("org_id")
     if not user_id or not org_id:
@@ -1287,7 +1302,10 @@ async def auth_create_key(data: dict[str, Any], request: Request):
 @app.delete("/api/auth/api-keys/{key_id}")
 async def auth_delete_key(key_id: str, request: Request):
     verify_api_key(request)
+    # See auth_list_keys: no request.state.user (static server key) -> 401, not 500.
     user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(401, "Not authenticated")
@@ -1300,7 +1318,10 @@ async def auth_delete_key(key_id: str, request: Request):
 @app.get("/api/auth/verticals")
 async def auth_list_verticals(request: Request):
     verify_api_key(request)
+    # See auth_list_keys: no request.state.user (static server key) -> 401, not 500.
     user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     org_id = user.get("org_id")
     if not org_id:
         raise HTTPException(401, "Not authenticated")
@@ -1310,7 +1331,10 @@ async def auth_list_verticals(request: Request):
 @app.post("/api/auth/verticals")
 async def auth_add_vertical(data: dict[str, Any], request: Request):
     verify_api_key(request)
+    # See auth_list_keys: no request.state.user (static server key) -> 401, not 500.
     user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     org_id = user.get("org_id")
     if not org_id:
         raise HTTPException(401, "Not authenticated")
@@ -1326,7 +1350,10 @@ async def auth_add_vertical(data: dict[str, Any], request: Request):
 @app.put("/api/auth/verticals/{vertical_id}")
 async def auth_update_vertical(vertical_id: str, data: dict[str, Any], request: Request):
     verify_api_key(request)
+    # See auth_list_keys: no request.state.user (static server key) -> 401, not 500.
     user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     org_id = user.get("org_id")
     if not org_id:
         raise HTTPException(401, "Not authenticated")
@@ -1339,7 +1366,10 @@ async def auth_update_vertical(vertical_id: str, data: dict[str, Any], request: 
 @app.delete("/api/auth/verticals/{vertical_id}")
 async def auth_delete_vertical(vertical_id: str, request: Request):
     verify_api_key(request)
+    # See auth_list_keys: no request.state.user (static server key) -> 401, not 500.
     user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     org_id = user.get("org_id")
     if not org_id:
         raise HTTPException(401, "Not authenticated")
@@ -1644,7 +1674,9 @@ async def enrich_batch(request: Request, routing_mode: str = "parallel"):
 
     results = await orch.enrich_batch(prepared)
     out = []
-    for lead, r in zip(prepared, results):
+    # strict=True: a short result list would silently drop the unpaired leads
+    # and still return HTTP 200, losing data with no signal.
+    for lead, r in zip(prepared, results, strict=True):
         if lead.get("_error"):
             out.append({"error": lead["_error"],
                         "business_name": lead.get("business_name", ""),

@@ -207,7 +207,13 @@ class LeadScoutEngine:
         else:
             if not self.has_exa_key:
                 return {"ok": False, "error": "Exa API key not configured. Add it in Settings.", "leads": [], "count": 0}
-            search_fn = self._exa.search
+            # has_exa_key already guarantees _exa is not None, but mypy cannot
+            # see that across the method boundary -- bind it locally so the
+            # invariant is checked once, at the point that actually needs it.
+            exa = self._exa
+            if exa is None:  # pragma: no cover - defensive, see has_exa_key
+                return {"ok": False, "error": "Exa API key not configured. Add it in Settings.", "leads": [], "count": 0}
+            search_fn = exa.search
             logger.info(f"Searching (Exa): {config.build_search_query()}")
 
         query = config.build_search_query()
